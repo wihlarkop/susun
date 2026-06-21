@@ -1,0 +1,13 @@
+[package]
+name = "marked-yaml-spike"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+marked-yaml = "0.8.0"
+
+[lints]
+workspace = true
