@@ -1,0 +1,18 @@
+[package]
+name = "susun"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+susun-loader     = { workspace = true }
+susun-validation = { workspace = true }
+susun-graph      = { workspace = true }
+susun-model      = { workspace = true }
+susun-diagnostics = { workspace = true }
+thiserror        = { workspace = true }
