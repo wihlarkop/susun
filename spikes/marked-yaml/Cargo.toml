@@ -1,13 +1,15 @@
 [package]
-name = "marked-yaml-spike"
+name = "saphyr-spike"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 authors.workspace = true
 license.workspace = true
 
-[dependencies]
-marked-yaml = "0.8.0"
-
 [lints]
 workspace = true
+
+[dependencies]
+saphyr = "0.0.6"
+saphyr-parser = "0.0.6"
+hashlink = "0.10"

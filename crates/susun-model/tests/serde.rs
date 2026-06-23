@@ -1,11 +1,13 @@
 //! Tests for feature-gated serde serialization of canonical model types.
 
-#![allow(clippy::unwrap_used)]
-
 #[cfg(feature = "serde")]
 mod with_serde {
+    use std::error::Error;
+
     use indexmap::IndexMap;
     use susun_model::{ImageRef, Project, ProjectName, Service, ServiceName};
+
+    type TestResult = Result<(), Box<dyn Error>>;
 
     fn one_service_project() -> Project {
         let mut services = IndexMap::new();
@@ -17,33 +19,37 @@ mod with_serde {
     }
 
     #[test]
-    fn project_serializes_to_json() {
+    fn project_serializes_to_json() -> TestResult {
         let project = one_service_project();
-        let json = serde_json::to_string_pretty(&project).unwrap();
+        let json = serde_json::to_string_pretty(&project)?;
         assert!(json.contains("\"name\": \"myapp\""));
         assert!(json.contains("\"web\""));
         assert!(json.contains("\"nginx:1.25\""));
+        Ok(())
     }
 
     #[test]
-    fn project_roundtrips_through_json() {
+    fn project_roundtrips_through_json() -> TestResult {
         let original = one_service_project();
-        let json = serde_json::to_string(&original).unwrap();
-        let restored: Project = serde_json::from_str(&json).unwrap();
+        let json = serde_json::to_string(&original)?;
+        let restored: Project = serde_json::from_str(&json)?;
         assert_eq!(original, restored);
+        Ok(())
     }
 
     #[test]
-    fn service_with_no_image_serializes_null() {
+    fn service_with_no_image_serializes_null() -> TestResult {
         let service = Service { image: None };
-        let json = serde_json::to_string(&service).unwrap();
+        let json = serde_json::to_string(&service)?;
         assert!(json.contains("null"));
+        Ok(())
     }
 
     #[test]
-    fn newtype_serializes_as_plain_string() {
+    fn newtype_serializes_as_plain_string() -> TestResult {
         let name = ProjectName::new("demo");
-        let json = serde_json::to_string(&name).unwrap();
+        let json = serde_json::to_string(&name)?;
         assert_eq!(json, "\"demo\"");
+        Ok(())
     }
 }

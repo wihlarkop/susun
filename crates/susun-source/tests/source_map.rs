@@ -1,11 +1,12 @@
 //! Integration tests for SourceMap, Span, and related types.
 
-#![allow(clippy::unwrap_used, clippy::expect_used)]
+use std::{error::Error, sync::Arc};
 
-use std::sync::Arc;
 use susun_source::{
     LineColumn, LoadedSource, SourceError, SourceMap, SourceName, Span, TextOffset,
 };
+
+type TestResult = Result<(), Box<dyn Error>>;
 
 fn make_source(name: &str, contents: &str) -> LoadedSource {
     LoadedSource {
@@ -24,11 +25,12 @@ fn opaque_id_allocation_produces_distinct_ids() {
 }
 
 #[test]
-fn registered_source_is_retrievable() {
+fn registered_source_is_retrievable() -> TestResult {
     let mut map = SourceMap::new();
     let id = map.register(make_source("myfile.yaml", "content"));
-    let source = map.get(id).expect("registered source must be retrievable");
+    let source = map.get(id).ok_or("registered source not found")?;
     assert_eq!(source.name.as_ref(), "myfile.yaml");
+    Ok(())
 }
 
 #[test]
@@ -44,8 +46,8 @@ fn resolve_unknown_id_returns_error() {
     let mut map2 = SourceMap::new();
     let id = map2.register(make_source("x", "y"));
     let map = SourceMap::new();
-    let err = map.resolve(id, TextOffset::new(0));
-    assert!(matches!(err, Err(SourceError::UnknownSourceId(_))));
+    let result = map.resolve(id, TextOffset::new(0));
+    assert!(matches!(result, Err(SourceError::UnknownSourceId(_))));
 }
 
 #[test]
@@ -70,9 +72,9 @@ fn span_equal_start_end_is_ok() {
 fn offset_out_of_bounds_returns_error() {
     let mut map = SourceMap::new();
     let id = map.register(make_source("src", "hello")); // len = 5
-    let err = map.resolve(id, TextOffset::new(6));
+    let result = map.resolve(id, TextOffset::new(6));
     assert!(matches!(
-        err,
+        result,
         Err(SourceError::OffsetOutOfBounds { offset: 6, len: 5 })
     ));
 }
@@ -90,43 +92,47 @@ fn utf8_boundary_violation_returns_error() {
     // 'é' = U+00E9 → 2 bytes (0xC3 0xA9)
     // "café": c@0, a@1, f@2, é@3..5  (5 bytes total)
     let id = map.register(make_source("src", "café"));
-    let err = map.resolve(id, TextOffset::new(4));
-    assert!(matches!(err, Err(SourceError::NotUtf8Boundary { offset: 4 })));
+    let result = map.resolve(id, TextOffset::new(4));
+    assert!(matches!(result, Err(SourceError::NotUtf8Boundary { offset: 4 })));
 }
 
 #[test]
-fn line_column_first_char_is_line1_col1() {
+fn line_column_first_char_is_line1_col1() -> TestResult {
     let mut map = SourceMap::new();
     let id = map.register(make_source("src", "hello\nworld\n"));
-    let lc = map.resolve(id, TextOffset::new(0)).unwrap();
+    let lc = map.resolve(id, TextOffset::new(0))?;
     assert_eq!(lc, LineColumn { line: 1, column: 1 });
+    Ok(())
 }
 
 #[test]
-fn line_column_second_line_start() {
+fn line_column_second_line_start() -> TestResult {
     let mut map = SourceMap::new();
     let id = map.register(make_source("src", "hello\nworld\n"));
     // "world" starts at offset 6 (after "hello\n")
-    let lc = map.resolve(id, TextOffset::new(6)).unwrap();
+    let lc = map.resolve(id, TextOffset::new(6))?;
     assert_eq!(lc, LineColumn { line: 2, column: 1 });
+    Ok(())
 }
 
 #[test]
-fn line_column_mid_line() {
+fn line_column_mid_line() -> TestResult {
     let mut map = SourceMap::new();
     let id = map.register(make_source("src", "hello\nworld\n"));
     // 'o' in "world" at offset 7
-    let lc = map.resolve(id, TextOffset::new(7)).unwrap();
+    let lc = map.resolve(id, TextOffset::new(7))?;
     assert_eq!(lc, LineColumn { line: 2, column: 2 });
+    Ok(())
 }
 
 #[test]
-fn line_column_unicode_multibyte_char() {
+fn line_column_unicode_multibyte_char() -> TestResult {
     let mut map = SourceMap::new();
     // "café\nx\n": c@0, a@1, f@2, é@3..5, \n@5, x@6, \n@7
     let id = map.register(make_source("src", "café\nx\n"));
-    let lc = map.resolve(id, TextOffset::new(6)).unwrap();
+    let lc = map.resolve(id, TextOffset::new(6))?;
     assert_eq!(lc, LineColumn { line: 2, column: 1 });
+    Ok(())
 }
 
 #[test]
