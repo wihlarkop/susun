@@ -5,6 +5,7 @@
 
 pub mod environment;
 pub mod error;
+pub mod interpolation;
 pub mod loader;
 pub(crate) mod parser;
 pub mod context;
