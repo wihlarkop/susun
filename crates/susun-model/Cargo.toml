@@ -16,3 +16,6 @@ serde = ["dep:serde", "indexmap/serde"]
 [dependencies]
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = "1"
