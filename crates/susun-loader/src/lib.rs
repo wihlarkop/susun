@@ -10,7 +10,7 @@ pub(crate) mod parser;
 pub mod context;
 
 pub use context::LoadContext;
-pub use environment::{EnvironmentProvider, MapEnvironment, ProcessEnvironment};
+pub use environment::{DotenvEntry, EnvironmentProvider, MapEnvironment, ProcessEnvironment, parse_dotenv};
 pub use error::LoadError;
 pub use loader::{LoadResult, ProjectLoader};
 
