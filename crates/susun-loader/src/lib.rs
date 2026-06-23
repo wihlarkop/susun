@@ -13,7 +13,7 @@ pub mod context;
 pub use context::LoadContext;
 pub use environment::{DotenvEntry, EnvResolver, EnvironmentProvider, MapEnvironment, ProcessEnvironment, parse_dotenv};
 pub use error::LoadError;
-pub use loader::{LoadResult, ProjectLoader};
+pub use loader::{LoadResult, ProjectLoader, SingleFileResult};
 
 use std::{path::PathBuf, sync::Arc};
 

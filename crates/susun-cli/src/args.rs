@@ -18,9 +18,12 @@ pub struct Cli {
 /// Context flags that apply to all subcommands (specified before the subcommand name).
 #[derive(Debug, Args, Clone)]
 pub struct ContextArgs {
-    /// Path to the Compose file (default: compose.yaml).
-    #[arg(short = 'f', long = "file", global = true, default_value = "compose.yaml")]
-    pub file: PathBuf,
+    /// Path to the Compose file (repeatable: later files overlay earlier ones).
+    ///
+    /// When no `-f` flag is given, defaults to `compose.yaml`.
+    /// When repeated, files are merged in declaration order.
+    #[arg(short = 'f', long = "file", global = true)]
+    pub file: Vec<PathBuf>,
 
     /// Path to a `.env`-format file whose variables override the default `.env`.
     #[arg(long, global = true)]

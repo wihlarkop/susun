@@ -15,6 +15,9 @@ use crate::environment::{
 pub struct LoadContext {
     /// Path to the primary Compose file.
     pub path: PathBuf,
+    /// Additional Compose files specified via repeated `-f` flags, processed
+    /// after the primary file in declaration order.
+    pub additional_files: Vec<PathBuf>,
     /// Explicit project name supplied by the caller (e.g. `--project-name`).
     ///
     /// When set, overrides all other project name sources.
@@ -39,12 +42,21 @@ impl LoadContext {
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
+            additional_files: Vec::new(),
             project_name_override: None,
             env_provider: Box::new(ProcessEnvironment),
             env_file_entries: Vec::new(),
             dotenv_entries: Vec::new(),
             profiles: Vec::new(),
         }
+    }
+
+    /// Set additional Compose files to load and merge after the primary file.
+    ///
+    /// Files are processed in declaration order; each overlays the previous.
+    pub fn with_additional_files(mut self, files: Vec<PathBuf>) -> Self {
+        self.additional_files = files;
+        self
     }
 
     /// Override the project name (equivalent to `--project-name`).
@@ -101,6 +113,14 @@ impl LoadContext {
     /// Reads a variable from the configured environment provider.
     pub fn env_get(&self, key: &str) -> Option<String> {
         self.env_provider.get(key)
+    }
+
+    /// Returns all variables from the configured environment provider.
+    ///
+    /// Useful for snapshotting the environment when constructing contexts for
+    /// additional `-f` files that must share the same environment.
+    pub fn env_vars(&self) -> Vec<(String, String)> {
+        self.env_provider.vars()
     }
 
     /// Builds an [`EnvResolver`] from the current environment stack.

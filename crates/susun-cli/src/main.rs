@@ -18,7 +18,16 @@ fn main() {
 }
 
 fn build_analyzer(ctx: &ContextArgs) -> Analyzer {
-    let mut context = LoadContext::new(&ctx.file);
+    // Primary file: first -f argument, or "compose.yaml" if none given.
+    let (primary, rest) = match ctx.file.as_slice() {
+        [] => (std::path::PathBuf::from("compose.yaml"), &[][..]),
+        [first, tail @ ..] => (first.clone(), tail),
+    };
+
+    let mut context = LoadContext::new(primary);
+    if !rest.is_empty() {
+        context = context.with_additional_files(rest.to_vec());
+    }
     if let Some(name) = &ctx.project_name {
         context = context.with_project_name(name);
     }

@@ -1,19 +1,22 @@
 //! `Analyzer` — the public analysis entry point for a single Compose file.
 
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use susun_diagnostics::DiagnosticReport;
-use susun_loader::{LoadContext, LoadResult, ProjectLoader, load_dotenv_from_path};
+use susun_loader::{
+    LoadContext, MapEnvironment, ProjectLoader, SingleFileResult, load_dotenv_from_path,
+};
 use susun_model::Project;
 use susun_normalize::{
     expand_project,
+    merge::merge_projects,
     normalize::{normalize, FinalProjectMetadata},
 };
 use susun_source::SourceMap;
 
 use crate::Error;
 
-/// Analyzes a single Compose file end-to-end.
+/// Analyzes one or more Compose files end-to-end.
 ///
 /// Create one via [`Analyzer::new`], optionally chain builder methods, then
 /// call [`analyze`][Analyzer::analyze]. User-level issues (unknown fields,
@@ -81,23 +84,53 @@ impl Analyzer {
             Vec::new()
         };
 
-        // 3. Inject the parsed entry lists into the context.
+        // 3. Inject parsed entry lists and snapshot the process env for reuse
+        //    across additional files (env vars must be consistent for all files).
         let context = self
             .context
-            .with_dotenv_entries(dotenv_entries)
-            .with_env_file_entries(env_file_entries);
+            .with_dotenv_entries(dotenv_entries.clone())
+            .with_env_file_entries(env_file_entries.clone());
 
-        let LoadResult { source_map, report: load_report, context, parsed, .. } =
-            ProjectLoader::with_context(context).load()?;
-        report.merge(load_report);
+        let process_snapshot: BTreeMap<String, String> =
+            context.env_vars().into_iter().collect();
 
-        let project = match parsed {
+        // 4. Build the ordered file list: primary first, then additional.
+        let additional_files = context.additional_files.clone();
+        let all_files: Vec<PathBuf> = std::iter::once(context.path.clone())
+            .chain(additional_files)
+            .collect();
+
+        // 5. Load all files into one shared SourceMap so span SourceIds are
+        //    globally unique across files. Expand each, then fold with merge.
+        let mut source_map = SourceMap::new();
+        let mut merged = None;
+
+        for path in &all_files {
+            let file_context = LoadContext::new(path)
+                .with_env_provider(MapEnvironment::new(process_snapshot.clone()))
+                .with_dotenv_entries(dotenv_entries.clone())
+                .with_env_file_entries(env_file_entries.clone());
+
+            let SingleFileResult { report: file_report, parsed, .. } =
+                ProjectLoader::with_context(file_context).load_into(&mut source_map)?;
+            report.merge(file_report);
+
+            if let Some(parsed) = parsed {
+                let expanded = expand_project(parsed);
+                merged = Some(match merged {
+                    None => expanded,
+                    Some(base) => merge_projects(base, expanded),
+                });
+            }
+        }
+
+        // 6. Resolve final project name and normalize. The merged name field
+        //    already reflects last-overlay-wins from merge_projects.
+        let project = match merged {
             None => None,
-            Some(parsed) => {
-                let project_name = context.resolve_project_name(
-                    parsed.name.as_ref().map(|s| s.value.as_str()),
-                );
-                let merge = expand_project(parsed);
+            Some(merge) => {
+                let name_from_file = merge.name.as_ref().map(|s| s.value.as_str());
+                let project_name = context.resolve_project_name(name_from_file);
                 let outcome = normalize(merge, FinalProjectMetadata { project_name })?;
                 report.merge(outcome.report);
                 Some(outcome.project)

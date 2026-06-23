@@ -8,7 +8,22 @@ use susun_source::{FileSystemSourceProvider, SourceId, SourceMap, SourceProvider
 
 use crate::{context::LoadContext, error::LoadError, parser};
 
-/// Raw result of loading and parsing a single Compose file.
+/// Raw result of loading a single Compose file into a caller-supplied source map.
+///
+/// Obtained from [`ProjectLoader::load_into`]. The source was registered into
+/// the caller's [`SourceMap`] before parsing, so all spans use IDs from that map.
+pub struct SingleFileResult {
+    /// Diagnostics collected during parsing.
+    pub report: DiagnosticReport,
+    /// Source id of the file in the caller's source map.
+    pub source_id: SourceId,
+    /// The raw parsed project, or `None` if YAML was unrecoverable.
+    pub parsed: Option<ParsedProject>,
+    /// The load context used for this run.
+    pub context: LoadContext,
+}
+
+/// Raw result of loading and parsing a single Compose file with its own source map.
 ///
 /// User-level issues (malformed YAML, unknown fields) are in `report`.
 /// `parsed` is `None` only when the YAML cannot be recovered at all.
@@ -67,11 +82,15 @@ impl ProjectLoader {
         Self { context, provider: Box::new(provider) }
     }
 
-    /// Read, parse, and return the raw load result.
+    /// Read, parse, and register the source into `source_map`.
     ///
     /// Returns `Err` only for system-level failures (file not found, I/O error).
-    /// User-level mistakes yield `Ok` with diagnostics in `LoadResult::report`.
-    pub fn load(self) -> Result<LoadResult, LoadError> {
+    /// User-level mistakes yield `Ok` with diagnostics in the result's `report`.
+    /// All span `SourceId` values reference entries in the provided `source_map`.
+    pub fn load_into(
+        self,
+        source_map: &mut SourceMap,
+    ) -> Result<SingleFileResult, LoadError> {
         let path = self.context.path.clone();
         let request = SourceRequest::new(&path);
         let loaded = self
@@ -79,7 +98,6 @@ impl ProjectLoader {
             .read(&request)
             .map_err(|e| LoadError::from_provider(path.clone(), e))?;
 
-        let mut source_map = SourceMap::new();
         let source_id = source_map.register(loaded);
 
         let contents: Arc<str> = source_map
@@ -94,7 +112,17 @@ impl ProjectLoader {
         let resolver = self.context.build_resolver();
         let parsed = parser::parse(source_id, contents.as_ref(), &resolver, &mut report);
 
-        Ok(LoadResult { source_map, report, source_id, parsed, context: self.context })
+        Ok(SingleFileResult { report, source_id, parsed, context: self.context })
+    }
+
+    /// Read, parse, and return the raw load result with a fresh source map.
+    ///
+    /// Convenience wrapper around [`load_into`][Self::load_into].
+    pub fn load(self) -> Result<LoadResult, LoadError> {
+        let mut source_map = SourceMap::new();
+        let SingleFileResult { report, source_id, parsed, context } =
+            self.load_into(&mut source_map)?;
+        Ok(LoadResult { source_map, report, source_id, parsed, context })
     }
 }
 
