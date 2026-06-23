@@ -1,10 +1,16 @@
 //! Parser spike: marked-yaml 0.8.0 capability tests for susun-loader.
 //! Marker API: .character() = byte offset, .line() = 1-based, .column() = 1-based.
 
+#![allow(clippy::expect_used, clippy::unwrap_used)]
+
 use marked_yaml::{parse_yaml, types::MarkedMappingNode};
 
 fn root_mapping(src: &str) -> MarkedMappingNode {
-    parse_yaml(0, src).expect("parse ok").as_mapping().cloned().expect("root mapping")
+    parse_yaml(0, src)
+        .expect("parse ok")
+        .as_mapping()
+        .cloned()
+        .expect("root mapping")
 }
 
 fn byte(span: &marked_yaml::Span) -> usize {
@@ -27,8 +33,18 @@ fn nested_mapping_spans_are_present() {
     let src = "services:\n  web:\n    image: nginx\n";
     let map = root_mapping(src);
     let (_, sv) = map.iter().next().expect("services");
-    let (_, wv) = sv.as_mapping().expect("services map").iter().next().expect("web");
-    let (_, iv) = wv.as_mapping().expect("web map").iter().next().expect("image");
+    let (_, wv) = sv
+        .as_mapping()
+        .expect("services map")
+        .iter()
+        .next()
+        .expect("web");
+    let (_, iv) = wv
+        .as_mapping()
+        .expect("web map")
+        .iter()
+        .next()
+        .expect("image");
     let b = byte(iv.as_scalar().expect("scalar").span());
     assert!(b > 0, "nested value byte={b}");
 }
@@ -145,7 +161,10 @@ fn merge_key_not_supported_natively() {
     let src = "defaults: &def\n  restart: always\nweb:\n  <<: *def\n  image: nginx\n";
     let result = parse_yaml(0, src);
     eprintln!("merge key result: {:?}", result.as_ref().err());
-    assert!(result.is_err(), "marked-yaml rejects anchor — workaround required");
+    assert!(
+        result.is_err(),
+        "marked-yaml rejects anchor — workaround required"
+    );
 }
 
 #[test]
@@ -208,9 +227,22 @@ fn multiple_documents_behavior() {
 fn span_line_and_column() {
     let src = "name: web\nimage: nginx\n";
     let map = root_mapping(src);
-    let (_, v) = map.iter().find(|(k, _)| k.as_str() == "image").expect("image");
-    let m = v.as_scalar().expect("scalar").span().start().expect("marker");
-    eprintln!("image: line={} col={} byte={}", m.line(), m.column(), m.character());
+    let (_, v) = map
+        .iter()
+        .find(|(k, _)| k.as_str() == "image")
+        .expect("image");
+    let m = v
+        .as_scalar()
+        .expect("scalar")
+        .span()
+        .start()
+        .expect("marker");
+    eprintln!(
+        "image: line={} col={} byte={}",
+        m.line(),
+        m.column(),
+        m.character()
+    );
     assert_eq!(m.line(), 2, "image on line 2");
 }
 

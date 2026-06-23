@@ -6,10 +6,15 @@
 
 pub mod error;
 pub mod map;
+pub mod provider;
 pub mod source;
 pub mod span;
 
 pub use error::SourceError;
 pub use map::SourceMap;
+pub use provider::{
+    FileSystemSourceProvider, LoadLimits, MemorySourceProvider, ProviderError, SourceProvider,
+    SourceRequest,
+};
 pub use source::{LoadedSource, SourceId, SourceName};
 pub use span::{LineColumn, Span, Spanned, TextOffset};
