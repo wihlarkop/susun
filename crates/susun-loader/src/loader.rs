@@ -91,7 +91,8 @@ impl ProjectLoader {
             })?;
 
         let mut report = DiagnosticReport::new();
-        let parsed = parser::parse(source_id, contents.as_ref(), &mut report);
+        let resolver = self.context.build_resolver();
+        let parsed = parser::parse(source_id, contents.as_ref(), &resolver, &mut report);
 
         Ok(LoadResult { source_map, report, source_id, parsed, context: self.context })
     }

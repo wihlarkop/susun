@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 
 use susun_model::ProjectName;
 
-use crate::environment::{EnvironmentProvider, ProcessEnvironment};
+use std::collections::BTreeMap;
+
+use crate::environment::{EnvResolver, EnvironmentProvider, MapEnvironment, ProcessEnvironment};
 
 /// Configuration for a single [`ProjectLoader`][crate::loader::ProjectLoader] run.
 ///
@@ -72,6 +74,16 @@ impl LoadContext {
     /// Reads a variable from the configured environment provider.
     pub fn env_get(&self, key: &str) -> Option<String> {
         self.env_provider.get(key)
+    }
+
+    /// Builds an [`EnvResolver`] from the current environment stack.
+    ///
+    /// Snapshots the environment provider's variables into a [`MapEnvironment`]
+    /// so the resolver can be passed by value to the parser. In Phase 1 the
+    /// `--env-file` and default `.env` layers are empty (wired in Task 17).
+    pub fn build_resolver(&self) -> EnvResolver {
+        let map: BTreeMap<String, String> = self.env_provider.vars().into_iter().collect();
+        EnvResolver::new(MapEnvironment::new(map), vec![], vec![])
     }
 }
 

@@ -9,6 +9,8 @@ use susun_diagnostics::{Diagnostic, DiagnosticReport, Label, Severity};
 use susun_normalize::input::{ParsedProject, ParsedService};
 use susun_source::{SourceId, Span, Spanned, TextOffset};
 
+use crate::{environment::resolve::EnvResolver, interpolation::eval::interpolate};
+
 const PARSE_ERROR: &str = "SUS-PARSE-001";
 const MULTI_DOC: &str = "SUS-PARSE-003";
 const ROOT_NOT_MAPPING: &str = "SUS-PARSE-010";
@@ -16,12 +18,14 @@ const UNKNOWN_FIELD: &str = "SUS-PARSE-011";
 
 /// Parse `contents` (a single Compose YAML file) into a raw [`ParsedProject`].
 ///
-/// User errors are appended to `report` as diagnostics. Returns `None` only
-/// when YAML is so malformed that no structure can be recovered; recoverable
-/// problems (unknown fields, deferred features) still yield `Some`.
+/// Scalar values are interpolated using `resolver` before typed extraction.
+/// Mapping keys are never interpolated. User errors are appended to `report`
+/// as diagnostics. Returns `None` only when YAML is so malformed that no
+/// structure can be recovered; recoverable problems still yield `Some`.
 pub(crate) fn parse(
     source_id: SourceId,
     contents: &str,
+    resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Option<ParsedProject> {
     let docs = match MarkedYamlOwned::load_from_str(contents) {
@@ -74,19 +78,22 @@ pub(crate) fn parse(
     let mut services: IndexMap<String, Spanned<ParsedService>> = IndexMap::new();
 
     for (k_node, v_node) in &mapping {
+        // Keys are never interpolated.
         let Some(key) = node_as_str(k_node) else {
             continue;
         };
 
         match key {
             "name" => {
-                if let Some(s) = node_as_str(v_node) {
+                if let Some(interpolated) =
+                    interpolated_scalar(contents, source_id, v_node, resolver, report)
+                {
                     let span = node_span(contents, source_id, v_node);
-                    project_name = Some(Spanned::new(s.to_owned(), span));
+                    project_name = Some(Spanned::new(interpolated, span));
                 }
             }
             "services" => {
-                services = parse_services(source_id, contents, v_node, report);
+                services = parse_services(source_id, contents, v_node, resolver, report);
             }
             // Accepted top-level fields not yet extracted (normalizer handles them later)
             "networks" | "volumes" | "configs" | "secrets" | "profiles" => {}
@@ -126,6 +133,7 @@ fn parse_services(
     source_id: SourceId,
     contents: &str,
     node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> IndexMap<String, Spanned<ParsedService>> {
     let mapping = match &node.data {
@@ -135,10 +143,11 @@ fn parse_services(
 
     let mut result: IndexMap<String, Spanned<ParsedService>> = IndexMap::new();
     for (k_node, v_node) in mapping {
+        // Service names (keys) are not interpolated.
         let Some(name) = node_as_str(k_node) else {
             continue;
         };
-        let service = parse_service(source_id, contents, v_node, report);
+        let service = parse_service(source_id, contents, v_node, resolver, report);
         let span = node_span(contents, source_id, v_node);
         result.insert(name.to_owned(), Spanned::new(service, span));
     }
@@ -149,6 +158,7 @@ fn parse_service(
     source_id: SourceId,
     contents: &str,
     node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
     _report: &mut DiagnosticReport,
 ) -> ParsedService {
     let mapping = match &node.data {
@@ -158,18 +168,37 @@ fn parse_service(
 
     let mut image: Option<Spanned<String>> = None;
     for (k_node, v_node) in mapping {
+        // Field names (keys) are not interpolated.
         let Some(key) = node_as_str(k_node) else {
             continue;
         };
         if key == "image" {
-            if let Some(s) = node_as_str(v_node) {
+            if let Some(interpolated) =
+                interpolated_scalar(contents, source_id, v_node, resolver, _report)
+            {
                 let span = node_span(contents, source_id, v_node);
-                image = Some(Spanned::new(s.to_owned(), span));
+                image = Some(Spanned::new(interpolated, span));
             }
         }
     }
 
     ParsedService { image }
+}
+
+/// Extracts a scalar string from `node` and applies environment interpolation.
+///
+/// Returns `None` if the node is not a scalar. Any `SUS-ENV-001` diagnostics
+/// from required-variable failures are appended to `report`.
+fn interpolated_scalar(
+    contents: &str,
+    source_id: SourceId,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Option<String> {
+    let raw = node_as_str(node)?;
+    let span = node_span(contents, source_id, node);
+    Some(interpolate(raw, resolver, span, report))
 }
 
 /// Extract a string value from a YAML node, handling both `Value` and tagged `Representation`.

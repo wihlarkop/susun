@@ -1,0 +1,4 @@
+name: test
+services:
+  web:
+    image: ${REQUIRED_IMAGE:?REQUIRED_IMAGE must be set}

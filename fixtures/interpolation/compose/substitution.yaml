@@ -1,0 +1,4 @@
+name: ${PROJECT_NAME:-default-project}
+services:
+  web:
+    image: ${REGISTRY:-docker.io}/${IMAGE:-nginx}:${TAG:-latest}
