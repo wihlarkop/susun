@@ -6,9 +6,11 @@
 
 use indexmap::IndexMap;
 
+use susun_model::{CanonicalPort, PublishedPort};
+
 use crate::{
     input::{port::RawPortEntry, volume::RawVolumeMount},
-    port::{parse_port_entry, CanonicalPort, PublishedPort},
+    port::parse_port_entry,
     volume::parse_volume_entry,
 };
 

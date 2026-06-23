@@ -1,11 +1,12 @@
 //! Tests for feature-gated serde serialization of canonical model types.
+#![allow(missing_docs)]
 
 #[cfg(feature = "serde")]
 mod with_serde {
     use std::error::Error;
 
     use indexmap::IndexMap;
-    use susun_model::{ImageRef, Project, ProjectName, Service, ServiceName};
+    use susun_model::{Command, ImageRef, Project, ProjectName, Service, ServiceName};
 
     type TestResult = Result<(), Box<dyn Error>>;
 
@@ -13,7 +14,7 @@ mod with_serde {
         let mut services = IndexMap::new();
         services.insert(
             ServiceName::new("web"),
-            Service { image: Some(ImageRef::new("nginx:1.25")) },
+            Service { image: Some(ImageRef::new("nginx:1.25")), ..Service::default() },
         );
         Project { name: ProjectName::new("myapp"), services }
     }
@@ -38,10 +39,23 @@ mod with_serde {
     }
 
     #[test]
-    fn service_with_no_image_serializes_null() -> TestResult {
-        let service = Service { image: None };
+    fn service_with_no_image_omits_image_field() -> TestResult {
+        let service = Service::default();
         let json = serde_json::to_string(&service)?;
-        assert!(json.contains("null"));
+        // Absence is preserved: no fields are emitted for a default service.
+        assert_eq!(json, "{}");
+        Ok(())
+    }
+
+    #[test]
+    fn service_with_command_roundtrips() -> TestResult {
+        let service = Service {
+            command: Some(Command::Exec(vec!["nginx".into(), "-g".into(), "daemon off;".into()])),
+            ..Service::default()
+        };
+        let json = serde_json::to_string(&service)?;
+        let restored: Service = serde_json::from_str(&json)?;
+        assert_eq!(service, restored);
         Ok(())
     }
 

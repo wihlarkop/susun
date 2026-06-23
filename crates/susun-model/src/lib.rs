@@ -4,7 +4,13 @@
 //! for JSON serialization of the canonical types.
 
 pub mod name;
+pub mod port;
 pub mod project;
+pub mod service;
+pub mod volume;
 
 pub use name::{ImageRef, ProjectName, ServiceName};
-pub use project::{Project, Service};
+pub use port::{CanonicalPort, Protocol, PublishedPort};
+pub use project::Project;
+pub use service::{Command, Service};
+pub use volume::{CanonicalVolume, VolumeKind};

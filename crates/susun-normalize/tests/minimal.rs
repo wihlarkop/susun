@@ -30,7 +30,7 @@ fn one_raw_service_becomes_canonical() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp") };
+    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp"), project_directory: std::path::PathBuf::from(".") };
     let outcome = normalize(merge, metadata)?;
 
     assert!(!outcome.report.has_errors());
@@ -55,7 +55,7 @@ fn service_and_image_provenance_span_source_text() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp") };
+    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp"), project_directory: std::path::PathBuf::from(".") };
     let outcome = normalize(merge, metadata)?;
 
     let web_prov = outcome
@@ -80,7 +80,7 @@ fn name_provenance_span_covers_name_value() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp") };
+    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp"), project_directory: std::path::PathBuf::from(".") };
     let outcome = normalize(merge, metadata)?;
 
     let name_span = outcome.provenance.name_span.ok_or("expected name span")?;
@@ -100,7 +100,7 @@ fn service_without_image_yields_none_image() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("minimal") };
+    let metadata = FinalProjectMetadata { project_name: ProjectName::new("minimal"), project_directory: std::path::PathBuf::from(".") };
     let outcome = normalize(merge, metadata)?;
 
     let worker = outcome

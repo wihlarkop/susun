@@ -126,12 +126,20 @@ impl Analyzer {
 
         // 6. Resolve final project name and normalize. The merged name field
         //    already reflects last-overlay-wins from merge_projects.
+        let project_directory = context.path
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("."));
+
         let project = match merged {
             None => None,
             Some(merge) => {
                 let name_from_file = merge.name.as_ref().map(|s| s.value.as_str());
                 let project_name = context.resolve_project_name(name_from_file);
-                let outcome = normalize(merge, FinalProjectMetadata { project_name })?;
+                let outcome = normalize(merge, FinalProjectMetadata {
+                    project_name,
+                    project_directory,
+                })?;
                 report.merge(outcome.report);
                 Some(outcome.project)
             }
