@@ -7,6 +7,7 @@ pub mod error;
 pub mod expand;
 pub mod input;
 pub mod normalize;
+pub mod port;
 pub mod provenance;
 
 pub use expand::expand_project;
