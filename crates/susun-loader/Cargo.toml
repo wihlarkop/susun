@@ -16,3 +16,5 @@ susun-model       = { workspace = true }
 susun-normalize   = { workspace = true }
 thiserror         = { workspace = true }
 indexmap          = { workspace = true }
+saphyr            = { workspace = true }
+saphyr-parser     = { workspace = true }

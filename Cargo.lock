@@ -311,6 +311,8 @@ name = "susun-loader"
 version = "0.1.0"
 dependencies = [
  "indexmap",
+ "saphyr",
+ "saphyr-parser",
  "susun-diagnostics",
  "susun-model",
  "susun-normalize",
