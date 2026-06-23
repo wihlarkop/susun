@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use std::{collections::BTreeMap, error::Error, path::PathBuf};
 
 use susun_diagnostics::{DiagnosticReport, Severity};
@@ -267,7 +269,7 @@ fn eval_required_colon_q_var_unset_emits_error() -> TestResult {
     let (out, report) = eval("${DB:?must be set}", &[])?;
     assert_eq!(out, "");
     assert!(report.has_errors());
-    let diag = report.iter().next().expect("expected one error");
+    let diag = report.iter().next().ok_or("expected one error")?;
     assert_eq!(diag.code.as_str(), "SUS-ENV-001");
     assert_eq!(diag.severity, Severity::Error);
     assert!(diag.message.contains("DB"));
@@ -304,7 +306,7 @@ fn eval_required_q_only_var_empty_is_not_error() -> TestResult {
 fn eval_required_empty_message_falls_back_to_default_text() -> TestResult {
     let (_out, report) = eval("${DB:?}", &[])?;
     assert!(report.has_errors());
-    let diag = report.iter().next().expect("expected one error");
+    let diag = report.iter().next().ok_or("expected one error")?;
     assert!(diag.message.contains("DB"));
     Ok(())
 }

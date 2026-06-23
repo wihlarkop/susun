@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use std::{collections::BTreeMap, error::Error, path::PathBuf};
 
 use susun_diagnostics::DiagnosticReport;

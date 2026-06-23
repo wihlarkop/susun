@@ -163,7 +163,7 @@ fn parse_service(
 ) -> ParsedService {
     let mapping = match &node.data {
         YamlDataOwned::Mapping(m) => m,
-        _ => return ParsedService { image: None },
+        _ => return ParsedService::default(),
     };
 
     let mut image: Option<Spanned<String>> = None;
@@ -182,7 +182,7 @@ fn parse_service(
         }
     }
 
-    ParsedService { image }
+    ParsedService { image, ..ParsedService::default() }
 }
 
 /// Extracts a scalar string from `node` and applies environment interpolation.

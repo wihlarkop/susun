@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use susun_loader::{EnvironmentProvider, MapEnvironment, ProcessEnvironment};
 
 #[test]

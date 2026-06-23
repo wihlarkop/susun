@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 use std::path::PathBuf;
 
 use susun_loader::{LoadContext, MapEnvironment};
