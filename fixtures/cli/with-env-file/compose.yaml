@@ -1,0 +1,4 @@
+name: ${PROJECT_NAME:-from-file}
+services:
+  web:
+    image: nginx

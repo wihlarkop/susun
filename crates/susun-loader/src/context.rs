@@ -1,12 +1,12 @@
 //! Load context: configuration for a single loader invocation.
 
-use std::path::{Path, PathBuf};
+use std::{collections::BTreeMap, path::{Path, PathBuf}};
 
 use susun_model::ProjectName;
 
-use std::collections::BTreeMap;
-
-use crate::environment::{EnvResolver, EnvironmentProvider, MapEnvironment, ProcessEnvironment};
+use crate::environment::{
+    DotenvEntry, EnvResolver, EnvironmentProvider, MapEnvironment, ProcessEnvironment,
+};
 
 /// Configuration for a single [`ProjectLoader`][crate::loader::ProjectLoader] run.
 ///
@@ -24,17 +24,26 @@ pub struct LoadContext {
     /// Defaults to [`ProcessEnvironment`]. Replace with [`MapEnvironment`][crate::environment::MapEnvironment]
     /// for deterministic tests.
     env_provider: Box<dyn EnvironmentProvider>,
+    /// Entries from the explicit `--env-file`, if provided.
+    env_file_entries: Vec<DotenvEntry>,
+    /// Entries from the auto-discovered `.env` file, if present.
+    dotenv_entries: Vec<DotenvEntry>,
+    /// Active profiles for service filtering (applied in Task 27).
+    pub profiles: Vec<String>,
 }
 
 impl LoadContext {
     /// Creates a context for the given path with default settings.
     ///
-    /// Defaults: no project name override, process environment.
+    /// Defaults: no project name override, process environment, no profiles.
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
             path: path.into(),
             project_name_override: None,
             env_provider: Box::new(ProcessEnvironment),
+            env_file_entries: Vec::new(),
+            dotenv_entries: Vec::new(),
+            profiles: Vec::new(),
         }
     }
 
@@ -47,6 +56,24 @@ impl LoadContext {
     /// Replace the environment provider (use [`MapEnvironment`][crate::environment::MapEnvironment] in tests).
     pub fn with_env_provider(mut self, provider: impl EnvironmentProvider + 'static) -> Self {
         self.env_provider = Box::new(provider);
+        self
+    }
+
+    /// Set entries from an explicit `--env-file` (highest file precedence).
+    pub fn with_env_file_entries(mut self, entries: Vec<DotenvEntry>) -> Self {
+        self.env_file_entries = entries;
+        self
+    }
+
+    /// Set entries from the auto-discovered `.env` file (lowest file precedence).
+    pub fn with_dotenv_entries(mut self, entries: Vec<DotenvEntry>) -> Self {
+        self.dotenv_entries = entries;
+        self
+    }
+
+    /// Set the active profile names for service filtering.
+    pub fn with_profiles(mut self, profiles: Vec<String>) -> Self {
+        self.profiles = profiles;
         self
     }
 
@@ -79,11 +106,14 @@ impl LoadContext {
     /// Builds an [`EnvResolver`] from the current environment stack.
     ///
     /// Snapshots the environment provider's variables into a [`MapEnvironment`]
-    /// so the resolver can be passed by value to the parser. In Phase 1 the
-    /// `--env-file` and default `.env` layers are empty (wired in Task 17).
+    /// combined with the already-parsed `--env-file` and `.env` entry lists.
     pub fn build_resolver(&self) -> EnvResolver {
         let map: BTreeMap<String, String> = self.env_provider.vars().into_iter().collect();
-        EnvResolver::new(MapEnvironment::new(map), vec![], vec![])
+        EnvResolver::new(
+            MapEnvironment::new(map),
+            self.env_file_entries.clone(),
+            self.dotenv_entries.clone(),
+        )
     }
 }
 

@@ -1,24 +1,39 @@
 //! Susun CLI binary.
 
-use std::{path::Path, process};
+use std::process;
 
 use clap::Parser;
-use susun::{render_diagnostics, Analyzer};
+use susun::{Analyzer, LoadContext, render_diagnostics};
 
 mod args;
-use args::{Cli, Command};
+use args::{Cli, Command, ContextArgs};
 
 fn main() {
     let cli = Cli::parse();
     let code = match cli.command {
-        Command::Check { file } => check(&file),
-        Command::Config { file } => config(&file),
+        Command::Check => check(&cli.ctx),
+        Command::Config => config(&cli.ctx),
     };
     process::exit(code);
 }
 
-fn check(file: &Path) -> i32 {
-    match Analyzer::new(file).analyze() {
+fn build_analyzer(ctx: &ContextArgs) -> Analyzer {
+    let mut context = LoadContext::new(&ctx.file);
+    if let Some(name) = &ctx.project_name {
+        context = context.with_project_name(name);
+    }
+    if !ctx.profile.is_empty() {
+        context = context.with_profiles(ctx.profile.clone());
+    }
+    let mut analyzer = Analyzer::with_context(context);
+    if let Some(env_file) = &ctx.env_file {
+        analyzer = analyzer.with_env_file(env_file);
+    }
+    analyzer
+}
+
+fn check(ctx: &ContextArgs) -> i32 {
+    match build_analyzer(ctx).analyze() {
         Err(e) => {
             eprintln!("susun: {e}");
             2
@@ -34,8 +49,8 @@ fn check(file: &Path) -> i32 {
     }
 }
 
-fn config(file: &Path) -> i32 {
-    match Analyzer::new(file).analyze() {
+fn config(ctx: &ContextArgs) -> i32 {
+    match build_analyzer(ctx).analyze() {
         Err(e) => {
             eprintln!("susun: {e}");
             2
