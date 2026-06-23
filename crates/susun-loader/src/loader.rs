@@ -1,0 +1,80 @@
+//! `ProjectLoader` — reads and parses a single Compose file.
+
+use std::{path::PathBuf, sync::Arc};
+
+use susun_diagnostics::DiagnosticReport;
+use susun_normalize::input::ParsedProject;
+use susun_source::{FileSystemSourceProvider, SourceId, SourceMap, SourceProvider, SourceRequest};
+
+use crate::{context::LoadContext, error::LoadError, parser};
+
+/// Raw result of loading and parsing a single Compose file.
+///
+/// User-level issues (malformed YAML, unknown fields) are in `report`.
+/// `parsed` is `None` only when the YAML cannot be recovered at all.
+pub struct LoadResult {
+    /// Sources registered during this load (one per file for Phase 1).
+    pub source_map: SourceMap,
+    /// Diagnostics collected during parsing.
+    pub report: DiagnosticReport,
+    /// The source id of the primary file, for cross-referencing with `source_map`.
+    pub source_id: SourceId,
+    /// The raw parsed project, or `None` if YAML was unrecoverable.
+    pub parsed: Option<ParsedProject>,
+}
+
+/// Loads a single Compose file from the filesystem.
+///
+/// Inject a custom [`SourceProvider`] with [`ProjectLoader::with_provider`]
+/// for testing or sandboxed execution.
+pub struct ProjectLoader {
+    context: LoadContext,
+    provider: Box<dyn SourceProvider>,
+}
+
+impl ProjectLoader {
+    /// Creates a loader for the given path, using the default filesystem provider.
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            context: LoadContext { path: path.into() },
+            provider: Box::new(FileSystemSourceProvider::with_default_limits()),
+        }
+    }
+
+    /// Creates a loader for the given path with a custom provider.
+    pub fn with_provider(path: impl Into<PathBuf>, provider: impl SourceProvider + 'static) -> Self {
+        Self {
+            context: LoadContext { path: path.into() },
+            provider: Box::new(provider),
+        }
+    }
+
+    /// Read, parse, and return the raw load result.
+    ///
+    /// Returns `Err` only for system-level failures (file not found, I/O error).
+    /// User-level mistakes yield `Ok` with diagnostics in `LoadResult::report`.
+    pub fn load(self) -> Result<LoadResult, LoadError> {
+        let path = self.context.path;
+        let request = SourceRequest::new(&path);
+        let loaded = self
+            .provider
+            .read(&request)
+            .map_err(|e| LoadError::from_provider(path.clone(), e))?;
+
+        let mut source_map = SourceMap::new();
+        let source_id = source_map.register(loaded);
+
+        let contents: Arc<str> = source_map
+            .get(source_id)
+            .map(|s| Arc::clone(&s.contents))
+            .ok_or_else(|| LoadError::Read {
+                path: path.clone(),
+                message: "source disappeared after registration".to_owned(),
+            })?;
+
+        let mut report = DiagnosticReport::new();
+        let parsed = parser::parse(source_id, contents.as_ref(), &mut report);
+
+        Ok(LoadResult { source_map, report, source_id, parsed })
+    }
+}

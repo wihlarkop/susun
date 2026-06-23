@@ -1,0 +1,4 @@
+name: valid-minimal
+services:
+  web:
+    image: nginx:latest

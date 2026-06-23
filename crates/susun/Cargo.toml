@@ -10,9 +10,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-susun-loader     = { workspace = true }
-susun-validation = { workspace = true }
-susun-graph      = { workspace = true }
-susun-model      = { workspace = true }
+susun-loader      = { workspace = true }
+susun-normalize   = { workspace = true }
+susun-validation  = { workspace = true }
+susun-graph       = { workspace = true }
+susun-model       = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
-thiserror        = { workspace = true }
+susun-source      = { workspace = true }
+thiserror         = { workspace = true }

@@ -3,7 +3,13 @@
 //! All `saphyr` YAML types are confined inside this crate and never appear
 //! in public signatures.
 
+pub mod error;
+pub mod loader;
 pub(crate) mod parser;
+mod context;
+
+pub use error::LoadError;
+pub use loader::{LoadResult, ProjectLoader};
 
 use susun_diagnostics::DiagnosticReport;
 use susun_normalize::input::ParsedProject;
