@@ -14,3 +14,7 @@ susun-model       = { workspace = true }
 susun-source      = { workspace = true }
 susun-diagnostics = { workspace = true }
 indexmap          = { workspace = true }
+thiserror         = { workspace = true }
+
+[dev-dependencies]
+susun-loader = { workspace = true }

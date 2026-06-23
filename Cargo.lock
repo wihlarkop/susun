@@ -335,8 +335,10 @@ version = "0.1.0"
 dependencies = [
  "indexmap",
  "susun-diagnostics",
+ "susun-loader",
  "susun-model",
  "susun-source",
+ "thiserror",
 ]
 
 [[package]]

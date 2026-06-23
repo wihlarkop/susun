@@ -24,3 +24,21 @@ pub struct ParsedService {
     /// The `image:` field, if present.
     pub image: Option<Spanned<String>>,
 }
+
+/// Merged representation passed to the normalizer.
+///
+/// For Phase 1, this is a direct 1:1 mapping of a single [`ParsedProject`].
+/// Later milestones will expand this to represent the result of merging
+/// multiple `-f` files.
+pub struct MergeProject {
+    /// The top-level `name:` field, if present.
+    pub name: Option<Spanned<String>>,
+    /// Services, keyed by service name.
+    pub services: IndexMap<String, Spanned<ParsedService>>,
+}
+
+impl From<ParsedProject> for MergeProject {
+    fn from(p: ParsedProject) -> Self {
+        MergeProject { name: p.name, services: p.services }
+    }
+}
