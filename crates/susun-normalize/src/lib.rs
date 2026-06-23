@@ -6,6 +6,7 @@
 pub mod error;
 pub mod expand;
 pub mod input;
+pub mod merge;
 pub mod normalize;
 pub mod port;
 pub mod provenance;
