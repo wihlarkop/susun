@@ -3,11 +3,14 @@
 //! All `saphyr` YAML types are confined inside this crate and never appear
 //! in public signatures.
 
+pub mod environment;
 pub mod error;
 pub mod loader;
 pub(crate) mod parser;
-mod context;
+pub mod context;
 
+pub use context::LoadContext;
+pub use environment::{EnvironmentProvider, MapEnvironment, ProcessEnvironment};
 pub use error::LoadError;
 pub use loader::{LoadResult, ProjectLoader};
 

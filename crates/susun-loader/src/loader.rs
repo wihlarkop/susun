@@ -21,6 +21,8 @@ pub struct LoadResult {
     pub source_id: SourceId,
     /// The raw parsed project, or `None` if YAML was unrecoverable.
     pub parsed: Option<ParsedProject>,
+    /// The load context used for this run, returned for project-name resolution.
+    pub context: LoadContext,
 }
 
 /// Loads a single Compose file from the filesystem.
@@ -33,20 +35,36 @@ pub struct ProjectLoader {
 }
 
 impl ProjectLoader {
-    /// Creates a loader for the given path, using the default filesystem provider.
+    /// Creates a loader for the given path with default settings.
     pub fn new(path: impl Into<PathBuf>) -> Self {
         Self {
-            context: LoadContext { path: path.into() },
+            context: LoadContext::new(path),
             provider: Box::new(FileSystemSourceProvider::with_default_limits()),
         }
     }
 
-    /// Creates a loader for the given path with a custom provider.
+    /// Creates a loader with a fully configured [`LoadContext`].
+    pub fn with_context(context: LoadContext) -> Self {
+        Self {
+            context,
+            provider: Box::new(FileSystemSourceProvider::with_default_limits()),
+        }
+    }
+
+    /// Creates a loader with a custom [`SourceProvider`] (primarily for tests).
     pub fn with_provider(path: impl Into<PathBuf>, provider: impl SourceProvider + 'static) -> Self {
         Self {
-            context: LoadContext { path: path.into() },
+            context: LoadContext::new(path),
             provider: Box::new(provider),
         }
+    }
+
+    /// Creates a loader with both a custom context and a custom source provider.
+    pub fn with_context_and_provider(
+        context: LoadContext,
+        provider: impl SourceProvider + 'static,
+    ) -> Self {
+        Self { context, provider: Box::new(provider) }
     }
 
     /// Read, parse, and return the raw load result.
@@ -54,7 +72,7 @@ impl ProjectLoader {
     /// Returns `Err` only for system-level failures (file not found, I/O error).
     /// User-level mistakes yield `Ok` with diagnostics in `LoadResult::report`.
     pub fn load(self) -> Result<LoadResult, LoadError> {
-        let path = self.context.path;
+        let path = self.context.path.clone();
         let request = SourceRequest::new(&path);
         let loaded = self
             .provider
@@ -75,6 +93,7 @@ impl ProjectLoader {
         let mut report = DiagnosticReport::new();
         let parsed = parser::parse(source_id, contents.as_ref(), &mut report);
 
-        Ok(LoadResult { source_map, report, source_id, parsed })
+        Ok(LoadResult { source_map, report, source_id, parsed, context: self.context })
     }
 }
+

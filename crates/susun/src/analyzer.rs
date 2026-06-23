@@ -1,10 +1,10 @@
 //! `Analyzer` — the public analysis entry point for a single Compose file.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use susun_diagnostics::DiagnosticReport;
-use susun_loader::ProjectLoader;
-use susun_model::{Project, ProjectName};
+use susun_loader::{LoadResult, ProjectLoader};
+use susun_model::Project;
 use susun_normalize::{
     input::MergeProject,
     normalize::{normalize, FinalProjectMetadata},
@@ -43,15 +43,15 @@ impl Analyzer {
     /// Returns `Err` only for system-level failures (file not found, I/O
     /// errors). User mistakes produce `Ok` with populated `report.errors`.
     pub fn analyze(self) -> Result<AnalysisResult, Error> {
-        let load_result = ProjectLoader::new(&self.path).load()?;
-        let mut report = load_result.report;
+        let LoadResult { source_map, report: load_report, context, parsed, .. } =
+            ProjectLoader::new(&self.path).load()?;
+        let mut report = load_report;
 
-        let project = match load_result.parsed {
+        let project = match parsed {
             None => None,
             Some(parsed) => {
-                let project_name = derive_project_name(
+                let project_name = context.resolve_project_name(
                     parsed.name.as_ref().map(|s| s.value.as_str()),
-                    &self.path,
                 );
                 let merge = MergeProject::from(parsed);
                 let outcome = normalize(merge, FinalProjectMetadata { project_name })?;
@@ -60,18 +60,6 @@ impl Analyzer {
             }
         };
 
-        Ok(AnalysisResult { project, source_map: load_result.source_map, report })
+        Ok(AnalysisResult { project, source_map, report })
     }
-}
-
-fn derive_project_name(name_from_file: Option<&str>, path: &Path) -> ProjectName {
-    if let Some(name) = name_from_file {
-        return ProjectName::new(name);
-    }
-    let dir_name = path
-        .parent()
-        .and_then(|p| p.file_name())
-        .and_then(|n| n.to_str())
-        .unwrap_or("project");
-    ProjectName::new(dir_name)
 }
