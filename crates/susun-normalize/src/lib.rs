@@ -4,6 +4,9 @@
 //! Call [`normalize::normalize`] to convert those types to the canonical model.
 
 pub mod error;
+pub mod expand;
 pub mod input;
 pub mod normalize;
 pub mod provenance;
+
+pub use expand::expand_project;

@@ -6,7 +6,7 @@ use susun_diagnostics::DiagnosticReport;
 use susun_loader::{LoadContext, LoadResult, ProjectLoader, load_dotenv_from_path};
 use susun_model::Project;
 use susun_normalize::{
-    input::MergeProject,
+    expand_project,
     normalize::{normalize, FinalProjectMetadata},
 };
 use susun_source::SourceMap;
@@ -97,7 +97,7 @@ impl Analyzer {
                 let project_name = context.resolve_project_name(
                     parsed.name.as_ref().map(|s| s.value.as_str()),
                 );
-                let merge = MergeProject::from(parsed);
+                let merge = expand_project(parsed);
                 let outcome = normalize(merge, FinalProjectMetadata { project_name })?;
                 report.merge(outcome.report);
                 Some(outcome.project)
