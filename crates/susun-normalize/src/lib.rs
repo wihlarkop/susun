@@ -9,5 +9,6 @@ pub mod input;
 pub mod normalize;
 pub mod port;
 pub mod provenance;
+pub mod volume;
 
 pub use expand::expand_project;
