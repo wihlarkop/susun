@@ -6,8 +6,18 @@ use std::sync::Arc;
 /// Opaque identifier for a registered source.
 ///
 /// Can only be obtained through [`SourceMap::register`][crate::SourceMap::register].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SourceId(pub(crate) u32);
+
+impl SourceId {
+    /// Returns the underlying declaration-order index.
+    ///
+    /// Useful for deterministic ordering (e.g., in diagnostic reports)
+    /// without exposing construction.
+    pub fn value(self) -> u32 {
+        self.0
+    }
+}
 
 /// Human-readable display name for a source.
 ///

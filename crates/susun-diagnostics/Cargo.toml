@@ -11,3 +11,4 @@ workspace = true
 
 [dependencies]
 susun-source = { workspace = true }
+thiserror = { workspace = true }
