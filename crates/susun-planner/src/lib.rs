@@ -4,6 +4,7 @@
 //! inputs into deterministic, explainable execution plans. It performs no
 //! daemon calls and does not mutate the host.
 
+pub mod capability_check;
 pub mod dag;
 pub mod error;
 pub mod id;
@@ -12,6 +13,7 @@ pub mod naming;
 pub mod options;
 pub mod plan;
 
+pub use capability_check::check_up_capabilities;
 pub use dag::{topological_action_order, validate_action_dag};
 pub use error::PlanError;
 pub use id::{ActionId, PlanId, StableIdBuilder};
