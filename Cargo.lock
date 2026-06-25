@@ -511,10 +511,12 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "susun-diagnostics",
+ "susun-engine",
  "susun-graph",
  "susun-loader",
  "susun-model",
  "susun-normalize",
+ "susun-planner",
  "susun-source",
  "susun-validation",
  "thiserror",

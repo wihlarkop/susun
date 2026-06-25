@@ -14,6 +14,8 @@ susun-loader      = { workspace = true }
 susun-normalize   = { workspace = true }
 susun-validation  = { workspace = true }
 susun-graph       = { workspace = true }
+susun-engine      = { workspace = true }
+susun-planner     = { workspace = true }
 susun-model       = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
 susun-source      = { workspace = true }
