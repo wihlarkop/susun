@@ -1,5 +1,5 @@
 [package]
-name = "susun-engine"
+name = "susun-runtime"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,11 +11,16 @@ workspace = true
 
 [features]
 default = []
-serde = ["dep:serde", "indexmap/serde", "susun-model/serde"]
+serde = [
+  "dep:serde",
+  "indexmap/serde",
+  "susun-engine/serde",
+  "susun-planner/serde",
+]
 
 [dependencies]
-futures-core = { workspace = true }
+susun-engine = { workspace = true }
+susun-planner = { workspace = true }
 indexmap = { workspace = true }
-susun-model = { workspace = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }

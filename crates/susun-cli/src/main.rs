@@ -1,24 +1,49 @@
 //! Susun CLI binary.
 
-use std::{path::Path, process, time::SystemTime};
+use std::{collections::BTreeSet, path::Path, process, sync::Arc, time::SystemTime};
 
 use clap::Parser;
-use susun::{Analyzer, LoadContext, Planner, render_diagnostics, render_diagnostics_json};
-use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
+use futures_util::StreamExt;
+use susun::{
+    Analyzer, LoadContext, Planner, down_with_engine, render_diagnostics, render_diagnostics_json,
+    up_with_engine,
+};
+use susun_engine::{
+    ContainerEngine, ContainerRef, EngineCapabilities, EngineSnapshot, LogsRequest,
+    ProjectIdentity, ProjectInstanceId, StopContainerRequest,
+};
+use susun_engine_bollard::BollardEngine;
 use susun_planner::{
     DownPlanOptions, ExecutionPlan, UpPlanOptions, render_plan_human, render_plan_json,
 };
+use susun_runtime::ExecutionReport;
 
 mod args;
 use args::{Cli, Command, ContextArgs, OutputFormat, PlanCommand};
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
     let code = match cli.command {
         Command::Check => check(&cli.ctx),
         Command::Config => config(&cli.ctx),
         Command::Plan { command } => plan(&cli.ctx, command),
         Command::InspectPlan { path } => inspect_plan(&cli.ctx, &path),
+        Command::Up { detach: _ } => runtime_up(&cli.ctx).await,
+        Command::Down {
+            remove_volumes,
+            remove_orphans: _,
+        } => runtime_down(&cli.ctx, remove_volumes).await,
+        Command::Ps => runtime_ps(&cli.ctx).await,
+        Command::Logs {
+            follow,
+            timestamps,
+            tail,
+            service,
+        } => runtime_logs(&cli.ctx, follow, timestamps, tail, service).await,
+        Command::Start { service } => runtime_start(&cli.ctx, service).await,
+        Command::Stop { service } => runtime_stop(&cli.ctx, service).await,
+        Command::Restart { service } => runtime_restart(&cli.ctx, service).await,
     };
     process::exit(code);
 }
@@ -220,6 +245,301 @@ fn inspect_plan(ctx: &ContextArgs, path: &Path) -> i32 {
     };
 
     emit_plan(ctx, &plan)
+}
+
+async fn runtime_up(ctx: &ContextArgs) -> i32 {
+    let Some((analysis, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => Arc::new(engine),
+        Err(code) => return code,
+    };
+    match up_with_engine(&analysis, identity, engine, UpPlanOptions::default()).await {
+        Ok(result) => emit_execution_report(ctx, &result.report),
+        Err(error) => {
+            eprintln!("susun: {error}");
+            2
+        }
+    }
+}
+
+async fn runtime_down(ctx: &ContextArgs, remove_volumes: bool) -> i32 {
+    let Some((analysis, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => Arc::new(engine),
+        Err(code) => return code,
+    };
+    let options = DownPlanOptions {
+        remove_volumes,
+        ..DownPlanOptions::default()
+    };
+    match down_with_engine(&analysis, identity, engine, options).await {
+        Ok(result) => emit_execution_report(ctx, &result.report),
+        Err(error) => {
+            eprintln!("susun: {error}");
+            2
+        }
+    }
+}
+
+async fn runtime_ps(ctx: &ContextArgs) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    match ctx.format {
+        OutputFormat::Json => match serde_json::to_string_pretty(&snapshot.stable_projection()) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("susun: failed to serialize status: {error}");
+                return 2;
+            }
+        },
+        OutputFormat::Human => {
+            println!("NAME\tSERVICE\tSTATE\tIMAGE");
+            for container in snapshot.containers.values() {
+                let service = container
+                    .service_identity
+                    .as_ref()
+                    .map(|identity| identity.service.as_str())
+                    .unwrap_or("-");
+                println!(
+                    "{}\t{}\t{:?}\t{:?}",
+                    container.name.as_str(),
+                    service,
+                    container.state,
+                    container.image
+                );
+            }
+        }
+    }
+    0
+}
+
+async fn runtime_logs(
+    ctx: &ContextArgs,
+    follow: bool,
+    timestamps: bool,
+    tail: Option<usize>,
+    service: Vec<String>,
+) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let selected = service.into_iter().collect::<BTreeSet<_>>();
+    for container in snapshot.containers.values() {
+        let service = container
+            .service_identity
+            .as_ref()
+            .map(|identity| identity.service.as_str().to_owned());
+        if !selected.is_empty() && !service.as_ref().is_some_and(|name| selected.contains(name)) {
+            continue;
+        }
+        let mut logs = match engine
+            .logs(LogsRequest {
+                container: ContainerRef {
+                    id: container.id.clone(),
+                },
+                follow,
+                timestamps,
+                tail,
+            })
+            .await
+        {
+            Ok(logs) => logs,
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        };
+        while let Some(event) = logs.next().await {
+            match event {
+                Ok(event) => {
+                    if let Some(service) = &service {
+                        print!("{service} | ");
+                    }
+                    print!("{}", event.line);
+                }
+                Err(error) => {
+                    eprintln!("susun: {error}");
+                    return 2;
+                }
+            }
+        }
+    }
+    0
+}
+
+async fn runtime_start(ctx: &ContextArgs, service: Vec<String>) -> i32 {
+    runtime_lifecycle(ctx, service, LifecycleCommand::Start).await
+}
+
+async fn runtime_stop(ctx: &ContextArgs, service: Vec<String>) -> i32 {
+    runtime_lifecycle(ctx, service, LifecycleCommand::Stop).await
+}
+
+async fn runtime_restart(ctx: &ContextArgs, service: Vec<String>) -> i32 {
+    runtime_lifecycle(ctx, service, LifecycleCommand::Restart).await
+}
+
+async fn runtime_lifecycle(
+    ctx: &ContextArgs,
+    service: Vec<String>,
+    command: LifecycleCommand,
+) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let selected = service.into_iter().collect::<BTreeSet<_>>();
+    for container in snapshot.containers.values() {
+        let service_name = container
+            .service_identity
+            .as_ref()
+            .map(|identity| identity.service.as_str().to_owned());
+        if !selected.is_empty()
+            && !service_name
+                .as_ref()
+                .is_some_and(|name| selected.contains(name))
+        {
+            continue;
+        }
+        let container_ref = ContainerRef {
+            id: container.id.clone(),
+        };
+        let result = match command {
+            LifecycleCommand::Start => engine.start_container(&container_ref).await,
+            LifecycleCommand::Stop => {
+                engine
+                    .stop_container(StopContainerRequest {
+                        container: container_ref,
+                        timeout: std::time::Duration::from_secs(10),
+                    })
+                    .await
+            }
+            LifecycleCommand::Restart => {
+                if let Err(error) = engine
+                    .stop_container(StopContainerRequest {
+                        container: container_ref.clone(),
+                        timeout: std::time::Duration::from_secs(10),
+                    })
+                    .await
+                {
+                    return lifecycle_error(error);
+                }
+                engine.start_container(&container_ref).await
+            }
+        };
+        if let Err(error) = result {
+            return lifecycle_error(error);
+        }
+    }
+    0
+}
+
+fn lifecycle_error(error: susun_engine::EngineError) -> i32 {
+    eprintln!("susun: {error}");
+    2
+}
+
+#[derive(Debug, Clone, Copy)]
+enum LifecycleCommand {
+    Start,
+    Stop,
+    Restart,
+}
+
+fn analyze_for_runtime(ctx: &ContextArgs) -> Option<(susun::AnalysisResult, ProjectIdentity)> {
+    let result = match build_analyzer(ctx).analyze() {
+        Ok(result) => result,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return None;
+        }
+    };
+    if result.report.has_errors() {
+        if !ctx.quiet {
+            render_analysis_diagnostics(ctx, &result);
+        }
+        return None;
+    }
+    let Some(project) = result.project.as_ref() else {
+        eprintln!("susun: no project to run");
+        return None;
+    };
+    let identity = ProjectIdentity::new(
+        project.name.clone(),
+        ProjectInstanceId::derive(&project.name, project_directory(ctx)),
+    );
+    Some((result, identity))
+}
+
+fn connect_engine() -> Result<BollardEngine, i32> {
+    BollardEngine::connect_local().map_err(|error| {
+        eprintln!("susun: {error}");
+        2
+    })
+}
+
+fn emit_execution_report(ctx: &ContextArgs, report: &ExecutionReport) -> i32 {
+    match ctx.format {
+        OutputFormat::Json => match serde_json::to_string_pretty(report) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("susun: failed to serialize execution report: {error}");
+                return 2;
+            }
+        },
+        OutputFormat::Human => {
+            println!(
+                "executed {} action(s): {} succeeded, {} failed, {} skipped, {} cancelled",
+                report.summary.total_actions,
+                report.summary.succeeded,
+                report.summary.failed,
+                report.summary.skipped,
+                report.summary.cancelled
+            );
+        }
+    }
+    if report.summary.failed == 0 && report.summary.cancelled == 0 {
+        0
+    } else {
+        1
+    }
 }
 
 fn emit_plan(ctx: &ContextArgs, plan: &ExecutionPlan) -> i32 {

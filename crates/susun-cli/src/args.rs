@@ -73,6 +73,52 @@ pub enum Command {
         /// Path to a plan JSON file.
         path: PathBuf,
     },
+    /// Bring the project up using Docker Engine.
+    Up {
+        /// Run in detached mode. Accepted for Compose compatibility.
+        #[arg(long)]
+        detach: bool,
+    },
+    /// Tear the project down using Docker Engine.
+    Down {
+        /// Include named volume removal.
+        #[arg(long)]
+        remove_volumes: bool,
+        /// Remove orphan resources where supported.
+        #[arg(long)]
+        remove_orphans: bool,
+    },
+    /// List Susun-managed project containers.
+    Ps,
+    /// Print logs for Susun-managed project containers.
+    Logs {
+        /// Follow log output.
+        #[arg(long)]
+        follow: bool,
+        /// Include timestamps.
+        #[arg(long)]
+        timestamps: bool,
+        /// Tail line count.
+        #[arg(long)]
+        tail: Option<usize>,
+        /// Selected service names.
+        service: Vec<String>,
+    },
+    /// Start selected project services.
+    Start {
+        /// Selected service names.
+        service: Vec<String>,
+    },
+    /// Stop selected project services.
+    Stop {
+        /// Selected service names.
+        service: Vec<String>,
+    },
+    /// Restart selected project services.
+    Restart {
+        /// Selected service names.
+        service: Vec<String>,
+    },
 }
 
 /// Plan operation subcommands.

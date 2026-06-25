@@ -1,5 +1,5 @@
 [package]
-name = "susun-engine"
+name = "susun-engine-bollard"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,13 +9,10 @@ license.workspace = true
 [lints]
 workspace = true
 
-[features]
-default = []
-serde = ["dep:serde", "indexmap/serde", "susun-model/serde"]
-
 [dependencies]
-futures-core = { workspace = true }
-indexmap = { workspace = true }
+susun-engine = { workspace = true }
 susun-model = { workspace = true }
-serde = { workspace = true, optional = true }
+bollard = { workspace = true }
+futures-util = { workspace = true }
+indexmap = { workspace = true }
 thiserror = { workspace = true }
