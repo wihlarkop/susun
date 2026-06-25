@@ -1,0 +1,21 @@
+[package]
+name = "susun"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+susun-loader      = { workspace = true }
+susun-normalize   = { workspace = true }
+susun-validation  = { workspace = true }
+susun-graph       = { workspace = true }
+susun-model       = { workspace = true, features = ["serde"] }
+susun-diagnostics = { workspace = true }
+susun-source      = { workspace = true }
+thiserror         = { workspace = true }
+serde_json        = { workspace = true }

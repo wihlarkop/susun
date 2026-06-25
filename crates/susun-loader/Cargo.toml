@@ -1,0 +1,20 @@
+[package]
+name = "susun-loader"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+susun-source      = { workspace = true }
+susun-diagnostics = { workspace = true }
+susun-model       = { workspace = true }
+susun-normalize   = { workspace = true }
+thiserror         = { workspace = true }
+indexmap          = { workspace = true }
+saphyr            = { workspace = true }
+saphyr-parser     = { workspace = true }

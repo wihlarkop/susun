@@ -1,0 +1,4 @@
+name: [unclosed
+services:
+  web:
+    image: nginx:latest
