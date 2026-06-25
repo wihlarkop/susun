@@ -511,10 +511,12 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "susun-diagnostics",
+ "susun-engine",
  "susun-graph",
  "susun-loader",
  "susun-model",
  "susun-normalize",
+ "susun-planner",
  "susun-source",
  "susun-validation",
  "thiserror",
@@ -529,6 +531,10 @@ dependencies = [
  "predicates",
  "serde_json",
  "susun",
+ "susun-diagnostics",
+ "susun-engine",
+ "susun-planner",
+ "susun-source",
 ]
 
 [[package]]
@@ -536,6 +542,16 @@ name = "susun-diagnostics"
 version = "0.1.0"
 dependencies = [
  "susun-source",
+ "thiserror",
+]
+
+[[package]]
+name = "susun-engine"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "susun-model",
  "thiserror",
 ]
 
@@ -585,10 +601,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "susun-planner"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "susun-diagnostics",
+ "susun-engine",
+ "susun-graph",
+ "susun-model",
+ "susun-normalize",
+ "thiserror",
+]
+
+[[package]]
 name = "susun-source"
 version = "0.1.0"
 dependencies = [
  "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "susun-testkit"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "susun-engine",
+ "susun-graph",
+ "susun-model",
+ "susun-normalize",
+ "susun-planner",
  "thiserror",
 ]
 

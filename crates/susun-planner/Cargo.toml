@@ -1,0 +1,31 @@
+[package]
+name = "susun-planner"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+serde = [
+  "dep:serde",
+  "dep:serde_json",
+  "susun-engine/serde",
+  "susun-model/serde",
+  "indexmap/serde",
+]
+
+[dependencies]
+susun-diagnostics = { workspace = true }
+susun-engine = { workspace = true }
+susun-graph = { workspace = true }
+susun-model = { workspace = true }
+susun-normalize = { workspace = true }
+indexmap = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }

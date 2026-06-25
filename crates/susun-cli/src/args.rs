@@ -62,6 +62,30 @@ pub enum Command {
     /// Prints canonical JSON to stdout on success.
     /// Exits 1 if the file has errors, 2 on system errors.
     Config,
+    /// Produce a daemon-free execution plan.
+    Plan {
+        /// Plan operation.
+        #[command(subcommand)]
+        command: PlanCommand,
+    },
+    /// Inspect a previously rendered plan JSON file.
+    InspectPlan {
+        /// Path to a plan JSON file.
+        path: PathBuf,
+    },
+}
+
+/// Plan operation subcommands.
+#[derive(Debug, Subcommand)]
+pub enum PlanCommand {
+    /// Plan service startup.
+    Up,
+    /// Plan service teardown.
+    Down {
+        /// Include named volume removal in the plan.
+        #[arg(long)]
+        remove_volumes: bool,
+    },
 }
 
 /// Diagnostic output format.

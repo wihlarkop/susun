@@ -5,9 +5,11 @@
 //! implementation details and must not be imported directly by applications.
 
 pub mod analyzer;
+pub mod planning;
 pub mod render;
 
 pub use analyzer::{AnalysisResult, Analyzer};
+pub use planning::Planner;
 pub use render::{render_diagnostics, render_diagnostics_json};
 pub use susun_loader::LoadContext;
 

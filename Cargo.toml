@@ -18,6 +18,9 @@ susun-normalize = { path = "crates/susun-normalize" }
 susun-loader = { path = "crates/susun-loader" }
 susun-validation = { path = "crates/susun-validation" }
 susun-graph = { path = "crates/susun-graph" }
+susun-engine = { path = "crates/susun-engine" }
+susun-planner = { path = "crates/susun-planner" }
+susun-testkit = { path = "crates/susun-testkit" }
 susun = { path = "crates/susun" }
 
 # third-party
