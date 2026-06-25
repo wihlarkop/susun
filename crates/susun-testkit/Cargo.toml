@@ -1,0 +1,19 @@
+[package]
+name = "susun-testkit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+susun-engine = { workspace = true }
+susun-planner = { workspace = true }
+susun-model = { workspace = true }
+susun-graph = { workspace = true }
+susun-normalize = { workspace = true }
+indexmap = { workspace = true }

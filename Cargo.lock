@@ -540,6 +540,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "susun-engine"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+]
+
+[[package]]
 name = "susun-graph"
 version = "0.1.0"
 dependencies = [
@@ -585,11 +593,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "susun-planner"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "susun-diagnostics",
+ "susun-engine",
+ "susun-graph",
+ "susun-model",
+ "susun-normalize",
+ "thiserror",
+]
+
+[[package]]
 name = "susun-source"
 version = "0.1.0"
 dependencies = [
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "susun-testkit"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "susun-engine",
+ "susun-graph",
+ "susun-model",
+ "susun-normalize",
+ "susun-planner",
 ]
 
 [[package]]

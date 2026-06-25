@@ -1,0 +1,18 @@
+[package]
+name = "susun-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "indexmap/serde"]
+
+[dependencies]
+indexmap = { workspace = true }
+serde = { workspace = true, optional = true }
