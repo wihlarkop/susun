@@ -68,7 +68,7 @@ impl LoadContext {
         self
     }
 
-    /// Replace the environment provider (use [`MapEnvironment`][crate::environment::MapEnvironment] in tests).
+    /// Replace the environment provider (use [`MapEnvironment`] in tests).
     pub fn with_env_provider(mut self, provider: impl EnvironmentProvider + 'static) -> Self {
         self.env_provider = Box::new(provider);
         self
