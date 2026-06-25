@@ -61,7 +61,7 @@ impl ProjectInstanceId {
         hash.write(project_name.as_str().as_bytes());
         hash.write(&[0]);
         hash.write(normalized_path.as_bytes());
-        Self(format!("susun:{:016x}", hash.finish()))
+        Self(format!("{:016x}", hash.finish()))
     }
 
     /// Returns the opaque ID string.

@@ -1,6 +1,6 @@
 //! Human-readable plan rendering.
 
-use crate::{ActionSafety, ExecutionPlan, PlanAction};
+use crate::{ActionSafety, ExecutionPlan, PlanAction, topological_action_order};
 
 /// Renders a plan for human review.
 pub fn render_plan_human(plan: &ExecutionPlan) -> String {
@@ -23,7 +23,13 @@ pub fn render_plan_human(plan: &ExecutionPlan) -> String {
         plan.summary.total_actions
     ));
 
-    for node in plan.actions.values() {
+    let ordered_ids = topological_action_order(&plan.actions)
+        .unwrap_or_else(|_| plan.actions.keys().cloned().collect());
+
+    for id in ordered_ids {
+        let Some(node) = plan.actions.get(&id) else {
+            continue;
+        };
         output.push_str(&format!(
             "- {} [{}] {}: {}\n",
             node.id.as_str(),
