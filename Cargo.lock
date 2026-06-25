@@ -626,6 +626,7 @@ dependencies = [
  "susun-model",
  "susun-normalize",
  "susun-planner",
+ "thiserror",
 ]
 
 [[package]]

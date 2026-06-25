@@ -2,3 +2,11 @@
 //!
 //! This crate is intended for tests and compatibility fixtures only. Production
 //! crates must not depend on it.
+
+pub mod assertions;
+pub mod project;
+pub mod snapshot;
+
+pub use assertions::PlanAssert;
+pub use project::ProjectBuilder;
+pub use snapshot::{FakeCapabilities, SnapshotBuilder, SnapshotBuilderError};

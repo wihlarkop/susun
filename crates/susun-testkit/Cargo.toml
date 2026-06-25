@@ -17,3 +17,4 @@ susun-model = { workspace = true }
 susun-graph = { workspace = true }
 susun-normalize = { workspace = true }
 indexmap = { workspace = true }
+thiserror = { workspace = true }
