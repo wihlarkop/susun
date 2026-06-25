@@ -1,11 +1,13 @@
 //! Runtime plan application.
 
 use std::{
+    collections::VecDeque,
     num::NonZeroUsize,
     sync::Arc,
     time::{Duration, SystemTime},
 };
 
+use futures_util::{FutureExt, StreamExt, future::BoxFuture, stream::FuturesUnordered};
 use indexmap::{IndexMap, IndexSet};
 use susun_engine::{
     ContainerEngine, ContainerRef, CreateContainerRequest, CreateNetworkRequest,
@@ -18,8 +20,8 @@ use susun_planner::{
 };
 
 use crate::{
-    ActionExecutionResult, ActionOutput, ActionStatus, EventSink, ExecutionReport, RuntimeError,
-    RuntimeEvent, validate_plan_for_execution,
+    ActionExecutionResult, ActionOutput, ActionStatus, CancellationToken, EventSink,
+    ExecutionReport, RetryPolicy, RuntimeError, RuntimeEvent, validate_plan_for_execution,
 };
 
 /// Runtime options.
@@ -31,6 +33,8 @@ pub struct RuntimeOptions {
     pub cancellation_grace_period: Duration,
     /// Default stop timeout.
     pub default_stop_timeout: Duration,
+    /// Conservative retry policy.
+    pub retry_policy: RetryPolicy,
 }
 
 impl Default for RuntimeOptions {
@@ -39,6 +43,7 @@ impl Default for RuntimeOptions {
             max_concurrency: NonZeroUsize::MIN,
             cancellation_grace_period: Duration::from_secs(10),
             default_stop_timeout: Duration::from_secs(10),
+            retry_policy: RetryPolicy::default(),
         }
     }
 }
@@ -78,6 +83,15 @@ where
 
     /// Applies an immutable execution plan and returns a complete report.
     pub async fn apply(&self, plan: &ExecutionPlan) -> Result<ExecutionReport, RuntimeError> {
+        self.apply_cancellable(plan, CancellationToken::new()).await
+    }
+
+    /// Applies a plan with cooperative cancellation.
+    pub async fn apply_cancellable(
+        &self,
+        plan: &ExecutionPlan,
+        cancellation: CancellationToken,
+    ) -> Result<ExecutionReport, RuntimeError> {
         validate_plan_for_execution(plan)?;
         self.engine
             .capabilities()
@@ -95,6 +109,11 @@ where
         let mut report = ExecutionReport::pending(plan);
         let mut failed = IndexSet::new();
         let mut outputs = RuntimeOutputs::from_snapshot(&snapshot);
+        let mut graph = RuntimeGraph::new(plan);
+        let mut ready = VecDeque::from(order);
+        ready.retain(|id| graph.remaining_dependencies.get(id).copied().unwrap_or(0) == 0);
+        let mut running = FuturesUnordered::new();
+        let mut completed = IndexSet::new();
 
         self.events
             .emit(RuntimeEvent::PlanStarted {
@@ -102,39 +121,57 @@ where
             })
             .await;
 
-        for action_id in order {
-            let Some(node) = plan.actions.get(&action_id) else {
-                return Err(RuntimeError::InternalInvariant {
-                    detail: format!("missing action {action_id} after DAG validation"),
-                });
-            };
+        loop {
+            while !cancellation.is_cancelled() && running.len() < self.options.max_concurrency.get()
+            {
+                let Some(action_id) = ready.pop_front() else {
+                    break;
+                };
+                if completed.contains(&action_id) {
+                    continue;
+                }
+                let Some(node) = plan.actions.get(&action_id) else {
+                    return Err(RuntimeError::InternalInvariant {
+                        detail: format!("missing action {action_id} after DAG validation"),
+                    });
+                };
 
-            if has_failed_dependency(node, &failed) {
-                mark_skipped(&mut report, &action_id);
-                failed.insert(action_id.clone());
+                if has_failed_dependency(node, &failed) {
+                    mark_skipped(&mut report, &action_id);
+                    failed.insert(action_id.clone());
+                    completed.insert(action_id.clone());
+                    self.events
+                        .emit(RuntimeEvent::ActionFinished {
+                            action_id: action_id.clone(),
+                            status: ActionStatus::SkippedDependencyFailed,
+                        })
+                        .await;
+                    release_dependents(&mut graph, &action_id, &completed, &mut ready);
+                    continue;
+                }
+
                 self.events
-                    .emit(RuntimeEvent::ActionFinished {
-                        action_id,
-                        status: ActionStatus::SkippedDependencyFailed,
+                    .emit(RuntimeEvent::ActionQueued {
+                        action_id: action_id.clone(),
                     })
                     .await;
-                continue;
+                self.events
+                    .emit(RuntimeEvent::ActionStarted {
+                        action_id: action_id.clone(),
+                    })
+                    .await;
+
+                running.push(self.spawn_action(plan, action_id, node, outputs.clone()));
             }
 
-            self.events
-                .emit(RuntimeEvent::ActionQueued {
-                    action_id: action_id.clone(),
-                })
-                .await;
-            self.events
-                .emit(RuntimeEvent::ActionStarted {
-                    action_id: action_id.clone(),
-                })
-                .await;
+            if running.is_empty() {
+                break;
+            }
 
-            let result = self
-                .execute_action(plan, &action_id, node, &mut outputs)
-                .await;
+            let Some((action_id, action, result)) = running.next().await else {
+                break;
+            };
+            update_outputs(&action, &result, &mut outputs);
             set_result(&mut report, action_id.clone(), result.clone());
             self.events
                 .emit(RuntimeEvent::ActionFinished {
@@ -144,9 +181,13 @@ where
                 .await;
 
             if result.status != ActionStatus::Succeeded {
-                failed.insert(action_id);
+                failed.insert(action_id.clone());
             }
+            completed.insert(action_id.clone());
+            release_dependents(&mut graph, &action_id, &completed, &mut ready);
         }
+
+        mark_remaining_cancelled(&mut report, &completed);
 
         report.refresh_summary();
         self.events
@@ -158,17 +199,50 @@ where
         Ok(report)
     }
 
+    fn spawn_action<'a>(
+        &'a self,
+        plan: &'a ExecutionPlan,
+        action_id: ActionId,
+        node: &PlanActionNode,
+        outputs: RuntimeOutputs,
+    ) -> BoxFuture<'a, (ActionId, PlanAction, ActionExecutionResult)> {
+        let action = node.action.clone();
+        async move {
+            let result = self
+                .execute_action(plan, &action_id, &action, &outputs)
+                .await;
+            (action_id, action, result)
+        }
+        .boxed()
+    }
+
     async fn execute_action(
         &self,
         plan: &ExecutionPlan,
         action_id: &ActionId,
-        node: &PlanActionNode,
-        outputs: &mut RuntimeOutputs,
+        action: &PlanAction,
+        outputs: &RuntimeOutputs,
     ) -> ActionExecutionResult {
         let started_at = SystemTime::now();
-        let execution = self
-            .execute_action_inner(plan, action_id, node, outputs)
-            .await;
+        let mut attempts = 0;
+        let execution = loop {
+            attempts += 1;
+            let result = self
+                .execute_action_inner(plan, action_id, action, outputs)
+                .await;
+            match result {
+                Ok(output) => break Ok(output),
+                Err(error)
+                    if self
+                        .options
+                        .retry_policy
+                        .should_retry(action, &error, attempts) =>
+                {
+                    continue;
+                }
+                Err(error) => break Err(error),
+            }
+        };
         let finished_at = SystemTime::now();
 
         match execution {
@@ -177,7 +251,7 @@ where
                 status: ActionStatus::Succeeded,
                 started_at: Some(started_at),
                 finished_at: Some(finished_at),
-                attempts: 1,
+                attempts,
                 output: Some(output),
                 error: None,
             },
@@ -186,7 +260,7 @@ where
                 status: ActionStatus::Failed,
                 started_at: Some(started_at),
                 finished_at: Some(finished_at),
-                attempts: 1,
+                attempts,
                 output: None,
                 error: Some(error.to_string()),
             },
@@ -197,10 +271,10 @@ where
         &self,
         plan: &ExecutionPlan,
         action_id: &ActionId,
-        node: &PlanActionNode,
-        outputs: &mut RuntimeOutputs,
+        action: &PlanAction,
+        outputs: &RuntimeOutputs,
     ) -> Result<ActionOutput, EngineError> {
-        match &node.action {
+        match action {
             PlanAction::PullImage(action) => {
                 let progress_action = action_id.clone();
                 let events = self.events.clone();
@@ -241,9 +315,6 @@ where
                         ),
                     })
                     .await?;
-                outputs
-                    .networks
-                    .insert(action.identity.network.as_str().to_owned(), network.clone());
                 Ok(ActionOutput::Network(network))
             }
             PlanAction::CreateVolume(action) => {
@@ -259,9 +330,6 @@ where
                         ),
                     })
                     .await?;
-                outputs
-                    .volumes
-                    .insert(action.identity.volume.as_str().to_owned(), volume.clone());
                 Ok(ActionOutput::Volume(volume))
             }
             PlanAction::CreateContainer(action) => {
@@ -279,10 +347,6 @@ where
                         ),
                     })
                     .await?;
-                outputs.containers.insert(
-                    action.identity.service.as_str().to_owned(),
-                    container.clone(),
-                );
                 Ok(ActionOutput::Container(container))
             }
             PlanAction::StartContainer(action) => {
@@ -341,8 +405,71 @@ fn mark_skipped(report: &mut ExecutionReport, action_id: &ActionId) {
     }
 }
 
+fn mark_remaining_cancelled(report: &mut ExecutionReport, completed: &IndexSet<ActionId>) {
+    for (action_id, result) in &mut report.actions {
+        if completed.contains(action_id) {
+            continue;
+        }
+        if matches!(result.status, ActionStatus::Pending | ActionStatus::Ready) {
+            result.status = ActionStatus::Cancelled;
+            result.finished_at = Some(SystemTime::now());
+        }
+    }
+}
+
+fn release_dependents(
+    graph: &mut RuntimeGraph,
+    action_id: &ActionId,
+    completed: &IndexSet<ActionId>,
+    ready: &mut VecDeque<ActionId>,
+) {
+    let Some(dependents) = graph.dependents.get(action_id) else {
+        return;
+    };
+
+    for dependent in dependents {
+        let Some(remaining) = graph.remaining_dependencies.get_mut(dependent) else {
+            continue;
+        };
+        *remaining = remaining.saturating_sub(1);
+        if *remaining == 0 && !completed.contains(dependent) {
+            ready.push_back(dependent.clone());
+        }
+    }
+}
+
 fn set_result(report: &mut ExecutionReport, action_id: ActionId, result: ActionExecutionResult) {
     report.actions.insert(action_id, result);
+}
+
+fn update_outputs(
+    action: &PlanAction,
+    result: &ActionExecutionResult,
+    outputs: &mut RuntimeOutputs,
+) {
+    if result.status != ActionStatus::Succeeded {
+        return;
+    }
+
+    match (action, result.output.as_ref()) {
+        (PlanAction::CreateContainer(action), Some(ActionOutput::Container(container))) => {
+            outputs.containers.insert(
+                action.identity.service.as_str().to_owned(),
+                container.clone(),
+            );
+        }
+        (PlanAction::CreateNetwork(action), Some(ActionOutput::Network(network))) => {
+            outputs
+                .networks
+                .insert(action.identity.network.as_str().to_owned(), network.clone());
+        }
+        (PlanAction::CreateVolume(action), Some(ActionOutput::Volume(volume))) => {
+            outputs
+                .volumes
+                .insert(action.identity.volume.as_str().to_owned(), volume.clone());
+        }
+        _ => {}
+    }
 }
 
 fn ownership_labels(
@@ -396,7 +523,7 @@ fn insert_label(labels: &mut IndexMap<LabelKey, LabelValue>, key: &str, value: S
     labels.insert(key, value);
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 struct RuntimeOutputs {
     containers: IndexMap<String, ContainerRef>,
     networks: IndexMap<String, NetworkRef>,
@@ -444,7 +571,7 @@ impl RuntimeOutputs {
             .get(service)
             .cloned()
             .ok_or_else(|| EngineError::Unsupported {
-                capability: "container lookup from existing snapshot is not wired yet",
+                capability: "container reference is unavailable for this action",
             })
     }
 
@@ -453,7 +580,7 @@ impl RuntimeOutputs {
             .get(network)
             .cloned()
             .ok_or_else(|| EngineError::Unsupported {
-                capability: "network lookup from existing snapshot is not wired yet",
+                capability: "network reference is unavailable for this action",
             })
     }
 
@@ -462,7 +589,36 @@ impl RuntimeOutputs {
             .get(volume)
             .cloned()
             .ok_or_else(|| EngineError::Unsupported {
-                capability: "volume lookup from existing snapshot is not wired yet",
+                capability: "volume reference is unavailable for this action",
             })
+    }
+}
+
+#[derive(Debug)]
+struct RuntimeGraph {
+    dependents: IndexMap<ActionId, IndexSet<ActionId>>,
+    remaining_dependencies: IndexMap<ActionId, usize>,
+}
+
+impl RuntimeGraph {
+    fn new(plan: &ExecutionPlan) -> Self {
+        let mut dependents = IndexMap::new();
+        let mut remaining_dependencies = IndexMap::new();
+
+        for (id, node) in &plan.actions {
+            dependents.entry(id.clone()).or_insert_with(IndexSet::new);
+            remaining_dependencies.insert(id.clone(), node.dependencies.len());
+            for dependency in &node.dependencies {
+                dependents
+                    .entry(dependency.clone())
+                    .or_insert_with(IndexSet::new)
+                    .insert(id.clone());
+            }
+        }
+
+        Self {
+            dependents,
+            remaining_dependencies,
+        }
     }
 }

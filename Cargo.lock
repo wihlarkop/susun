@@ -1109,6 +1109,7 @@ dependencies = [
 name = "susun-runtime"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "indexmap",
  "serde",
  "susun-engine",

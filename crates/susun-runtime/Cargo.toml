@@ -21,6 +21,7 @@ serde = [
 [dependencies]
 susun-engine = { workspace = true }
 susun-planner = { workspace = true }
+futures-util = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
