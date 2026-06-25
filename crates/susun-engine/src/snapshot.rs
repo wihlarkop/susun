@@ -7,7 +7,7 @@ use susun_model::ImageRef;
 
 use crate::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId,
-    ProjectInstanceId, ResourceName, ServiceInstanceId, VolumeId,
+    NetworkIdentity, ProjectInstanceId, ResourceName, ServiceInstanceId, VolumeId, VolumeIdentity,
 };
 
 #[cfg(feature = "serde")]
@@ -104,6 +104,8 @@ pub struct ObservedNetwork {
     pub labels: IndexMap<LabelKey, LabelValue>,
     /// Project ownership identity, if known.
     pub project_identity: Option<ProjectInstanceId>,
+    /// Network ownership identity, if known.
+    pub network_identity: Option<NetworkIdentity>,
     /// Completeness of this observed record.
     pub completeness: SnapshotCompleteness,
 }
@@ -120,6 +122,8 @@ pub struct ObservedVolume {
     pub labels: IndexMap<LabelKey, LabelValue>,
     /// Project ownership identity, if known.
     pub project_identity: Option<ProjectInstanceId>,
+    /// Volume ownership identity, if known.
+    pub volume_identity: Option<VolumeIdentity>,
     /// Completeness of this observed record.
     pub completeness: SnapshotCompleteness,
 }
