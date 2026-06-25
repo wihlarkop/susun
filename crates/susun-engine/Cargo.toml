@@ -11,8 +11,10 @@ workspace = true
 
 [features]
 default = []
-serde = ["dep:serde", "indexmap/serde"]
+serde = ["dep:serde", "indexmap/serde", "susun-model/serde"]
 
 [dependencies]
 indexmap = { workspace = true }
+susun-model = { workspace = true }
 serde = { workspace = true, optional = true }
+thiserror = { workspace = true }
