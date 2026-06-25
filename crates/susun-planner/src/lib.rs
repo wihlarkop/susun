@@ -14,6 +14,7 @@ pub mod naming;
 pub mod options;
 pub mod ownership;
 pub mod plan;
+pub mod render;
 pub mod up;
 
 pub use capability_check::check_up_capabilities;
@@ -34,4 +35,7 @@ pub use plan::{
     PlanSummary, PlannedOperation, PullImageAction, RemoveContainerAction, RemoveNetworkAction,
     RemoveVolumeAction, StartContainerAction, StopContainerAction, WaitForDependencyAction,
 };
+pub use render::render_plan_human;
+#[cfg(feature = "serde")]
+pub use render::render_plan_json;
 pub use up::{UpResourceActions, plan_up};
