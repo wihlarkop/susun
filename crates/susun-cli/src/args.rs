@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 
 /// Susun: source-aware Compose file analysis.
 #[derive(Debug, Parser)]
@@ -36,6 +36,18 @@ pub struct ContextArgs {
     /// Activate a profile. Repeatable (e.g. `--profile debug --profile metrics`).
     #[arg(long, global = true)]
     pub profile: Vec<String>,
+
+    /// Output format for diagnostics.
+    #[arg(long, value_enum, default_value_t = OutputFormat::Human, global = true)]
+    pub format: OutputFormat,
+
+    /// Suppress diagnostic output; exit codes are still preserved.
+    #[arg(long, global = true)]
+    pub quiet: bool,
+
+    /// Color policy for human diagnostics. Currently accepted for CLI compatibility.
+    #[arg(long, value_enum, default_value_t = ColorChoice::Auto, global = true)]
+    pub color: ColorChoice,
 }
 
 /// Available subcommands.
@@ -50,4 +62,24 @@ pub enum Command {
     /// Prints canonical JSON to stdout on success.
     /// Exits 1 if the file has errors, 2 on system errors.
     Config,
+}
+
+/// Diagnostic output format.
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum OutputFormat {
+    /// Human-readable diagnostics.
+    Human,
+    /// Stable JSON diagnostics.
+    Json,
+}
+
+/// Human output color policy.
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum ColorChoice {
+    /// Auto-detect color support.
+    Auto,
+    /// Always colorize.
+    Always,
+    /// Never colorize.
+    Never,
 }

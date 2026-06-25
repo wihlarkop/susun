@@ -45,7 +45,6 @@ impl MapEnvironment {
     }
 }
 
-
 impl<K, V, const N: usize> From<[(K, V); N]> for MapEnvironment
 where
     K: Into<String>,
@@ -53,7 +52,10 @@ where
 {
     fn from(pairs: [(K, V); N]) -> Self {
         Self {
-            vars: pairs.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            vars: pairs
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
         }
     }
 }
@@ -64,6 +66,9 @@ impl EnvironmentProvider for MapEnvironment {
     }
 
     fn vars(&self) -> Vec<(String, String)> {
-        self.vars.iter().map(|(k, v)| (k.clone(), v.clone())).collect()
+        self.vars
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect()
     }
 }

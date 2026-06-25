@@ -58,18 +58,33 @@ fn parse_short_str(s: &str) -> Result<CanonicalPort, PortParseError> {
     match parts.len() {
         1 => {
             let target = parse_port_num(parts[0])?;
-            Ok(CanonicalPort { host_ip: None, published: None, target, protocol })
+            Ok(CanonicalPort {
+                host_ip: None,
+                published: None,
+                target,
+                protocol,
+            })
         }
         2 => {
             let published = parse_published(parts[0])?;
             let target = parse_port_num(parts[1])?;
-            Ok(CanonicalPort { host_ip: None, published: Some(published), target, protocol })
+            Ok(CanonicalPort {
+                host_ip: None,
+                published: Some(published),
+                target,
+                protocol,
+            })
         }
         3 => {
             let host_ip = parts[0].to_owned();
             let published = parse_published(parts[1])?;
             let target = parse_port_num(parts[2])?;
-            Ok(CanonicalPort { host_ip: Some(host_ip), published: Some(published), target, protocol })
+            Ok(CanonicalPort {
+                host_ip: Some(host_ip),
+                published: Some(published),
+                target,
+                protocol,
+            })
         }
         _ => Err(PortParseError::InvalidFormat(s.to_owned())),
     }
@@ -81,14 +96,32 @@ fn parse_short_str(s: &str) -> Result<CanonicalPort, PortParseError> {
 pub fn parse_long(long: &RawPortLong) -> Result<CanonicalPort, PortParseError> {
     let target = match &long.target {
         Some(s) => parse_port_num(s.value.as_str())?,
-        None => return Err(PortParseError::InvalidFormat("long-form port missing `target`".to_owned())),
+        None => {
+            return Err(PortParseError::InvalidFormat(
+                "long-form port missing `target`".to_owned(),
+            ));
+        }
     };
 
-    let published = long.published.as_ref().map(|p| parse_published(p.value.as_str())).transpose()?;
+    let published = long
+        .published
+        .as_ref()
+        .map(|p| parse_published(p.value.as_str()))
+        .transpose()?;
     let host_ip = long.host_ip.as_ref().map(|h| h.value.clone());
-    let protocol = long.protocol.as_ref().map(|p| parse_protocol(p.value.as_str())).transpose()?.unwrap_or_default();
+    let protocol = long
+        .protocol
+        .as_ref()
+        .map(|p| parse_protocol(p.value.as_str()))
+        .transpose()?
+        .unwrap_or_default();
 
-    Ok(CanonicalPort { host_ip, published, target, protocol })
+    Ok(CanonicalPort {
+        host_ip,
+        published,
+        target,
+        protocol,
+    })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -126,7 +159,9 @@ fn parse_port_num(s: &str) -> Result<u16, PortParseError> {
     if s.is_empty() {
         return Err(PortParseError::InvalidFormat(s.to_owned()));
     }
-    let n: u32 = s.parse().map_err(|_| PortParseError::OutOfRange(s.to_owned()))?;
+    let n: u32 = s
+        .parse()
+        .map_err(|_| PortParseError::OutOfRange(s.to_owned()))?;
     if n == 0 || n > 65535 {
         return Err(PortParseError::OutOfRange(s.to_owned()));
     }

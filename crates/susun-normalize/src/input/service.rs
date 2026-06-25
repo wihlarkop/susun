@@ -1,7 +1,12 @@
 use susun_source::Spanned;
 
 use super::{
-    command::RawStringOrList, environment::RawMapping, port::RawPortEntry,
+    command::RawStringOrList,
+    dependency::RawDependencies,
+    environment::RawMapping,
+    health::RawHealthcheck,
+    port::RawPortEntry,
+    resource::{RawResourceMount, RawServiceNetworks},
     volume::RawVolumeMount,
 };
 
@@ -25,4 +30,18 @@ pub struct ParsedService {
     pub ports: Vec<RawPortEntry>,
     /// The `volumes:` field.
     pub volumes: Vec<RawVolumeMount>,
+    /// The `depends_on:` field.
+    pub depends_on: RawDependencies,
+    /// The `networks:` field.
+    pub networks: RawServiceNetworks,
+    /// The `configs:` field.
+    pub configs: Vec<RawResourceMount>,
+    /// The `secrets:` field.
+    pub secrets: Vec<RawResourceMount>,
+    /// The `healthcheck:` field.
+    pub healthcheck: Option<RawHealthcheck>,
+    /// The `restart:` field.
+    pub restart: Option<Spanned<String>>,
+    /// The `profiles:` field.
+    pub profiles: Vec<Spanned<String>>,
 }

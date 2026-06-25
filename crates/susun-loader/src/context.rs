@@ -1,6 +1,9 @@
 //! Load context: configuration for a single loader invocation.
 
-use std::{collections::BTreeMap, path::{Path, PathBuf}};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 use susun_model::ProjectName;
 

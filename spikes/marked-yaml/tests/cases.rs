@@ -131,7 +131,10 @@ fn anchor_and_alias_are_resolved_natively() {
     let result = MarkedYamlOwned::load_from_str(src);
     eprintln!("anchor/alias result: {:?}", result.is_ok());
     // saphyr handles these natively — expect Ok
-    assert!(result.is_ok(), "saphyr resolves anchors and aliases natively");
+    assert!(
+        result.is_ok(),
+        "saphyr resolves anchors and aliases natively"
+    );
 }
 
 #[test]

@@ -1,7 +1,6 @@
 //! Field-aware merge logic for individual service entries.
 
 use indexmap::IndexMap;
-use susun_source::Spanned;
 
 use crate::input::{ParsedService, RawMapping, RawStringOrList};
 
@@ -24,6 +23,17 @@ pub fn merge_services(base: ParsedService, overlay: ParsedService) -> ParsedServ
         labels: merge_mapping(base.labels, overlay.labels),
         ports: unique_ports(base.ports.into_iter().chain(overlay.ports).collect()),
         volumes: unique_volumes(base.volumes.into_iter().chain(overlay.volumes).collect()),
+        depends_on: merge_depends_on(base.depends_on, overlay.depends_on),
+        networks: merge_networks(base.networks, overlay.networks),
+        configs: merge_resource_mounts(base.configs, overlay.configs),
+        secrets: merge_resource_mounts(base.secrets, overlay.secrets),
+        healthcheck: overlay.healthcheck.or(base.healthcheck),
+        restart: overlay.restart.or(base.restart),
+        profiles: if overlay.profiles.is_empty() {
+            base.profiles
+        } else {
+            overlay.profiles
+        },
     }
 }
 
@@ -51,21 +61,38 @@ fn merge_mapping(base: RawMapping, overlay: RawMapping) -> RawMapping {
     }
 }
 
-/// Merge a `Spanned<String>` scalar: overlay wins if present.
-pub(super) fn merge_scalar(
-    base: Option<Spanned<String>>,
-    overlay: Option<Spanned<String>>,
-) -> Option<Spanned<String>> {
-    overlay.or(base)
-}
-
-/// Merge an `IndexMap`: overlay entries win per key; base keys not in overlay survive.
-pub(super) fn merge_map(
-    mut base: IndexMap<String, Option<Spanned<String>>>,
-    overlay: IndexMap<String, Option<Spanned<String>>>,
-) -> IndexMap<String, Option<Spanned<String>>> {
+fn merge_depends_on(
+    mut base: crate::input::RawDependencies,
+    overlay: crate::input::RawDependencies,
+) -> crate::input::RawDependencies {
     for (k, v) in overlay {
         base.insert(k, v);
     }
     base
+}
+
+fn merge_networks(
+    mut base: crate::input::RawServiceNetworks,
+    overlay: crate::input::RawServiceNetworks,
+) -> crate::input::RawServiceNetworks {
+    for (k, v) in overlay {
+        base.insert(k, v);
+    }
+    base
+}
+
+fn merge_resource_mounts(
+    base: Vec<crate::input::RawResourceMount>,
+    overlay: Vec<crate::input::RawResourceMount>,
+) -> Vec<crate::input::RawResourceMount> {
+    let mut merged: IndexMap<String, crate::input::RawResourceMount> = IndexMap::new();
+    for mount in base.into_iter().chain(overlay) {
+        let key = mount
+            .target
+            .as_ref()
+            .map(|target| target.value.clone())
+            .unwrap_or_else(|| mount.source.value.clone());
+        merged.insert(key, mount);
+    }
+    merged.into_values().collect()
 }

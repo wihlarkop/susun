@@ -3,15 +3,17 @@
 //! All `saphyr` YAML types are confined inside this crate and never appear
 //! in public signatures.
 
+pub mod context;
 pub mod environment;
 pub mod error;
 pub mod interpolation;
 pub mod loader;
 pub(crate) mod parser;
-pub mod context;
 
 pub use context::LoadContext;
-pub use environment::{DotenvEntry, EnvResolver, EnvironmentProvider, MapEnvironment, ProcessEnvironment, parse_dotenv};
+pub use environment::{
+    DotenvEntry, EnvResolver, EnvironmentProvider, MapEnvironment, ProcessEnvironment, parse_dotenv,
+};
 pub use error::LoadError;
 pub use loader::{LoadResult, ProjectLoader, SingleFileResult};
 
@@ -43,7 +45,9 @@ pub fn load_dotenv_from_path(
     let contents: Arc<str> = Arc::clone(&loaded.contents);
     let source_id = sm.register(loaded);
 
-    Ok(environment::dotenv::parse_dotenv(source_id, &contents, report))
+    Ok(environment::dotenv::parse_dotenv(
+        source_id, &contents, report,
+    ))
 }
 
 /// Parse a Compose YAML string into a raw [`ParsedProject`].

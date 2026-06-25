@@ -6,9 +6,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    name::ImageRef,
-    port::CanonicalPort,
-    volume::CanonicalVolume,
+    ConfigName, Dependencies, Healthcheck, ImageRef, NetworkAttachment, NetworkName, ResourceMount,
+    SecretName, port::CanonicalPort, volume::CanonicalVolume,
 };
 
 /// Command or entrypoint in canonical form.
@@ -39,15 +38,63 @@ pub struct Service {
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub entrypoint: Option<Command>,
     /// Environment variables; value is `None` when the key inherits from the runtime.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "IndexMap::is_empty"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "IndexMap::is_empty")
+    )]
     pub environment: IndexMap<String, Option<String>>,
     /// Labels attached to the service container.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "IndexMap::is_empty"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "IndexMap::is_empty")
+    )]
     pub labels: IndexMap<String, String>,
     /// Port mappings.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub ports: Vec<CanonicalPort>,
     /// Volume mounts.
-    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Vec::is_empty"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
     pub volumes: Vec<CanonicalVolume>,
+    /// Service dependencies.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "IndexMap::is_empty")
+    )]
+    pub depends_on: Dependencies,
+    /// Networks attached to the service.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "IndexMap::is_empty")
+    )]
+    pub networks: IndexMap<NetworkName, NetworkAttachment>,
+    /// Config mounts referenced by this service.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
+    pub configs: Vec<ResourceMount<ConfigName>>,
+    /// Secret mounts referenced by this service.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
+    pub secrets: Vec<ResourceMount<SecretName>>,
+    /// Healthcheck configuration.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub healthcheck: Option<Healthcheck>,
+    /// Restart policy as written in Compose.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub restart: Option<String>,
+    /// Profiles that activate this service.
+    #[cfg_attr(
+        feature = "serde",
+        serde(default, skip_serializing_if = "Vec::is_empty")
+    )]
+    pub profiles: Vec<String>,
 }

@@ -14,9 +14,19 @@ mod with_serde {
         let mut services = IndexMap::new();
         services.insert(
             ServiceName::new("web"),
-            Service { image: Some(ImageRef::new("nginx:1.25")), ..Service::default() },
+            Service {
+                image: Some(ImageRef::new("nginx:1.25")),
+                ..Service::default()
+            },
         );
-        Project { name: ProjectName::new("myapp"), services }
+        Project {
+            name: ProjectName::new("myapp"),
+            services,
+            networks: IndexMap::new(),
+            volumes: IndexMap::new(),
+            configs: IndexMap::new(),
+            secrets: IndexMap::new(),
+        }
     }
 
     #[test]
@@ -50,7 +60,11 @@ mod with_serde {
     #[test]
     fn service_with_command_roundtrips() -> TestResult {
         let service = Service {
-            command: Some(Command::Exec(vec!["nginx".into(), "-g".into(), "daemon off;".into()])),
+            command: Some(Command::Exec(vec![
+                "nginx".into(),
+                "-g".into(),
+                "daemon off;".into(),
+            ])),
             ..Service::default()
         };
         let json = serde_json::to_string(&service)?;

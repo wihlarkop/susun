@@ -8,7 +8,7 @@ pub mod analyzer;
 pub mod render;
 
 pub use analyzer::{AnalysisResult, Analyzer};
-pub use render::render_diagnostics;
+pub use render::{render_diagnostics, render_diagnostics_json};
 pub use susun_loader::LoadContext;
 
 use thiserror::Error;

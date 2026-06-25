@@ -65,3 +65,28 @@ string_newtype! {
     /// Opaque image reference (e.g. `nginx:1.25`, `myapp:latest`).
     pub struct ImageRef;
 }
+
+string_newtype! {
+    /// Key identifying a network within a project.
+    pub struct NetworkName;
+}
+
+string_newtype! {
+    /// Key identifying a named volume within a project.
+    pub struct VolumeName;
+}
+
+string_newtype! {
+    /// Key identifying a config within a project.
+    pub struct ConfigName;
+}
+
+string_newtype! {
+    /// Key identifying a secret within a project.
+    pub struct SecretName;
+}
+
+string_newtype! {
+    /// Profile name used to select services.
+    pub struct ProfileName;
+}

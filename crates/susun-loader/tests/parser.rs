@@ -67,7 +67,10 @@ fn malformed_yaml_returns_none_with_error_diagnostic() {
     assert!(project.is_none(), "malformed YAML yields None");
     assert!(report.has_errors(), "error diagnostic emitted");
     let codes: Vec<&str> = report.iter().map(|d| d.code.as_str()).collect();
-    assert!(codes.contains(&"SUS-PARSE-001"), "code SUS-PARSE-001 present");
+    assert!(
+        codes.contains(&"SUS-PARSE-001"),
+        "code SUS-PARSE-001 present"
+    );
 }
 
 // ── Unknown top-level field ───────────────────────────────────────────────────
@@ -122,7 +125,10 @@ fn multiple_documents_returns_none_with_error_diagnostic() {
     assert!(project.is_none(), "multiple docs yields None");
     assert!(report.has_errors(), "error diagnostic emitted");
     let codes: Vec<&str> = report.iter().map(|d| d.code.as_str()).collect();
-    assert!(codes.contains(&"SUS-PARSE-003"), "code SUS-PARSE-003 present");
+    assert!(
+        codes.contains(&"SUS-PARSE-003"),
+        "code SUS-PARSE-003 present"
+    );
 }
 
 // ── Span accuracy ─────────────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ use susun_loader::parse_compose_str;
 use susun_model::{ProjectName, ServiceName};
 use susun_normalize::{
     input::MergeProject,
-    normalize::{normalize, FinalProjectMetadata},
+    normalize::{FinalProjectMetadata, normalize},
 };
 use susun_source::{LoadedSource, SourceMap, SourceName};
 
@@ -30,7 +30,10 @@ fn one_raw_service_becomes_canonical() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp"), project_directory: std::path::PathBuf::from(".") };
+    let metadata = FinalProjectMetadata {
+        project_name: ProjectName::new("myapp"),
+        project_directory: std::path::PathBuf::from("."),
+    };
     let outcome = normalize(merge, metadata)?;
 
     assert!(!outcome.report.has_errors());
@@ -55,7 +58,10 @@ fn service_and_image_provenance_span_source_text() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp"), project_directory: std::path::PathBuf::from(".") };
+    let metadata = FinalProjectMetadata {
+        project_name: ProjectName::new("myapp"),
+        project_directory: std::path::PathBuf::from("."),
+    };
     let outcome = normalize(merge, metadata)?;
 
     let web_prov = outcome
@@ -66,7 +72,11 @@ fn service_and_image_provenance_span_source_text() -> TestResult {
     let image_span = web_prov.image_span.ok_or("expected image span")?;
     let start = image_span.start.value() as usize;
     let end = image_span.end.value() as usize;
-    assert_eq!(&src[start..end], "nginx:latest", "image span covers value text");
+    assert_eq!(
+        &src[start..end],
+        "nginx:latest",
+        "image span covers value text"
+    );
 
     Ok(())
 }
@@ -80,7 +90,10 @@ fn name_provenance_span_covers_name_value() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("myapp"), project_directory: std::path::PathBuf::from(".") };
+    let metadata = FinalProjectMetadata {
+        project_name: ProjectName::new("myapp"),
+        project_directory: std::path::PathBuf::from("."),
+    };
     let outcome = normalize(merge, metadata)?;
 
     let name_span = outcome.provenance.name_span.ok_or("expected name span")?;
@@ -100,7 +113,10 @@ fn service_without_image_yields_none_image() -> TestResult {
 
     let parsed = parse_compose_str(id, src, &mut report).ok_or("expected parsed project")?;
     let merge = MergeProject::from(parsed);
-    let metadata = FinalProjectMetadata { project_name: ProjectName::new("minimal"), project_directory: std::path::PathBuf::from(".") };
+    let metadata = FinalProjectMetadata {
+        project_name: ProjectName::new("minimal"),
+        project_directory: std::path::PathBuf::from("."),
+    };
     let outcome = normalize(merge, metadata)?;
 
     let worker = outcome

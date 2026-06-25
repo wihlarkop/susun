@@ -32,9 +32,14 @@ fn memory_provider_missing_file_returns_not_found() {
 #[test]
 fn memory_provider_enforces_file_size_limit() {
     let big = "x".repeat(100);
-    let limits = LoadLimits { max_file_bytes: 10, max_file_count: 10 };
+    let limits = LoadLimits {
+        max_file_bytes: 10,
+        max_file_count: 10,
+    };
     let provider = MemorySourceProvider::new(
-        [("big.yaml".into(), big.as_str().into())].into_iter().collect(),
+        [("big.yaml".into(), big.as_str().into())]
+            .into_iter()
+            .collect(),
         limits,
     );
     let result = provider.read(&req("big.yaml"));
@@ -43,7 +48,10 @@ fn memory_provider_enforces_file_size_limit() {
 
 #[test]
 fn memory_provider_enforces_file_count_limit() {
-    let limits = LoadLimits { max_file_bytes: 1024, max_file_count: 2 };
+    let limits = LoadLimits {
+        max_file_bytes: 1024,
+        max_file_count: 2,
+    };
     let provider = MemorySourceProvider::new(
         [
             ("a.yaml".into(), "a".into()),
@@ -57,7 +65,10 @@ fn memory_provider_enforces_file_count_limit() {
     assert!(provider.read(&req("a.yaml")).is_ok());
     assert!(provider.read(&req("b.yaml")).is_ok());
     let result = provider.read(&req("c.yaml"));
-    assert!(matches!(result, Err(ProviderError::FileCountExceeded { limit: 2 })));
+    assert!(matches!(
+        result,
+        Err(ProviderError::FileCountExceeded { limit: 2 })
+    ));
 }
 
 #[test]
@@ -97,7 +108,10 @@ fn fs_provider_enforces_file_size_limit() -> TestResult {
     let mut tmp = tempfile::NamedTempFile::new()?;
     write!(tmp, "{}", "x".repeat(20))?; // no trailing newline — intentional
     let path = tmp.path().to_path_buf();
-    let limits = LoadLimits { max_file_bytes: 10, max_file_count: 10 };
+    let limits = LoadLimits {
+        max_file_bytes: 10,
+        max_file_count: 10,
+    };
     let provider = susun_source::FileSystemSourceProvider::new(limits);
     let result = provider.read(&SourceRequest::new(path));
     assert!(matches!(result, Err(ProviderError::FileTooLarge { .. })));

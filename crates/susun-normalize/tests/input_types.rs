@@ -5,7 +5,7 @@ use std::{error::Error, sync::Arc};
 use indexmap::IndexMap;
 use susun_normalize::input::{
     ParsedService, RawMapping, RawPortEntry, RawPortLong, RawPortShort, RawStringOrList,
-    RawVolumeMount, RawVolumeLong, RawVolumeShort,
+    RawVolumeLong, RawVolumeMount, RawVolumeShort,
 };
 use susun_source::{LoadedSource, SourceMap, SourceName, Span, Spanned, TextOffset};
 
@@ -243,6 +243,7 @@ fn parsed_service_all_fields_constructed() -> TestResult {
         labels: RawMapping::List(vec![sp(id, "app=web")]),
         ports: vec![RawPortEntry::Short(RawPortShort(sp(id, "80:80")))],
         volumes: vec![RawVolumeMount::Short(RawVolumeShort(sp(id, "/data:/data")))],
+        ..ParsedService::default()
     };
     assert!(svc.image.is_some());
     assert!(matches!(svc.command, RawStringOrList::String(_)));

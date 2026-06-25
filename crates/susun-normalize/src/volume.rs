@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use susun_model::{CanonicalVolume, VolumeKind};
 
-use crate::input::volume::{RawVolumeMount, RawVolumeLong, RawVolumeShort};
+use crate::input::volume::{RawVolumeLong, RawVolumeMount, RawVolumeShort};
 
 // ── Error ─────────────────────────────────────────────────────────────────────
 
@@ -48,20 +48,35 @@ fn parse_short_str(s: &str) -> Result<CanonicalVolume, VolumeParseError> {
     match parts.len() {
         1 => {
             let target = validate_target(parts[0])?;
-            Ok(CanonicalVolume { kind: VolumeKind::Anonymous, source: None, target, read_only: false })
+            Ok(CanonicalVolume {
+                kind: VolumeKind::Anonymous,
+                source: None,
+                target,
+                read_only: false,
+            })
         }
         2 => {
             let source = parts[0].to_owned();
             let target = validate_target(parts[1])?;
             let kind = infer_kind(&source);
-            Ok(CanonicalVolume { kind, source: Some(source), target, read_only: false })
+            Ok(CanonicalVolume {
+                kind,
+                source: Some(source),
+                target,
+                read_only: false,
+            })
         }
         3 => {
             let source = parts[0].to_owned();
             let target = validate_target(parts[1])?;
             let read_only = parse_options(parts[2], s)?;
             let kind = infer_kind(&source);
-            Ok(CanonicalVolume { kind, source: Some(source), target, read_only })
+            Ok(CanonicalVolume {
+                kind,
+                source: Some(source),
+                target,
+                read_only,
+            })
         }
         _ => Err(VolumeParseError::InvalidFormat(s.to_owned())),
     }
@@ -73,7 +88,11 @@ fn parse_short_str(s: &str) -> Result<CanonicalVolume, VolumeParseError> {
 pub fn parse_long(long: &RawVolumeLong) -> Result<CanonicalVolume, VolumeParseError> {
     let target = match &long.target {
         Some(t) => validate_target(t.value.as_str())?,
-        None => return Err(VolumeParseError::InvalidTarget("long-form volume missing `target`".to_owned())),
+        None => {
+            return Err(VolumeParseError::InvalidTarget(
+                "long-form volume missing `target`".to_owned(),
+            ));
+        }
     };
 
     let kind = match &long.volume_type {
@@ -87,7 +106,12 @@ pub fn parse_long(long: &RawVolumeLong) -> Result<CanonicalVolume, VolumeParseEr
         None => false,
     };
 
-    Ok(CanonicalVolume { kind, source, target, read_only })
+    Ok(CanonicalVolume {
+        kind,
+        source,
+        target,
+        read_only,
+    })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

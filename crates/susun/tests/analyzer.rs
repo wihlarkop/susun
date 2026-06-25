@@ -7,8 +7,7 @@ use susun::{Analyzer, Error as SusunError};
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn valid_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/cli/valid-minimal/compose.yaml")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cli/valid-minimal/compose.yaml")
 }
 
 fn malformed_path() -> PathBuf {
@@ -20,9 +19,17 @@ fn valid_file_produces_canonical_project() -> TestResult {
     let result = Analyzer::new(valid_path()).analyze()?;
     let project = result.project.ok_or("expected a project")?;
     assert_eq!(project.name.to_string(), "valid-minimal");
-    let key = project.services.keys().next().ok_or("expected at least one service")?;
+    let key = project
+        .services
+        .keys()
+        .next()
+        .ok_or("expected at least one service")?;
     assert_eq!(key.as_str(), "web");
-    let service = project.services.values().next().ok_or("expected service value")?;
+    let service = project
+        .services
+        .values()
+        .next()
+        .ok_or("expected service value")?;
     let image = service.image.as_ref().ok_or("expected image")?;
     assert_eq!(image.as_str(), "nginx:latest");
     Ok(())
@@ -38,9 +45,7 @@ fn malformed_file_returns_ok_with_error_report() -> TestResult {
 
 #[test]
 fn missing_file_returns_load_error() {
-    let err = Analyzer::new("/nonexistent/compose.yaml")
-        .analyze()
-        .err();
+    let err = Analyzer::new("/nonexistent/compose.yaml").analyze().err();
     assert!(matches!(err, Some(SusunError::Load(_))));
 }
 

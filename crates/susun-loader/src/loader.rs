@@ -67,7 +67,10 @@ impl ProjectLoader {
     }
 
     /// Creates a loader with a custom [`SourceProvider`] (primarily for tests).
-    pub fn with_provider(path: impl Into<PathBuf>, provider: impl SourceProvider + 'static) -> Self {
+    pub fn with_provider(
+        path: impl Into<PathBuf>,
+        provider: impl SourceProvider + 'static,
+    ) -> Self {
         Self {
             context: LoadContext::new(path),
             provider: Box::new(provider),
@@ -79,7 +82,10 @@ impl ProjectLoader {
         context: LoadContext,
         provider: impl SourceProvider + 'static,
     ) -> Self {
-        Self { context, provider: Box::new(provider) }
+        Self {
+            context,
+            provider: Box::new(provider),
+        }
     }
 
     /// Read, parse, and register the source into `source_map`.
@@ -87,10 +93,7 @@ impl ProjectLoader {
     /// Returns `Err` only for system-level failures (file not found, I/O error).
     /// User-level mistakes yield `Ok` with diagnostics in the result's `report`.
     /// All span `SourceId` values reference entries in the provided `source_map`.
-    pub fn load_into(
-        self,
-        source_map: &mut SourceMap,
-    ) -> Result<SingleFileResult, LoadError> {
+    pub fn load_into(self, source_map: &mut SourceMap) -> Result<SingleFileResult, LoadError> {
         let path = self.context.path.clone();
         let request = SourceRequest::new(&path);
         let loaded = self
@@ -112,7 +115,12 @@ impl ProjectLoader {
         let resolver = self.context.build_resolver();
         let parsed = parser::parse(source_id, contents.as_ref(), &resolver, &mut report);
 
-        Ok(SingleFileResult { report, source_id, parsed, context: self.context })
+        Ok(SingleFileResult {
+            report,
+            source_id,
+            parsed,
+            context: self.context,
+        })
     }
 
     /// Read, parse, and return the raw load result with a fresh source map.
@@ -120,9 +128,18 @@ impl ProjectLoader {
     /// Convenience wrapper around [`load_into`][Self::load_into].
     pub fn load(self) -> Result<LoadResult, LoadError> {
         let mut source_map = SourceMap::new();
-        let SingleFileResult { report, source_id, parsed, context } =
-            self.load_into(&mut source_map)?;
-        Ok(LoadResult { source_map, report, source_id, parsed, context })
+        let SingleFileResult {
+            report,
+            source_id,
+            parsed,
+            context,
+        } = self.load_into(&mut source_map)?;
+        Ok(LoadResult {
+            source_map,
+            report,
+            source_id,
+            parsed,
+            context,
+        })
     }
 }
-

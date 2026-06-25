@@ -3,6 +3,7 @@
 use std::{collections::BTreeMap, path::PathBuf};
 
 use susun_diagnostics::DiagnosticReport;
+use susun_graph::DependencyGraph;
 use susun_loader::{
     LoadContext, MapEnvironment, ProjectLoader, SingleFileResult, load_dotenv_from_path,
 };
@@ -10,7 +11,8 @@ use susun_model::Project;
 use susun_normalize::{
     expand_project,
     merge::merge_projects,
-    normalize::{normalize, FinalProjectMetadata},
+    normalize::{FinalProjectMetadata, normalize},
+    selection::{ProjectSelection, select_services},
 };
 use susun_source::SourceMap;
 
@@ -32,6 +34,10 @@ pub struct Analyzer {
 pub struct AnalysisResult {
     /// Canonical project, or `None` if the YAML was unrecoverable.
     pub project: Option<Project>,
+    /// Active service selection, or `None` if no project was produced.
+    pub selection: Option<ProjectSelection>,
+    /// Dependency graph, or `None` if no project was produced or a cycle exists.
+    pub graph: Option<DependencyGraph>,
     /// Source map for all files loaded during this analysis.
     pub source_map: SourceMap,
     /// Diagnostics accumulated from all pipeline stages.
@@ -41,7 +47,10 @@ pub struct AnalysisResult {
 impl Analyzer {
     /// Creates an analyzer targeting the given Compose file path.
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { context: LoadContext::new(path), env_file: None }
+        Self {
+            context: LoadContext::new(path),
+            env_file: None,
+        }
     }
 
     /// Creates an analyzer with a fully configured [`LoadContext`].
@@ -49,7 +58,10 @@ impl Analyzer {
     /// Use this when you need to inject an env provider or set a project name
     /// override without going through the default CLI path.
     pub fn with_context(context: LoadContext) -> Self {
-        Self { context, env_file: None }
+        Self {
+            context,
+            env_file: None,
+        }
     }
 
     /// Specifies a `.env`-format file to load (equivalent to `--env-file`).
@@ -91,8 +103,7 @@ impl Analyzer {
             .with_dotenv_entries(dotenv_entries.clone())
             .with_env_file_entries(env_file_entries.clone());
 
-        let process_snapshot: BTreeMap<String, String> =
-            context.env_vars().into_iter().collect();
+        let process_snapshot: BTreeMap<String, String> = context.env_vars().into_iter().collect();
 
         // 4. Build the ordered file list: primary first, then additional.
         let additional_files = context.additional_files.clone();
@@ -111,8 +122,11 @@ impl Analyzer {
                 .with_dotenv_entries(dotenv_entries.clone())
                 .with_env_file_entries(env_file_entries.clone());
 
-            let SingleFileResult { report: file_report, parsed, .. } =
-                ProjectLoader::with_context(file_context).load_into(&mut source_map)?;
+            let SingleFileResult {
+                report: file_report,
+                parsed,
+                ..
+            } = ProjectLoader::with_context(file_context).load_into(&mut source_map)?;
             report.merge(file_report);
 
             if let Some(parsed) = parsed {
@@ -126,25 +140,45 @@ impl Analyzer {
 
         // 6. Resolve final project name and normalize. The merged name field
         //    already reflects last-overlay-wins from merge_projects.
-        let project_directory = context.path
+        let project_directory = context
+            .path
             .parent()
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."));
+
+        let mut selection = None;
+        let mut graph = None;
 
         let project = match merged {
             None => None,
             Some(merge) => {
                 let name_from_file = merge.name.as_ref().map(|s| s.value.as_str());
                 let project_name = context.resolve_project_name(name_from_file);
-                let outcome = normalize(merge, FinalProjectMetadata {
-                    project_name,
-                    project_directory,
-                })?;
+                let outcome = normalize(
+                    merge,
+                    FinalProjectMetadata {
+                        project_name,
+                        project_directory,
+                    },
+                )?;
                 report.merge(outcome.report);
+                let selected = select_services(&outcome.project, &context.profiles);
+                let validation = susun_validation::validate(&outcome.project, &selected);
+                report.merge(validation.report);
+                let graph_outcome = susun_graph::build_graph(&outcome.project, &selected);
+                report.merge(graph_outcome.report);
+                graph = graph_outcome.graph;
+                selection = Some(selected);
                 Some(outcome.project)
             }
         };
 
-        Ok(AnalysisResult { project, source_map, report })
+        Ok(AnalysisResult {
+            project,
+            selection,
+            graph,
+            source_map,
+            report,
+        })
     }
 }

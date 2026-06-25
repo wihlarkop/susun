@@ -18,3 +18,4 @@ susun-model       = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
 susun-source      = { workspace = true }
 thiserror         = { workspace = true }
+serde_json        = { workspace = true }

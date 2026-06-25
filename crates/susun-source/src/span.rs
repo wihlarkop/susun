@@ -42,12 +42,20 @@ impl Span {
                 end: end.0,
             });
         }
-        Ok(Self { source_id, start, end })
+        Ok(Self {
+            source_id,
+            start,
+            end,
+        })
     }
 
     /// Creates a zero-length span at the given offset.
     pub fn empty(source_id: SourceId, at: TextOffset) -> Self {
-        Self { source_id, start: at, end: at }
+        Self {
+            source_id,
+            start: at,
+            end: at,
+        }
     }
 }
 

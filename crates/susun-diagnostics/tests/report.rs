@@ -22,11 +22,7 @@ fn make_map_with_sources() -> (SourceMap, susun_source::SourceId, susun_source::
     (map, id0, id1)
 }
 
-fn span(
-    source_id: susun_source::SourceId,
-    start: u32,
-    end: u32,
-) -> Result<Span, SourceError> {
+fn span(source_id: susun_source::SourceId, start: u32, end: u32) -> Result<Span, SourceError> {
     Span::new(source_id, TextOffset::new(start), TextOffset::new(end))
 }
 
@@ -36,8 +32,7 @@ fn error(
     start: u32,
 ) -> Result<Diagnostic, SourceError> {
     let s = span(source_id, start, start + 1)?;
-    Ok(Diagnostic::new(code, Severity::Error, "an error")
-        .with_label(Label::primary(s, "here")))
+    Ok(Diagnostic::new(code, Severity::Error, "an error").with_label(Label::primary(s, "here")))
 }
 
 fn warning(
@@ -46,8 +41,7 @@ fn warning(
     start: u32,
 ) -> Result<Diagnostic, SourceError> {
     let s = span(source_id, start, start + 1)?;
-    Ok(Diagnostic::new(code, Severity::Warning, "a warning")
-        .with_label(Label::primary(s, "here")))
+    Ok(Diagnostic::new(code, Severity::Warning, "a warning").with_label(Label::primary(s, "here")))
 }
 
 // ── has_errors ────────────────────────────────────────────────────────────────

@@ -13,3 +13,4 @@ workspace = true
 susun-model       = { workspace = true }
 susun-diagnostics = { workspace = true }
 susun-normalize   = { workspace = true }
+indexmap          = { workspace = true }

@@ -22,14 +22,12 @@ fn image_of<'a>(
 
 #[test]
 fn image_var_substituted_from_env_provider() -> TestResult {
-    let yaml =
-        "name: test\nservices:\n  web:\n    image: ${REGISTRY:-docker.io}/${IMAGE:-nginx}:${TAG:-latest}\n";
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::from([
-            ("REGISTRY", "myregistry"),
-            ("IMAGE", "myapp"),
-            ("TAG", "v1.0"),
-        ]));
+    let yaml = "name: test\nservices:\n  web:\n    image: ${REGISTRY:-docker.io}/${IMAGE:-nginx}:${TAG:-latest}\n";
+    let context = LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::from([
+        ("REGISTRY", "myregistry"),
+        ("IMAGE", "myapp"),
+        ("TAG", "v1.0"),
+    ]));
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml)]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
@@ -41,8 +39,7 @@ fn image_var_substituted_from_env_provider() -> TestResult {
 #[test]
 fn image_var_falls_back_to_default_when_unset() -> TestResult {
     let yaml = "name: test\nservices:\n  web:\n    image: ${REGISTRY:-docker.io}/${IMAGE:-nginx}\n";
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::default());
+    let context = LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::default());
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml)]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
@@ -59,19 +56,24 @@ fn project_name_field_is_interpolated() -> TestResult {
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml)]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
-    assert_eq!(parsed.name.as_ref().map(|s| s.value.as_str()), Some("myapp"));
+    assert_eq!(
+        parsed.name.as_ref().map(|s| s.value.as_str()),
+        Some("myapp")
+    );
     Ok(())
 }
 
 #[test]
 fn project_name_falls_back_to_default_when_var_unset() -> TestResult {
     let yaml = "name: ${APP_NAME:-fallback}\nservices:\n  web:\n    image: nginx\n";
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::default());
+    let context = LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::default());
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml)]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
-    assert_eq!(parsed.name.as_ref().map(|s| s.value.as_str()), Some("fallback"));
+    assert_eq!(
+        parsed.name.as_ref().map(|s| s.value.as_str()),
+        Some("fallback")
+    );
     Ok(())
 }
 
@@ -81,8 +83,7 @@ fn project_name_falls_back_to_default_when_var_unset() -> TestResult {
 fn required_var_missing_emits_sus_env_001() -> TestResult {
     let yaml =
         "name: test\nservices:\n  web:\n    image: ${REQUIRED_IMAGE:?REQUIRED_IMAGE must be set}\n";
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::default());
+    let context = LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::default());
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml)]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     assert!(result.report.has_errors());
@@ -115,8 +116,8 @@ fn required_var_set_produces_no_error() -> TestResult {
 fn service_name_key_is_not_interpolated() -> TestResult {
     // The service named literally "${svc}" should not be resolved from env.
     let yaml = "name: test\nservices:\n  ${svc}:\n    image: nginx\n";
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::from([("svc", "web")]));
+    let context =
+        LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::from([("svc", "web")]));
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml)]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
@@ -153,7 +154,10 @@ fn fixture_substitution_with_all_vars_set() -> TestResult {
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
     assert!(!result.report.has_errors());
-    assert_eq!(parsed.name.as_ref().map(|s| s.value.as_str()), Some("my-project"));
+    assert_eq!(
+        parsed.name.as_ref().map(|s| s.value.as_str()),
+        Some("my-project")
+    );
     assert_eq!(
         image_of(&parsed, "web"),
         Some("registry.example.com/backend:stable"),
@@ -165,13 +169,15 @@ fn fixture_substitution_with_all_vars_set() -> TestResult {
 fn fixture_substitution_with_defaults_used() -> TestResult {
     let fixture = workspace_root()?.join("fixtures/interpolation/compose/substitution.yaml");
     let yaml = std::fs::read_to_string(fixture)?;
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::default());
+    let context = LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::default());
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml.as_str())]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     let parsed = result.parsed.ok_or("should parse")?;
     assert!(!result.report.has_errors());
-    assert_eq!(parsed.name.as_ref().map(|s| s.value.as_str()), Some("default-project"));
+    assert_eq!(
+        parsed.name.as_ref().map(|s| s.value.as_str()),
+        Some("default-project")
+    );
     assert_eq!(image_of(&parsed, "web"), Some("docker.io/nginx:latest"));
     Ok(())
 }
@@ -180,14 +186,15 @@ fn fixture_substitution_with_defaults_used() -> TestResult {
 fn fixture_required_missing_emits_error() -> TestResult {
     let fixture = workspace_root()?.join("fixtures/interpolation/compose/required-missing.yaml");
     let yaml = std::fs::read_to_string(fixture)?;
-    let context = LoadContext::new("compose.yaml")
-        .with_env_provider(MapEnvironment::default());
+    let context = LoadContext::new("compose.yaml").with_env_provider(MapEnvironment::default());
     let provider = MemorySourceProvider::with_files([("compose.yaml", yaml.as_str())]);
     let result = ProjectLoader::with_context_and_provider(context, provider).load()?;
     assert!(result.report.has_errors());
-    assert!(result
-        .report
-        .iter()
-        .any(|d| d.code.as_str() == "SUS-ENV-001"));
+    assert!(
+        result
+            .report
+            .iter()
+            .any(|d| d.code.as_str() == "SUS-ENV-001")
+    );
     Ok(())
 }

@@ -7,8 +7,7 @@ use susun_loader::{LoadError, ProjectLoader};
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn valid_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/cli/valid-minimal/compose.yaml")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cli/valid-minimal/compose.yaml")
 }
 
 fn malformed_path() -> PathBuf {

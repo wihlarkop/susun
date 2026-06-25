@@ -25,7 +25,10 @@ pub struct SourceRequest {
 impl SourceRequest {
     /// Creates a request for the given path with no display name override.
     pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into(), display_name: None }
+        Self {
+            path: path.into(),
+            display_name: None,
+        }
     }
 }
 
@@ -110,7 +113,10 @@ pub struct FileSystemSourceProvider {
 impl FileSystemSourceProvider {
     /// Creates a new provider with the given limits.
     pub fn new(limits: LoadLimits) -> Self {
-        Self { limits, count: AtomicUsize::new(0) }
+        Self {
+            limits,
+            count: AtomicUsize::new(0),
+        }
     }
 
     /// Creates a provider with [`LoadLimits::DEFAULT`].
@@ -163,9 +169,10 @@ impl SourceProvider for FileSystemSourceProvider {
             ProviderError::NotUtf8(request.path.clone())
         })?;
 
-        let name = request.display_name.clone().unwrap_or_else(|| {
-            SourceName::new(request.path.to_string_lossy().as_ref())
-        });
+        let name = request
+            .display_name
+            .clone()
+            .unwrap_or_else(|| SourceName::new(request.path.to_string_lossy().as_ref()));
 
         Ok(LoadedSource {
             name,
@@ -189,7 +196,11 @@ pub struct MemorySourceProvider {
 impl MemorySourceProvider {
     /// Creates a provider pre-loaded with the given file map and limits.
     pub fn new(files: HashMap<PathBuf, Arc<str>>, limits: LoadLimits) -> Self {
-        Self { files, limits, count: AtomicUsize::new(0) }
+        Self {
+            files,
+            limits,
+            count: AtomicUsize::new(0),
+        }
     }
 
     /// Creates a provider from an iterator of `(path, contents)` pairs with default limits.
@@ -199,7 +210,10 @@ impl MemorySourceProvider {
         P: Into<PathBuf>,
         S: Into<Arc<str>>,
     {
-        let files = iter.into_iter().map(|(p, s)| (p.into(), s.into())).collect();
+        let files = iter
+            .into_iter()
+            .map(|(p, s)| (p.into(), s.into()))
+            .collect();
         Self::new(files, LoadLimits::DEFAULT)
     }
 }
@@ -233,9 +247,10 @@ impl SourceProvider for MemorySourceProvider {
             });
         }
 
-        let name = request.display_name.clone().unwrap_or_else(|| {
-            SourceName::new(request.path.to_string_lossy().as_ref())
-        });
+        let name = request
+            .display_name
+            .clone()
+            .unwrap_or_else(|| SourceName::new(request.path.to_string_lossy().as_ref()));
 
         Ok(LoadedSource {
             name,

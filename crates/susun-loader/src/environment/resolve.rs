@@ -28,7 +28,11 @@ impl EnvResolver {
         env_file: Vec<DotenvEntry>,
         dotenv: Vec<DotenvEntry>,
     ) -> Self {
-        Self { process: Box::new(process), env_file, dotenv }
+        Self {
+            process: Box::new(process),
+            env_file,
+            dotenv,
+        }
     }
 
     /// Looks up `key` using the documented precedence order.
@@ -43,5 +47,8 @@ impl EnvResolver {
 }
 
 fn find_in(entries: &[DotenvEntry], key: &str) -> Option<String> {
-    entries.iter().find(|e| e.key == key).map(|e| e.value.clone())
+    entries
+        .iter()
+        .find(|e| e.key == key)
+        .map(|e| e.value.clone())
 }

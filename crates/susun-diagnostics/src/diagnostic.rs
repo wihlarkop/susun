@@ -18,12 +18,20 @@ pub struct Label {
 impl Label {
     /// Creates a primary label at the given span.
     pub fn primary(span: Span, message: impl Into<String>) -> Self {
-        Self { span, message: message.into(), primary: true }
+        Self {
+            span,
+            message: message.into(),
+            primary: true,
+        }
     }
 
     /// Creates a secondary context label at the given span.
     pub fn secondary(span: Span, message: impl Into<String>) -> Self {
-        Self { span, message: message.into(), primary: false }
+        Self {
+            span,
+            message: message.into(),
+            primary: false,
+        }
     }
 }
 

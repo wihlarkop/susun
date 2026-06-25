@@ -10,6 +10,7 @@ pub mod merge;
 pub mod normalize;
 pub mod port;
 pub mod provenance;
+pub mod selection;
 pub mod volume;
 
 pub use expand::expand_project;

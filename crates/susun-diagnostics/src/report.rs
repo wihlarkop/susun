@@ -1,9 +1,6 @@
 //! Diagnostic report: collection and deterministic ordering.
 
-use crate::{
-    code::Severity,
-    diagnostic::Diagnostic,
-};
+use crate::{code::Severity, diagnostic::Diagnostic};
 
 /// The sort key for deterministic diagnostic ordering.
 ///
@@ -23,7 +20,13 @@ fn sort_key(d: &Diagnostic) -> impl Ord + '_ {
         Severity::Note => 2,
     };
 
-    (source_idx, start_offset, severity_ord, d.code.as_str(), d.ordinal)
+    (
+        source_idx,
+        start_offset,
+        severity_ord,
+        d.code.as_str(),
+        d.ordinal,
+    )
 }
 
 /// An ordered collection of [`Diagnostic`]s.
@@ -52,7 +55,9 @@ impl DiagnosticReport {
 
     /// Returns `true` if any diagnostic has [`Severity::Error`].
     pub fn has_errors(&self) -> bool {
-        self.diagnostics.iter().any(|d| d.severity == Severity::Error)
+        self.diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error)
     }
 
     /// Returns the total number of diagnostics.

@@ -15,7 +15,10 @@ fn explicit_override_wins_over_compose_project_name_and_file() {
     let ctx = LoadContext::new(path("/project/compose.yaml"))
         .with_project_name("explicit")
         .with_env_provider(env);
-    assert_eq!(ctx.resolve_project_name(Some("from-file")).as_str(), "explicit");
+    assert_eq!(
+        ctx.resolve_project_name(Some("from-file")).as_str(),
+        "explicit"
+    );
 }
 
 #[test]
@@ -32,7 +35,10 @@ fn explicit_override_wins_over_directory_fallback() {
 fn compose_project_name_env_wins_over_file_name() {
     let env = MapEnvironment::from([("COMPOSE_PROJECT_NAME", "from-env")]);
     let ctx = LoadContext::new(path("/project/compose.yaml")).with_env_provider(env);
-    assert_eq!(ctx.resolve_project_name(Some("from-file")).as_str(), "from-env");
+    assert_eq!(
+        ctx.resolve_project_name(Some("from-file")).as_str(),
+        "from-env"
+    );
 }
 
 #[test]
@@ -47,7 +53,10 @@ fn compose_project_name_env_wins_over_directory_fallback() {
 fn empty_compose_project_name_is_ignored() {
     let env = MapEnvironment::from([("COMPOSE_PROJECT_NAME", "")]);
     let ctx = LoadContext::new(path("/project/compose.yaml")).with_env_provider(env);
-    assert_eq!(ctx.resolve_project_name(Some("from-file")).as_str(), "from-file");
+    assert_eq!(
+        ctx.resolve_project_name(Some("from-file")).as_str(),
+        "from-file"
+    );
 }
 
 /// Precedence 3: name: field from the file wins over directory fallback.
@@ -55,7 +64,10 @@ fn empty_compose_project_name_is_ignored() {
 fn file_name_wins_over_directory_fallback() {
     let env = MapEnvironment::default();
     let ctx = LoadContext::new(path("/my-dir/compose.yaml")).with_env_provider(env);
-    assert_eq!(ctx.resolve_project_name(Some("from-file")).as_str(), "from-file");
+    assert_eq!(
+        ctx.resolve_project_name(Some("from-file")).as_str(),
+        "from-file"
+    );
 }
 
 /// Precedence 4: directory name is the last resort.

@@ -3,8 +3,8 @@
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Label, Severity};
 use susun_source::Span;
 
-use crate::environment::resolve::EnvResolver;
 use super::parser::{Token, parse};
+use crate::environment::resolve::EnvResolver;
 
 /// Interpolates `${...}` expressions in `input` using `resolver`.
 ///
@@ -35,7 +35,11 @@ pub fn interpolate(
                 // Unset → empty string (Docker Compose behaviour)
             }
 
-            Token::WithDefault { name, check_empty, default } => {
+            Token::WithDefault {
+                name,
+                check_empty,
+                default,
+            } => {
                 let value = resolver.get(name);
                 let use_default = match &value {
                     None => true,
@@ -49,7 +53,11 @@ pub fn interpolate(
                 }
             }
 
-            Token::Required { name, check_empty, message } => {
+            Token::Required {
+                name,
+                check_empty,
+                message,
+            } => {
                 let value = resolver.get(name);
                 let is_missing = match &value {
                     None => true,

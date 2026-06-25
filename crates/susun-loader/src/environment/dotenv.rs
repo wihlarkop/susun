@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Label, Severity};
-use susun_source::{Span, SourceId, TextOffset};
+use susun_source::{SourceId, Span, TextOffset};
 
 const ENV_INVALID_KEY: &str = "SUS-ENV-002";
 const ENV_DUPLICATE_KEY: &str = "SUS-ENV-003";
@@ -74,7 +74,8 @@ pub fn parse_dotenv(
         let trimmed_start = line_start + (line.len() - trimmed.len()) as u32;
 
         // Strip optional `export ` prefix (with one or more trailing spaces).
-        let (effective, extra_offset) = if let Some(after_export) = trimmed.strip_prefix("export ") {
+        let (effective, extra_offset) = if let Some(after_export) = trimmed.strip_prefix("export ")
+        {
             let stripped = after_export.trim_start();
             let skip = (trimmed.len() - stripped.len()) as u32;
             (stripped, skip)
@@ -95,8 +96,12 @@ pub fn parse_dotenv(
 
         if !is_valid_identifier(key_raw) {
             report.push(
-                Diagnostic::new(ENV_INVALID_KEY, Severity::Error, format!("invalid .env key `{key_raw}`"))
-                    .with_label(Label::primary(key_span, "expected [A-Za-z_][A-Za-z0-9_]*")),
+                Diagnostic::new(
+                    ENV_INVALID_KEY,
+                    Severity::Error,
+                    format!("invalid .env key `{key_raw}`"),
+                )
+                .with_label(Label::primary(key_span, "expected [A-Za-z_][A-Za-z0-9_]*")),
             );
             continue;
         }
@@ -117,7 +122,11 @@ pub fn parse_dotenv(
             entries[prev_idx].value = value;
         } else {
             seen.insert(key_raw.to_owned(), entries.len());
-            entries.push(DotenvEntry { key: key_raw.to_owned(), value, key_span });
+            entries.push(DotenvEntry {
+                key: key_raw.to_owned(),
+                value,
+                key_span,
+            });
         }
     }
 

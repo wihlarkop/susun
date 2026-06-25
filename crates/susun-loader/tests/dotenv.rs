@@ -3,13 +3,8 @@
 use std::{error::Error, path::PathBuf};
 
 use susun_diagnostics::DiagnosticReport;
-use susun_loader::{
-    DotenvEntry,
-    environment::dotenv::parse_dotenv,
-};
-use susun_source::{
-    MemorySourceProvider, SourceId, SourceMap, SourceProvider, SourceRequest,
-};
+use susun_loader::{DotenvEntry, environment::dotenv::parse_dotenv};
+use susun_source::{MemorySourceProvider, SourceId, SourceMap, SourceProvider, SourceRequest};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -25,7 +20,9 @@ fn register(contents: &str) -> TestResult2 {
 
 type TestResult2 = Result<(SourceId, SourceMap), Box<dyn Error>>;
 
-fn parse(contents: &str) -> Result<(Vec<DotenvEntry>, DiagnosticReport, SourceMap), Box<dyn Error>> {
+fn parse(
+    contents: &str,
+) -> Result<(Vec<DotenvEntry>, DiagnosticReport, SourceMap), Box<dyn Error>> {
     let (source_id, source_map) = register(contents)?;
     let mut report = DiagnosticReport::new();
     let entries = parse_dotenv(source_id, contents, &mut report);
@@ -37,7 +34,10 @@ fn keys(entries: &[DotenvEntry]) -> Vec<&str> {
 }
 
 fn get<'a>(entries: &'a [DotenvEntry], key: &str) -> Option<&'a str> {
-    entries.iter().find(|e| e.key == key).map(|e| e.value.as_str())
+    entries
+        .iter()
+        .find(|e| e.key == key)
+        .map(|e| e.value.as_str())
 }
 
 // --- Comments and blank lines ---
@@ -275,7 +275,10 @@ fn key_span_on_second_line_has_correct_offset() -> TestResult {
     let mut report = DiagnosticReport::new();
     let entries = parse_dotenv(source_id, contents, &mut report);
 
-    let entry = entries.iter().find(|e| e.key == "SECOND").ok_or("SECOND not found")?;
+    let entry = entries
+        .iter()
+        .find(|e| e.key == "SECOND")
+        .ok_or("SECOND not found")?;
     // "FIRST=a\n" is 8 bytes; "SECOND" starts at byte 8.
     assert_eq!(entry.key_span.start.value(), 8);
     assert_eq!(entry.key_span.end.value(), 14);

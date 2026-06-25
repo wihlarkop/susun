@@ -38,5 +38,22 @@ pub fn merge_projects(base: MergeProject, overlay: MergeProject) -> MergeProject
         services.insert(name, Spanned::new(merged_svc, span));
     }
 
-    MergeProject { name: overlay.name.or(base.name), services }
+    MergeProject {
+        name: overlay.name.or(base.name),
+        services,
+        networks: merge_resource_map(base.networks, overlay.networks),
+        volumes: merge_resource_map(base.volumes, overlay.volumes),
+        configs: merge_resource_map(base.configs, overlay.configs),
+        secrets: merge_resource_map(base.secrets, overlay.secrets),
+    }
+}
+
+fn merge_resource_map(
+    mut base: crate::input::RawResources,
+    overlay: crate::input::RawResources,
+) -> crate::input::RawResources {
+    for (name, definition) in overlay {
+        base.insert(name, definition);
+    }
+    base
 }

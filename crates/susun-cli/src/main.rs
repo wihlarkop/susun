@@ -3,10 +3,10 @@
 use std::process;
 
 use clap::Parser;
-use susun::{Analyzer, LoadContext, render_diagnostics};
+use susun::{Analyzer, LoadContext, render_diagnostics, render_diagnostics_json};
 
 mod args;
-use args::{Cli, Command, ContextArgs};
+use args::{Cli, Command, ContextArgs, OutputFormat};
 
 fn main() {
     let cli = Cli::parse();
@@ -48,12 +48,20 @@ fn check(ctx: &ContextArgs) -> i32 {
             2
         }
         Ok(result) => {
-            if result.report.has_errors() {
-                eprint!("{}", render_diagnostics(&result.report, &result.source_map));
-                1
-            } else {
-                0
+            if !ctx.quiet && (result.report.has_errors() || !result.report.is_empty()) {
+                match ctx.format {
+                    OutputFormat::Human => {
+                        eprint!("{}", render_diagnostics(&result.report, &result.source_map));
+                    }
+                    OutputFormat::Json => {
+                        println!(
+                            "{}",
+                            render_diagnostics_json(&result.report, &result.source_map)
+                        );
+                    }
+                }
             }
+            if result.report.has_errors() { 1 } else { 0 }
         }
     }
 }
@@ -66,7 +74,19 @@ fn config(ctx: &ContextArgs) -> i32 {
         }
         Ok(result) => {
             if result.report.has_errors() {
-                eprint!("{}", render_diagnostics(&result.report, &result.source_map));
+                if !ctx.quiet {
+                    match ctx.format {
+                        OutputFormat::Human => {
+                            eprint!("{}", render_diagnostics(&result.report, &result.source_map));
+                        }
+                        OutputFormat::Json => {
+                            eprintln!(
+                                "{}",
+                                render_diagnostics_json(&result.report, &result.source_map)
+                            );
+                        }
+                    }
+                }
                 1
             } else {
                 match result.project {

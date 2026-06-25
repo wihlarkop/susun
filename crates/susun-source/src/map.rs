@@ -42,11 +42,7 @@ impl SourceMap {
     /// - [`SourceError::UnknownSourceId`] if `id` is not registered in this map.
     /// - [`SourceError::OffsetOutOfBounds`] if `offset` exceeds the source length.
     /// - [`SourceError::NotUtf8Boundary`] if `offset` falls inside a multi-byte UTF-8 sequence.
-    pub fn resolve(
-        &self,
-        id: SourceId,
-        offset: TextOffset,
-    ) -> Result<LineColumn, SourceError> {
+    pub fn resolve(&self, id: SourceId, offset: TextOffset) -> Result<LineColumn, SourceError> {
         let source = self.get(id).ok_or(SourceError::UnknownSourceId(id.0))?;
         let contents: &str = &source.contents;
         let offset_usize = offset.0 as usize;

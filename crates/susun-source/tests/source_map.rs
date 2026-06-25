@@ -93,7 +93,10 @@ fn utf8_boundary_violation_returns_error() {
     // "café": c@0, a@1, f@2, é@3..5  (5 bytes total)
     let id = map.register(make_source("src", "café"));
     let result = map.resolve(id, TextOffset::new(4));
-    assert!(matches!(result, Err(SourceError::NotUtf8Boundary { offset: 4 })));
+    assert!(matches!(
+        result,
+        Err(SourceError::NotUtf8Boundary { offset: 4 })
+    ));
 }
 
 #[test]

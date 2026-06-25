@@ -8,8 +8,8 @@ use indexmap::IndexMap;
 use susun_source::Spanned;
 
 use crate::input::{
-    MergeProject, ParsedProject, ParsedService, RawMapping, RawStringOrList,
-    port::RawPortEntry, volume::RawVolumeMount,
+    MergeProject, ParsedProject, ParsedService, RawMapping, RawStringOrList, port::RawPortEntry,
+    volume::RawVolumeMount,
 };
 
 /// Expand a raw parsed project into a merge-ready project.
@@ -27,6 +27,10 @@ pub fn expand_project(parsed: ParsedProject) -> MergeProject {
                 (name, Spanned::new(expanded, spanned.span))
             })
             .collect(),
+        networks: parsed.networks,
+        volumes: parsed.volumes,
+        configs: parsed.configs,
+        secrets: parsed.secrets,
     }
 }
 
@@ -39,6 +43,13 @@ fn expand_service(svc: ParsedService) -> ParsedService {
         labels: expand_mapping(svc.labels),
         ports: expand_ports(svc.ports),
         volumes: expand_volumes(svc.volumes),
+        depends_on: svc.depends_on,
+        networks: svc.networks,
+        configs: svc.configs,
+        secrets: svc.secrets,
+        healthcheck: svc.healthcheck,
+        restart: svc.restart,
+        profiles: svc.profiles,
     }
 }
 

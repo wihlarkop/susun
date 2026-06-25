@@ -5,9 +5,14 @@ use std::{collections::BTreeMap, error::Error, path::PathBuf};
 use susun_diagnostics::{DiagnosticReport, Severity};
 use susun_loader::{
     EnvResolver, MapEnvironment,
-    interpolation::{eval::interpolate, parser::{Token, parse}},
+    interpolation::{
+        eval::interpolate,
+        parser::{Token, parse},
+    },
 };
-use susun_source::{MemorySourceProvider, SourceMap, SourceProvider, SourceRequest, Span, TextOffset};
+use susun_source::{
+    MemorySourceProvider, SourceMap, SourceProvider, SourceRequest, Span, TextOffset,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -72,7 +77,11 @@ fn parser_simple_substitution() {
 fn parser_default_check_empty_true() {
     assert_eq!(
         parse("${VAR:-default}"),
-        vec![Token::WithDefault { name: "VAR", check_empty: true, default: "default" }],
+        vec![Token::WithDefault {
+            name: "VAR",
+            check_empty: true,
+            default: "default"
+        }],
     );
 }
 
@@ -80,7 +89,11 @@ fn parser_default_check_empty_true() {
 fn parser_default_check_empty_false() {
     assert_eq!(
         parse("${VAR-default}"),
-        vec![Token::WithDefault { name: "VAR", check_empty: false, default: "default" }],
+        vec![Token::WithDefault {
+            name: "VAR",
+            check_empty: false,
+            default: "default"
+        }],
     );
 }
 
@@ -88,7 +101,11 @@ fn parser_default_check_empty_false() {
 fn parser_required_check_empty_true() {
     assert_eq!(
         parse("${VAR:?my message}"),
-        vec![Token::Required { name: "VAR", check_empty: true, message: "my message" }],
+        vec![Token::Required {
+            name: "VAR",
+            check_empty: true,
+            message: "my message"
+        }],
     );
 }
 
@@ -96,7 +113,11 @@ fn parser_required_check_empty_true() {
 fn parser_required_check_empty_false() {
     assert_eq!(
         parse("${VAR?my message}"),
-        vec![Token::Required { name: "VAR", check_empty: false, message: "my message" }],
+        vec![Token::Required {
+            name: "VAR",
+            check_empty: false,
+            message: "my message"
+        }],
     );
 }
 
@@ -109,7 +130,10 @@ fn parser_bare_dollar_before_identifier_is_literal() {
 #[test]
 fn parser_lone_dollar_at_end_is_literal() {
     // Lone '$' at end — emitted as a separate Literal segment alongside any preceding text.
-    assert_eq!(parse("end$"), vec![Token::Literal("end"), Token::Literal("$")]);
+    assert_eq!(
+        parse("end$"),
+        vec![Token::Literal("end"), Token::Literal("$")]
+    );
 }
 
 #[test]
@@ -121,7 +145,10 @@ fn parser_dollar_only_is_literal() {
 fn parser_adjacent_expressions() {
     assert_eq!(
         parse("${A}${B}"),
-        vec![Token::Substitute { name: "A" }, Token::Substitute { name: "B" }],
+        vec![
+            Token::Substitute { name: "A" },
+            Token::Substitute { name: "B" }
+        ],
     );
 }
 
@@ -139,7 +166,10 @@ fn parser_literal_then_subst_then_literal() {
 
 #[test]
 fn parser_unmatched_brace_at_end() {
-    assert_eq!(parse("${VAR"), vec![Token::UnmatchedBrace { content: "VAR" }]);
+    assert_eq!(
+        parse("${VAR"),
+        vec![Token::UnmatchedBrace { content: "VAR" }]
+    );
 }
 
 #[test]
@@ -157,7 +187,11 @@ fn parser_empty_default_value() {
     // ${VAR:-} — default is empty string
     assert_eq!(
         parse("${VAR:-}"),
-        vec![Token::WithDefault { name: "VAR", check_empty: true, default: "" }],
+        vec![Token::WithDefault {
+            name: "VAR",
+            check_empty: true,
+            default: ""
+        }],
     );
 }
 
@@ -165,13 +199,20 @@ fn parser_empty_default_value() {
 fn parser_empty_required_message() {
     assert_eq!(
         parse("${VAR:?}"),
-        vec![Token::Required { name: "VAR", check_empty: true, message: "" }],
+        vec![Token::Required {
+            name: "VAR",
+            check_empty: true,
+            message: ""
+        }],
     );
 }
 
 #[test]
 fn parser_underscore_prefixed_name() {
-    assert_eq!(parse("${_INTERNAL}"), vec![Token::Substitute { name: "_INTERNAL" }]);
+    assert_eq!(
+        parse("${_INTERNAL}"),
+        vec![Token::Substitute { name: "_INTERNAL" }]
+    );
 }
 
 // ── evaluator integration tests ───────────────────────────────────────────────
@@ -330,7 +371,10 @@ fn eval_invalid_expr_passes_through() -> TestResult {
 
 #[test]
 fn eval_adjacent_expressions() -> TestResult {
-    let (out, _) = eval("${HOST}:${PORT}", &[("HOST", "localhost"), ("PORT", "5432")])?;
+    let (out, _) = eval(
+        "${HOST}:${PORT}",
+        &[("HOST", "localhost"), ("PORT", "5432")],
+    )?;
     assert_eq!(out, "localhost:5432");
     Ok(())
 }

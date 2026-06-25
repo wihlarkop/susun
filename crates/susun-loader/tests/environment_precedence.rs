@@ -3,10 +3,7 @@
 use std::{collections::BTreeMap, error::Error, path::PathBuf};
 
 use susun_diagnostics::DiagnosticReport;
-use susun_loader::{
-    DotenvEntry, EnvResolver, MapEnvironment,
-    environment::dotenv::parse_dotenv,
-};
+use susun_loader::{DotenvEntry, EnvResolver, MapEnvironment, environment::dotenv::parse_dotenv};
 use susun_source::{MemorySourceProvider, SourceMap, SourceProvider, SourceRequest};
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -23,7 +20,10 @@ fn parse_env_str(contents: &str) -> Result<Vec<DotenvEntry>, Box<dyn Error>> {
 
 fn make_process(pairs: &[(&str, &str)]) -> MapEnvironment {
     MapEnvironment::new(
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect::<BTreeMap<_, _>>(),
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect::<BTreeMap<_, _>>(),
     )
 }
 

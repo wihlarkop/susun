@@ -96,7 +96,9 @@ pub fn parse(input: &str) -> Vec<Token<'_>> {
                     pos += 1;
                 }
                 if pos >= len {
-                    tokens.push(Token::UnmatchedBrace { content: &input[content_start..] });
+                    tokens.push(Token::UnmatchedBrace {
+                        content: &input[content_start..],
+                    });
                     literal_start = pos;
                 } else {
                     let content = &input[content_start..pos];
@@ -140,10 +142,26 @@ fn parse_braced(content: &str) -> Token<'_> {
 
     match rest {
         "" => Token::Substitute { name },
-        s if s.starts_with(":-") => Token::WithDefault { name, check_empty: true, default: &s[2..] },
-        s if s.starts_with('-') => Token::WithDefault { name, check_empty: false, default: &s[1..] },
-        s if s.starts_with(":?") => Token::Required { name, check_empty: true, message: &s[2..] },
-        s if s.starts_with('?') => Token::Required { name, check_empty: false, message: &s[1..] },
+        s if s.starts_with(":-") => Token::WithDefault {
+            name,
+            check_empty: true,
+            default: &s[2..],
+        },
+        s if s.starts_with('-') => Token::WithDefault {
+            name,
+            check_empty: false,
+            default: &s[1..],
+        },
+        s if s.starts_with(":?") => Token::Required {
+            name,
+            check_empty: true,
+            message: &s[2..],
+        },
+        s if s.starts_with('?') => Token::Required {
+            name,
+            check_empty: false,
+            message: &s[1..],
+        },
         _ => Token::InvalidExpr { content },
     }
 }
