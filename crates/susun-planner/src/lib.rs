@@ -12,6 +12,7 @@ pub mod input;
 pub mod naming;
 pub mod options;
 pub mod plan;
+pub mod up;
 
 pub use capability_check::check_up_capabilities;
 pub use dag::{topological_action_order, validate_action_dag};
@@ -29,3 +30,4 @@ pub use plan::{
     PlanSummary, PlannedOperation, PullImageAction, RemoveContainerAction, RemoveNetworkAction,
     RemoveVolumeAction, StartContainerAction, StopContainerAction, WaitForDependencyAction,
 };
+pub use up::{UpResourceActions, plan_up};
