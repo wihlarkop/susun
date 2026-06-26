@@ -5,9 +5,11 @@ use susun_planner::{ActionId, PlanActionNode};
 
 pub mod noop;
 pub mod recreate;
+pub mod scale;
 
 pub use noop::plan_noop_or_start;
 pub use recreate::{ReplacementInput, plan_replacement};
+pub use scale::plan_scale;
 
 /// A deterministic set of convergence action nodes.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

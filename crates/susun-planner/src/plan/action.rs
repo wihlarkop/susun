@@ -139,6 +139,12 @@ pub enum PlanAction {
     PreserveVolume(PreserveVolumeAction),
     /// Verify that a replacement container reached the expected state.
     VerifyReplacement(VerifyReplacementAction),
+    /// Remove an orphaned resource.
+    RemoveOrphan(RemoveOrphanAction),
+    /// Scale a service up by creating a replica.
+    ScaleUpReplica(ScaleUpReplicaAction),
+    /// Scale a service down by removing a replica.
+    ScaleDownReplica(ScaleDownReplicaAction),
     /// Record that no mutation is required.
     NoOp(NoOpAction),
 }
@@ -161,6 +167,9 @@ impl PlanAction {
             Self::RecreateContainer(_) => "recreate_container",
             Self::PreserveVolume(_) => "preserve_volume",
             Self::VerifyReplacement(_) => "verify_replacement",
+            Self::RemoveOrphan(_) => "remove_orphan",
+            Self::ScaleUpReplica(_) => "scale_up_replica",
+            Self::ScaleDownReplica(_) => "scale_down_replica",
             Self::NoOp(_) => "no_op",
         }
     }
@@ -192,6 +201,13 @@ impl PlanAction {
             }
             Self::PreserveVolume(action) => format!("volume:{}", action.identity.volume.as_str()),
             Self::VerifyReplacement(action) => {
+                format!("service:{}", action.identity.service.as_str())
+            }
+            Self::RemoveOrphan(action) => action.resource.clone(),
+            Self::ScaleUpReplica(action) => {
+                format!("service:{}", action.identity.service.as_str())
+            }
+            Self::ScaleDownReplica(action) => {
                 format!("service:{}", action.identity.service.as_str())
             }
             Self::NoOp(action) => action.resource.clone(),
@@ -346,6 +362,32 @@ pub struct PreserveVolumeAction {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct VerifyReplacementAction {
     /// Service instance identity.
+    pub identity: ServiceInstanceId,
+}
+
+/// Remove-orphan action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RemoveOrphanAction {
+    /// Stable resource key.
+    pub resource: String,
+    /// Human-readable resource kind.
+    pub kind: String,
+}
+
+/// Scale-up action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ScaleUpReplicaAction {
+    /// Replica identity to create.
+    pub identity: ServiceInstanceId,
+}
+
+/// Scale-down action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ScaleDownReplicaAction {
+    /// Replica identity to remove.
     pub identity: ServiceInstanceId,
 }
 
