@@ -16,3 +16,7 @@ bollard = { workspace = true }
 futures-util = { workspace = true }
 indexmap = { workspace = true }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+susun-testkit = { workspace = true }
+tokio = { workspace = true }
