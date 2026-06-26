@@ -81,7 +81,12 @@ pub(crate) fn plan_services(
             ActionSafety::Safe,
         );
 
-        add_service_resource_dependencies(service, resources, &mut create_node.dependencies);
+        add_service_resource_dependencies(
+            service_name,
+            service,
+            resources,
+            &mut create_node.dependencies,
+        );
 
         let create_id = insert_action(actions, create_node)?;
         let start_action = PlanAction::StartContainer(StartContainerAction {
@@ -150,10 +155,15 @@ fn runtime_volumes(
 }
 
 fn add_service_resource_dependencies(
+    service_name: &susun_model::ServiceName,
     service: &susun_model::Service,
     resources: &UpResourceActions,
     dependencies: &mut IndexSet<ActionId>,
 ) {
+    if let Some(action_id) = resources.builds.get(service_name.as_str()) {
+        dependencies.insert(action_id.clone());
+    }
+
     if let Some(image) = &service.image
         && let Some(action_id) = resources.images.get(image.as_str())
     {

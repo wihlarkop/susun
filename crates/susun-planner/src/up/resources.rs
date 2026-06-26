@@ -2,13 +2,16 @@
 
 use indexmap::{IndexMap, IndexSet};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
-use susun_engine::{NetworkIdentity, ResourceName, VolumeIdentity};
+use susun_engine::{
+    NetworkIdentity, ReplicaIndex, ResourceName, ServiceInstanceId, VolumeIdentity,
+};
 use susun_model::{ImageRef, VolumeKind, VolumeName};
 
 use crate::{
-    ActionExplanation, ActionId, ActionReason, ActionSafety, CreateNetworkAction,
-    CreateVolumeAction, ImageAcquisitionPolicy, NamingPolicy, NoOpAction, PlanAction,
-    PlanActionNode, PlanError, PlannedOperation, PlanningInput, PullImageAction, UpPlanOptions,
+    ActionExplanation, ActionId, ActionReason, ActionSafety, BuildImageAction, BuildPolicy,
+    CreateNetworkAction, CreateVolumeAction, ImageAcquisitionPolicy, NamingPolicy, NoOpAction,
+    PlanAction, PlanActionNode, PlanError, PlannedOperation, PlanningInput, PullImageAction,
+    UpPlanOptions, VerifyBuildInputsAction,
 };
 
 use super::insert_action;
@@ -29,6 +32,8 @@ pub struct UpResourceActions {
     pub volume_names: IndexMap<String, ResourceName>,
     /// Image prerequisite action by image reference.
     pub images: IndexMap<String, ActionId>,
+    /// Build prerequisite action by service name.
+    pub builds: IndexMap<String, ActionId>,
 }
 
 pub(crate) fn plan_prerequisite_resources(
@@ -146,6 +151,54 @@ pub(crate) fn plan_prerequisite_resources(
             planned.volumes.insert(
                 volume_name.as_str().to_owned(),
                 insert_action(actions, node)?,
+            );
+        }
+    }
+
+    if options.build_policy == BuildPolicy::BuildDeclared {
+        for service_name in &input.selection.active_services {
+            let Some(service) = input.project.services.get(service_name) else {
+                continue;
+            };
+            let Some(build) = &service.build else {
+                continue;
+            };
+            let identity = ServiceInstanceId::new(
+                input.identity.working_set.clone(),
+                service_name.clone(),
+                ReplicaIndex::FIRST,
+            );
+
+            let verify_action = PlanAction::VerifyBuildInputs(VerifyBuildInputsAction {
+                identity: identity.clone(),
+            });
+            let verify_id = make_action_id(input, &verify_action, "0");
+            let verify_node = node(
+                verify_id,
+                verify_action,
+                ActionReason::BuildInputsRequireVerification,
+                "build inputs should be verified before execution",
+                ActionSafety::Safe,
+            );
+            let verify_id = insert_action(actions, verify_node)?;
+
+            let build_action = PlanAction::BuildImage(Box::new(BuildImageAction {
+                identity,
+                build: build.clone(),
+                image: service.image.clone(),
+            }));
+            let build_id = make_action_id(input, &build_action, "0");
+            let mut build_node = node(
+                build_id,
+                build_action,
+                ActionReason::BuildDeclared,
+                "service declares a build definition",
+                ActionSafety::Safe,
+            );
+            build_node.dependencies.insert(verify_id);
+            planned.builds.insert(
+                service_name.as_str().to_owned(),
+                insert_action(actions, build_node)?,
             );
         }
     }

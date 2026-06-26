@@ -20,6 +20,7 @@ serde = [
 
 [dependencies]
 susun-diagnostics = { workspace = true }
+susun-build = { workspace = true }
 susun-engine = { workspace = true }
 susun-graph = { workspace = true }
 susun-model = { workspace = true }
