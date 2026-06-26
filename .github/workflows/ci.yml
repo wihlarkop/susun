@@ -53,6 +53,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - run: bash scripts/run-docker-integration.sh
 
+  convergence-integration:
+    name: Convergence integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bash scripts/run-convergence-integration.sh
+
   platform:
     name: Platform (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
