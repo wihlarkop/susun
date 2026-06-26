@@ -7,6 +7,7 @@
 pub mod decision;
 pub mod deployment;
 pub mod error;
+pub mod fingerprint;
 pub mod policy;
 
 pub use decision::{
@@ -17,6 +18,11 @@ pub use deployment::{
     DesiredDeployment, DesiredReplicaCount, ObservedDeployment, OwnershipConflict, OwnershipIndex,
 };
 pub use error::ConvergenceError;
+pub use fingerprint::{
+    CanonicalFingerprintInput, FingerprintDigest, FingerprintInput, FingerprintVersion,
+    ResolvedImageIdentity, ResolvedResourceNames, RuntimeDefaults, VersionedFingerprint,
+    compute_configuration_fingerprint, parse_configuration_fingerprint,
+};
 pub use policy::{
     AnonymousVolumePolicy, ConvergencePolicy, DependencyRecreatePolicy, ImageChangePolicy,
     OrphanPolicy, RecreatePolicy, ReplacementStrategy,

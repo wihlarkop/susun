@@ -27,4 +27,5 @@ susun-normalize = { workspace = true }
 susun-planner = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
+sha2 = { workspace = true }
 thiserror = { workspace = true }

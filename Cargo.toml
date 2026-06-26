@@ -37,6 +37,7 @@ saphyr-parser = "0.0.6"
 thiserror = "2.0"
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
+sha2 = "0.10"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
 
 [workspace.lints.rust]
