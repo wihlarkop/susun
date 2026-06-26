@@ -131,6 +131,14 @@ pub enum PlanAction {
     RemoveNetwork(RemoveNetworkAction),
     /// Remove a volume.
     RemoveVolume(RemoveVolumeAction),
+    /// Rename a container before replacement.
+    RenameContainer(RenameContainerAction),
+    /// Mark a container replacement sequence.
+    RecreateContainer(RecreateContainerAction),
+    /// Preserve a named volume during replacement.
+    PreserveVolume(PreserveVolumeAction),
+    /// Verify that a replacement container reached the expected state.
+    VerifyReplacement(VerifyReplacementAction),
     /// Record that no mutation is required.
     NoOp(NoOpAction),
 }
@@ -149,6 +157,10 @@ impl PlanAction {
             Self::RemoveContainer(_) => "remove_container",
             Self::RemoveNetwork(_) => "remove_network",
             Self::RemoveVolume(_) => "remove_volume",
+            Self::RenameContainer(_) => "rename_container",
+            Self::RecreateContainer(_) => "recreate_container",
+            Self::PreserveVolume(_) => "preserve_volume",
+            Self::VerifyReplacement(_) => "verify_replacement",
             Self::NoOp(_) => "no_op",
         }
     }
@@ -172,6 +184,16 @@ impl PlanAction {
             }
             Self::RemoveNetwork(action) => format!("network:{}", action.identity.network.as_str()),
             Self::RemoveVolume(action) => format!("volume:{}", action.identity.volume.as_str()),
+            Self::RenameContainer(action) => {
+                format!("service:{}", action.identity.service.as_str())
+            }
+            Self::RecreateContainer(action) => {
+                format!("service:{}", action.identity.service.as_str())
+            }
+            Self::PreserveVolume(action) => format!("volume:{}", action.identity.volume.as_str()),
+            Self::VerifyReplacement(action) => {
+                format!("service:{}", action.identity.service.as_str())
+            }
             Self::NoOp(action) => action.resource.clone(),
         }
     }
@@ -285,6 +307,46 @@ pub struct RemoveNetworkAction {
 pub struct RemoveVolumeAction {
     /// Volume identity.
     pub identity: VolumeIdentity,
+}
+
+/// Rename-container action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RenameContainerAction {
+    /// Service instance identity.
+    pub identity: ServiceInstanceId,
+    /// Existing runtime container name.
+    pub from: ResourceName,
+    /// Replacement-safe runtime container name.
+    pub to: ResourceName,
+}
+
+/// Recreate-container marker action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct RecreateContainerAction {
+    /// Service instance identity.
+    pub identity: ServiceInstanceId,
+    /// Replacement strategy key.
+    pub strategy: String,
+}
+
+/// Preserve-volume action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PreserveVolumeAction {
+    /// Volume identity.
+    pub identity: VolumeIdentity,
+    /// Human-readable reason.
+    pub reason: String,
+}
+
+/// Verify-replacement action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct VerifyReplacementAction {
+    /// Service instance identity.
+    pub identity: ServiceInstanceId,
 }
 
 /// No-op action.

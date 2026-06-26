@@ -89,6 +89,26 @@ fn action_label(action: &PlanAction) -> String {
         PlanAction::RemoveVolume(action) => {
             format!("remove volume {}", action.identity.volume.as_str())
         }
+        PlanAction::RenameContainer(action) => format!(
+            "rename service {} from {} to {}",
+            action.identity.service.as_str(),
+            action.from.as_str(),
+            action.to.as_str()
+        ),
+        PlanAction::RecreateContainer(action) => format!(
+            "recreate service {} using {}",
+            action.identity.service.as_str(),
+            action.strategy
+        ),
+        PlanAction::PreserveVolume(action) => {
+            format!("preserve volume {}", action.identity.volume.as_str())
+        }
+        PlanAction::VerifyReplacement(action) => {
+            format!(
+                "verify replacement for {}",
+                action.identity.service.as_str()
+            )
+        }
         PlanAction::NoOp(action) => format!("no-op {}", action.resource),
     }
 }
