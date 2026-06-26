@@ -6,8 +6,8 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ConfigName, Dependencies, Healthcheck, ImageRef, NetworkAttachment, NetworkName, ResourceMount,
-    SecretName, port::CanonicalPort, volume::CanonicalVolume,
+    BuildDefinition, ConfigName, Dependencies, Healthcheck, ImageRef, NetworkAttachment,
+    NetworkName, ResourceMount, SecretName, port::CanonicalPort, volume::CanonicalVolume,
 };
 
 /// Command or entrypoint in canonical form.
@@ -31,6 +31,9 @@ pub struct Service {
     /// Container image reference, if specified.
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub image: Option<ImageRef>,
+    /// Service build definition, if specified.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub build: Option<BuildDefinition>,
     /// Command to run (overrides the image's `CMD`).
     #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub command: Option<Command>,

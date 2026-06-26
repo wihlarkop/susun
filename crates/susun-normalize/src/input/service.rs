@@ -1,6 +1,7 @@
 use susun_source::Spanned;
 
 use super::{
+    build::RawBuildDefinition,
     command::RawStringOrList,
     dependency::RawDependencies,
     environment::RawMapping,
@@ -18,6 +19,8 @@ use super::{
 pub struct ParsedService {
     /// The `image:` field, if present.
     pub image: Option<Spanned<String>>,
+    /// The `build:` field, if present.
+    pub build: Option<RawBuildDefinition>,
     /// The `command:` field.
     pub command: RawStringOrList,
     /// The `entrypoint:` field.

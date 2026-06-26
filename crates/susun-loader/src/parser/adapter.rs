@@ -7,9 +7,10 @@ use indexmap::IndexMap;
 use saphyr::{LoadableYamlNode, MarkedYamlOwned, YamlDataOwned};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Label, Severity};
 use susun_normalize::input::{
-    ParsedProject, ParsedService, RawDependency, RawHealthcheck, RawMapping, RawNetworkAttachment,
-    RawPortEntry, RawPortLong, RawPortShort, RawResourceDefinition, RawResourceMount, RawResources,
-    RawServiceNetworks, RawStringOrList, RawVolumeLong, RawVolumeMount, RawVolumeShort,
+    ParsedProject, ParsedService, RawBuildDefinition, RawDependency, RawHealthcheck, RawMapping,
+    RawNetworkAttachment, RawPortEntry, RawPortLong, RawPortShort, RawResourceDefinition,
+    RawResourceMount, RawResources, RawServiceNetworks, RawStringOrList, RawVolumeLong,
+    RawVolumeMount, RawVolumeShort,
 };
 use susun_source::{SourceId, Span, Spanned, TextOffset};
 
@@ -194,6 +195,7 @@ fn parse_service(
     };
 
     let mut image: Option<Spanned<String>> = None;
+    let mut build = None;
     let mut command = RawStringOrList::Null;
     let mut entrypoint = RawStringOrList::Null;
     let mut environment = RawMapping::default();
@@ -216,6 +218,9 @@ fn parse_service(
         match key {
             "image" => {
                 image = interpolated_spanned(contents, source_id, v_node, resolver, report);
+            }
+            "build" => {
+                build = parse_build(contents, source_id, v_node, resolver, report);
             }
             "command" => {
                 command = parse_string_or_list(contents, source_id, v_node, resolver, report)
@@ -267,6 +272,7 @@ fn parse_service(
 
     ParsedService {
         image,
+        build,
         command,
         entrypoint,
         environment,
@@ -281,6 +287,126 @@ fn parse_service(
         restart,
         profiles,
     }
+}
+
+fn parse_build(
+    contents: &str,
+    source_id: SourceId,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Option<RawBuildDefinition> {
+    match &node.data {
+        YamlDataOwned::Mapping(fields) => {
+            let mut build = RawBuildDefinition::default();
+            for (k_node, v_node) in fields {
+                match node_as_str(k_node) {
+                    Some("context") => {
+                        build.context =
+                            interpolated_spanned(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("dockerfile") => {
+                        build.dockerfile =
+                            interpolated_spanned(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("target") => {
+                        build.target =
+                            interpolated_spanned(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("args") => {
+                        build.args =
+                            match parse_mapping(contents, source_id, v_node, resolver, report) {
+                                RawMapping::Map(map) => map,
+                                RawMapping::List(entries) => args_list_to_map(entries),
+                            }
+                    }
+                    Some("platforms") => {
+                        build.platforms =
+                            parse_string_sequence(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("secrets") => {
+                        build.secrets =
+                            parse_build_identities(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("ssh") => {
+                        build.ssh =
+                            parse_build_identities(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("cache_from") => {
+                        build.cache_from =
+                            parse_string_sequence(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("cache_to") => {
+                        build.cache_to =
+                            parse_string_sequence(contents, source_id, v_node, resolver, report)
+                    }
+                    _ => {}
+                }
+            }
+            Some(build)
+        }
+        _ => interpolated_spanned(contents, source_id, node, resolver, report).map(|context| {
+            RawBuildDefinition {
+                context: Some(context),
+                ..RawBuildDefinition::default()
+            }
+        }),
+    }
+}
+
+fn args_list_to_map(entries: Vec<Spanned<String>>) -> IndexMap<String, Option<Spanned<String>>> {
+    entries
+        .into_iter()
+        .map(|entry| match entry.value.find('=') {
+            Some(eq) => (
+                entry.value[..eq].to_owned(),
+                Some(Spanned::new(entry.value[eq + 1..].to_owned(), entry.span)),
+            ),
+            None => (entry.value, None),
+        })
+        .collect()
+}
+
+fn parse_build_identities(
+    contents: &str,
+    source_id: SourceId,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Vec<Spanned<String>> {
+    let YamlDataOwned::Sequence(items) = &node.data else {
+        return Vec::new();
+    };
+    items
+        .iter()
+        .filter_map(|item| match &item.data {
+            YamlDataOwned::Mapping(fields) => {
+                parse_build_identity_mapping(contents, source_id, fields.iter(), resolver, report)
+            }
+            _ => interpolated_spanned(contents, source_id, item, resolver, report),
+        })
+        .collect()
+}
+
+fn parse_build_identity_mapping<'a>(
+    contents: &str,
+    source_id: SourceId,
+    fields: impl IntoIterator<Item = (&'a MarkedYamlOwned, &'a MarkedYamlOwned)>,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Option<Spanned<String>> {
+    let mut id = None;
+    let mut source = None;
+    for (k_node, v_node) in fields {
+        match node_as_str(k_node) {
+            Some("id") => id = interpolated_spanned(contents, source_id, v_node, resolver, report),
+            Some("source") => {
+                source = interpolated_spanned(contents, source_id, v_node, resolver, report)
+            }
+            _ => {}
+        }
+    }
+    id.or(source)
 }
 
 fn empty_project() -> ParsedProject {

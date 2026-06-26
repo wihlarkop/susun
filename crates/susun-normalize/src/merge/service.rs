@@ -17,6 +17,7 @@ use super::unique::{unique_ports, unique_volumes};
 pub fn merge_services(base: ParsedService, overlay: ParsedService) -> ParsedService {
     ParsedService {
         image: overlay.image.or(base.image),
+        build: overlay.build.or(base.build),
         command: merge_string_or_list(base.command, overlay.command),
         entrypoint: merge_string_or_list(base.entrypoint, overlay.entrypoint),
         environment: merge_mapping(base.environment, overlay.environment),

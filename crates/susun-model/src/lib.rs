@@ -3,6 +3,7 @@
 //! This crate has no Susun workspace dependencies. Enable the `serde` feature
 //! for JSON serialization of the canonical types.
 
+pub mod build;
 pub mod dependency;
 pub mod health;
 pub mod name;
@@ -12,6 +13,7 @@ pub mod resource;
 pub mod service;
 pub mod volume;
 
+pub use build::BuildDefinition;
 pub use dependency::{Dependencies, DependencyCondition, ServiceDependency};
 pub use health::Healthcheck;
 pub use name::{
