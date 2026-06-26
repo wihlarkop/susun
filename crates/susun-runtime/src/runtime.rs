@@ -412,7 +412,10 @@ where
             }),
             PlanAction::RecreateContainer(_)
             | PlanAction::PreserveVolume(_)
-            | PlanAction::VerifyReplacement(_) => Ok(ActionOutput::None),
+            | PlanAction::VerifyReplacement(_)
+            | PlanAction::RemoveOrphan(_)
+            | PlanAction::ScaleUpReplica(_)
+            | PlanAction::ScaleDownReplica(_) => Ok(ActionOutput::None),
         }
     }
 

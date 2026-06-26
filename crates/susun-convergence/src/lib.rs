@@ -10,10 +10,14 @@ pub mod diagnostics;
 pub mod diff;
 pub mod error;
 pub mod fingerprint;
+pub mod image;
 pub mod impact;
+pub mod orphan;
 pub mod ownership;
 pub mod plan;
 pub mod policy;
+pub mod scale;
+pub mod volume;
 
 pub use decision::{
     ChangedField, ConvergenceDecision, ConvergenceDecisionKind, DecisionReason, InstanceDifference,
@@ -33,10 +37,19 @@ pub use fingerprint::{
     ResolvedImageIdentity, ResolvedResourceNames, RuntimeDefaults, VersionedFingerprint,
     compute_configuration_fingerprint, parse_configuration_fingerprint,
 };
+pub use image::{DesiredImageIdentity, ImageDifference, classify_image_difference};
 pub use impact::{DependencyImpact, DependencyWait, propagate_dependency_impact};
+pub use orphan::{
+    OrphanDisposition, OrphanResource, classify_orphan_containers, classify_orphan_networks,
+    classify_orphan_volumes,
+};
 pub use ownership::{OwnershipConflict, OwnershipIndex};
-pub use plan::{ConvergencePlanFragment, ReplacementInput, plan_noop_or_start, plan_replacement};
+pub use plan::{
+    ConvergencePlanFragment, ReplacementInput, plan_noop_or_start, plan_replacement, plan_scale,
+};
 pub use policy::{
     AnonymousVolumePolicy, ConvergencePolicy, DependencyRecreatePolicy, ImageChangePolicy,
     OrphanPolicy, RecreatePolicy, ReplacementStrategy,
 };
+pub use scale::{ScaleDelta, classify_scale_delta, expand_desired_replicas};
+pub use volume::{VolumeDisposition, classify_volume_for_replacement};

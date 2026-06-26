@@ -33,8 +33,9 @@ pub use plan::{
     ActionExplanation, ActionReason, ActionSafety, CreateContainerAction, CreateNetworkAction,
     CreateVolumeAction, ExecutionPlan, NoOpAction, PlanAction, PlanActionNode, PlanSchemaVersion,
     PlanSummary, PlannedOperation, PreserveVolumeAction, PullImageAction, RecreateContainerAction,
-    RemoveContainerAction, RemoveNetworkAction, RemoveVolumeAction, RenameContainerAction,
-    StartContainerAction, StopContainerAction, VerifyReplacementAction, WaitForDependencyAction,
+    RemoveContainerAction, RemoveNetworkAction, RemoveOrphanAction, RemoveVolumeAction,
+    RenameContainerAction, ScaleDownReplicaAction, ScaleUpReplicaAction, StartContainerAction,
+    StopContainerAction, VerifyReplacementAction, WaitForDependencyAction,
 };
 pub use render::render_plan_human;
 #[cfg(feature = "serde")]

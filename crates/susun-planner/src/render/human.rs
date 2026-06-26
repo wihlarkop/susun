@@ -109,6 +109,15 @@ fn action_label(action: &PlanAction) -> String {
                 action.identity.service.as_str()
             )
         }
+        PlanAction::RemoveOrphan(action) => {
+            format!("remove orphan {} {}", action.kind, action.resource)
+        }
+        PlanAction::ScaleUpReplica(action) => {
+            format!("scale up {}", action.identity.service.as_str())
+        }
+        PlanAction::ScaleDownReplica(action) => {
+            format!("scale down {}", action.identity.service.as_str())
+        }
         PlanAction::NoOp(action) => format!("no-op {}", action.resource),
     }
 }
