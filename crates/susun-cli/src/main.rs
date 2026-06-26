@@ -29,7 +29,24 @@ async fn main() {
         Command::Config => config(&cli.ctx),
         Command::Plan { command } => plan(&cli.ctx, command),
         Command::InspectPlan { path } => inspect_plan(&cli.ctx, &path),
-        Command::Up { detach: _ } => runtime_up(&cli.ctx).await,
+        Command::Up {
+            detach: _,
+            scale,
+            remove_orphans,
+            force_recreate,
+            no_recreate,
+            renew_anon_volumes,
+        } => {
+            runtime_up(
+                &cli.ctx,
+                scale,
+                remove_orphans,
+                force_recreate,
+                no_recreate,
+                renew_anon_volumes,
+            )
+            .await
+        }
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -247,7 +264,19 @@ fn inspect_plan(ctx: &ContextArgs, path: &Path) -> i32 {
     emit_plan(ctx, &plan)
 }
 
-async fn runtime_up(ctx: &ContextArgs) -> i32 {
+async fn runtime_up(
+    ctx: &ContextArgs,
+    scale: Vec<String>,
+    remove_orphans: bool,
+    force_recreate: bool,
+    no_recreate: bool,
+    renew_anon_volumes: bool,
+) -> i32 {
+    if force_recreate && no_recreate {
+        eprintln!("susun: --force-recreate conflicts with --no-recreate");
+        return 2;
+    }
+    let _convergence_options = (scale, remove_orphans, renew_anon_volumes);
     let Some((analysis, identity)) = analyze_for_runtime(ctx) else {
         return 1;
     };

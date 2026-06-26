@@ -78,6 +78,21 @@ pub enum Command {
         /// Run in detached mode. Accepted for Compose compatibility.
         #[arg(long)]
         detach: bool,
+        /// Override desired service scale, for example `web=3`.
+        #[arg(long = "scale")]
+        scale: Vec<String>,
+        /// Remove orphan resources where supported.
+        #[arg(long)]
+        remove_orphans: bool,
+        /// Recreate selected service containers even if unchanged.
+        #[arg(long)]
+        force_recreate: bool,
+        /// Refuse container recreation.
+        #[arg(long)]
+        no_recreate: bool,
+        /// Renew anonymous volumes during recreation.
+        #[arg(long)]
+        renew_anon_volumes: bool,
     },
     /// Tear the project down using Docker Engine.
     Down {
