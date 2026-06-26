@@ -1015,6 +1015,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "susun-convergence"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "susun-diagnostics",
+ "susun-engine",
+ "susun-graph",
+ "susun-model",
+ "susun-normalize",
+ "susun-planner",
+ "thiserror",
+]
+
+[[package]]
 name = "susun-diagnostics"
 version = "0.1.0"
 dependencies = [

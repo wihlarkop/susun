@@ -21,6 +21,7 @@ susun-graph = { path = "crates/susun-graph" }
 susun-engine = { path = "crates/susun-engine" }
 susun-planner = { path = "crates/susun-planner" }
 susun-runtime = { path = "crates/susun-runtime" }
+susun-convergence = { path = "crates/susun-convergence" }
 susun-engine-bollard = { path = "crates/susun-engine-bollard" }
 susun-testkit = { path = "crates/susun-testkit" }
 susun = { path = "crates/susun" }

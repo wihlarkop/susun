@@ -1,0 +1,30 @@
+[package]
+name = "susun-convergence"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+serde = [
+  "dep:serde",
+  "indexmap/serde",
+  "susun-engine/serde",
+  "susun-model/serde",
+]
+
+[dependencies]
+susun-diagnostics = { workspace = true }
+susun-engine = { workspace = true }
+susun-graph = { workspace = true }
+susun-model = { workspace = true }
+susun-normalize = { workspace = true }
+susun-planner = { workspace = true }
+indexmap = { workspace = true }
+serde = { workspace = true, optional = true }
+thiserror = { workspace = true }
