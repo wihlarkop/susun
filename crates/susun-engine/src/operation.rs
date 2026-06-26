@@ -4,7 +4,9 @@ use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 
 use futures_core::Stream;
 use indexmap::IndexMap;
-use susun_model::ImageRef;
+use susun_model::{
+    Command, Healthcheck, ImageRef, NetworkAttachment, port::CanonicalPort, volume::CanonicalVolume,
+};
 
 use crate::{
     ContainerId, LabelKey, LabelValue, NetworkId, ProjectIdentity, ResourceName, ServiceInstanceId,
@@ -190,6 +192,24 @@ pub struct CreateContainerRequest {
     pub name: ResourceName,
     /// Optional image.
     pub image: Option<ImageRef>,
+    /// Command override.
+    pub command: Option<Command>,
+    /// Entrypoint override.
+    pub entrypoint: Option<Command>,
+    /// Container environment values.
+    pub environment: IndexMap<String, Option<String>>,
+    /// User-defined container labels.
+    pub container_labels: IndexMap<String, String>,
+    /// Port mappings.
+    pub ports: Vec<CanonicalPort>,
+    /// Volume mounts.
+    pub volumes: Vec<CanonicalVolume>,
+    /// Network attachments.
+    pub networks: IndexMap<ResourceName, NetworkAttachment>,
+    /// Healthcheck configuration.
+    pub healthcheck: Option<Healthcheck>,
+    /// Restart policy.
+    pub restart: Option<String>,
     /// Labels to apply.
     pub labels: IndexMap<LabelKey, LabelValue>,
 }

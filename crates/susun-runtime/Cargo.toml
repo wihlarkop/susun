@@ -25,3 +25,4 @@ futures-util = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }

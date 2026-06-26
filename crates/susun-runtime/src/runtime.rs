@@ -10,10 +10,10 @@ use std::{
 use futures_util::{FutureExt, StreamExt, future::BoxFuture, stream::FuturesUnordered};
 use indexmap::{IndexMap, IndexSet};
 use susun_engine::{
-    ContainerEngine, ContainerRef, CreateContainerRequest, CreateNetworkRequest,
-    CreateVolumeRequest, EngineError, EngineSnapshot, LabelKey, LabelValue, NetworkRef,
-    ProgressSink, PullImageRequest, PullPolicy, RemoveContainerOptions, StopContainerRequest,
-    VolumeRef,
+    ContainerEngine, ContainerRef, ContainerState, CreateContainerRequest, CreateNetworkRequest,
+    CreateVolumeRequest, EngineError, EngineSnapshot, HealthState, LabelKey, LabelValue,
+    NetworkRef, ProgressSink, PullImageRequest, PullPolicy, RemoveContainerOptions,
+    StopContainerRequest, VolumeRef,
 };
 use susun_planner::{
     ActionId, ExecutionPlan, PlanAction, PlanActionNode, topological_action_order,
@@ -35,6 +35,10 @@ pub struct RuntimeOptions {
     pub default_stop_timeout: Duration,
     /// Conservative retry policy.
     pub retry_policy: RetryPolicy,
+    /// Maximum time to wait for dependency conditions.
+    pub dependency_wait_timeout: Duration,
+    /// Interval between dependency condition checks.
+    pub dependency_poll_interval: Duration,
 }
 
 impl Default for RuntimeOptions {
@@ -44,6 +48,8 @@ impl Default for RuntimeOptions {
             cancellation_grace_period: Duration::from_secs(10),
             default_stop_timeout: Duration::from_secs(10),
             retry_policy: RetryPolicy::default(),
+            dependency_wait_timeout: Duration::from_secs(60),
+            dependency_poll_interval: Duration::from_millis(500),
         }
     }
 }
@@ -340,6 +346,15 @@ where
                         service: action.identity.clone(),
                         name: action.name.clone(),
                         image: action.image.clone(),
+                        command: action.command.clone(),
+                        entrypoint: action.entrypoint.clone(),
+                        environment: action.environment.clone(),
+                        container_labels: action.labels.clone(),
+                        ports: action.ports.clone(),
+                        volumes: action.volumes.clone(),
+                        networks: action.networks.clone(),
+                        healthcheck: action.healthcheck.clone(),
+                        restart: action.restart.clone(),
                         labels: ownership_labels(
                             plan,
                             ResourceLabel::Service(action.identity.service.as_str()),
@@ -354,7 +369,11 @@ where
                 self.engine.start_container(&container).await?;
                 Ok(ActionOutput::None)
             }
-            PlanAction::WaitForDependency(_) | PlanAction::NoOp(_) => Ok(ActionOutput::None),
+            PlanAction::WaitForDependency(action) => {
+                self.wait_for_dependency(plan, action).await?;
+                Ok(ActionOutput::None)
+            }
+            PlanAction::NoOp(_) => Ok(ActionOutput::None),
             PlanAction::StopContainer(action) => {
                 let container = outputs.container_for(action.identity.service.as_ref())?;
                 self.engine
@@ -388,6 +407,26 @@ where
                 self.engine.remove_volume(volume).await?;
                 Ok(ActionOutput::None)
             }
+        }
+    }
+
+    async fn wait_for_dependency(
+        &self,
+        plan: &ExecutionPlan,
+        action: &susun_planner::WaitForDependencyAction,
+    ) -> Result<(), EngineError> {
+        let started = std::time::Instant::now();
+        loop {
+            let snapshot = self.engine.snapshot(&plan.project).await?;
+            if dependency_condition_met(&snapshot, action) {
+                return Ok(());
+            }
+            if started.elapsed() >= self.options.dependency_wait_timeout {
+                return Err(EngineError::Unsupported {
+                    capability: "dependency condition was not satisfied before timeout",
+                });
+            }
+            tokio::time::sleep(self.options.dependency_poll_interval).await;
         }
     }
 }
@@ -470,6 +509,25 @@ fn update_outputs(
         }
         _ => {}
     }
+}
+
+fn dependency_condition_met(
+    snapshot: &EngineSnapshot,
+    action: &susun_planner::WaitForDependencyAction,
+) -> bool {
+    snapshot.containers.values().any(|container| {
+        if container.service_identity.as_ref() != Some(&action.dependency) {
+            return false;
+        }
+        match action.condition.as_str() {
+            "ServiceStarted" | "service_started" => container.state == ContainerState::Running,
+            "ServiceHealthy" | "service_healthy" => container.health == Some(HealthState::Healthy),
+            "ServiceCompletedSuccessfully" | "service_completed_successfully" => {
+                container.state == ContainerState::Exited
+            }
+            _ => false,
+        }
+    })
 }
 
 fn ownership_labels(

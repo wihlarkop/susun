@@ -5,7 +5,11 @@ use std::{collections::HashMap, time::SystemTime};
 use bollard::{
     Docker,
     container::LogOutput,
-    models::{ContainerCreateBody, NetworkCreateRequest, VolumeCreateRequest},
+    models::{
+        ContainerCreateBody, EndpointSettings, HealthConfig, HostConfig, Mount,
+        MountType as DockerMountType, NetworkCreateRequest, NetworkingConfig, PortBinding, PortMap,
+        RestartPolicy, RestartPolicyNameEnum, VolumeCreateRequest,
+    },
     query_parameters::{
         CreateContainerOptionsBuilder, CreateImageOptionsBuilder, ListContainersOptionsBuilder,
         ListImagesOptionsBuilder, ListNetworksOptionsBuilder, ListVolumesOptionsBuilder,
@@ -19,11 +23,16 @@ use susun_engine::{
     BoxEngineFuture, BoxLogStream, ContainerEngine, ContainerId, ContainerRef,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
     EngineCapabilities, EngineEndpoint, EngineError, EngineImageRef, EngineOperation,
-    EngineSnapshot, HealthState, LabelKey, LabelValue, LogEvent, LogSource, LogsRequest, MountType,
-    NetworkId, NetworkRef, ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork,
-    ObservedVolume, ProgressSink, ProjectIdentity, PullImageRequest, ReplicaIndex,
-    ResourceIdentity, ResourceName, ServiceInstanceId, SnapshotCompleteness, StopContainerRequest,
-    SupportLevel, VolumeId, VolumeRef,
+    EngineSnapshot, HealthState, LabelKey, LabelValue, LogEvent, LogSource, LogsRequest,
+    MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer, ObservedImage,
+    ObservedImageRef, ObservedNetwork, ObservedVolume, ProgressSink, ProjectIdentity,
+    PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName, ServiceInstanceId,
+    SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId, VolumeRef,
+};
+use susun_model::{
+    Command, Healthcheck, NetworkAttachment, PublishedPort,
+    port::{CanonicalPort, Protocol},
+    volume::{CanonicalVolume, VolumeKind},
 };
 
 /// Bollard-backed Docker Engine adapter.
@@ -65,9 +74,13 @@ impl ContainerEngine for BollardEngine {
                 supports_health: SupportLevel::SupportedSubset,
                 supports_named_volumes: SupportLevel::Supported,
                 supports_network_aliases: SupportLevel::SupportedSubset,
-                supports_mount_types: [MountType::Volume, MountType::Bind, MountType::Anonymous]
-                    .into_iter()
-                    .collect(),
+                supports_mount_types: [
+                    EngineMountType::Volume,
+                    EngineMountType::Bind,
+                    EngineMountType::Anonymous,
+                ]
+                .into_iter()
+                .collect(),
                 supports_log_follow: SupportLevel::Supported,
                 supports_build: SupportLevel::Unsupported,
                 max_container_name_length: Some(255),
@@ -329,6 +342,9 @@ impl ContainerEngine for BollardEngine {
         request: CreateContainerRequest,
     ) -> BoxEngineFuture<'_, ContainerRef> {
         Box::pin(async move {
+            let host_config = host_config(&request);
+            let networking_config = networking_config(&request.networks);
+            let labels = merged_labels(request.container_labels, request.labels);
             let response = self
                 .docker
                 .create_container(
@@ -339,7 +355,14 @@ impl ContainerEngine for BollardEngine {
                     ),
                     ContainerCreateBody {
                         image: request.image.map(|image| image.as_str().to_owned()),
-                        labels: Some(labels_to_hashmap(request.labels)),
+                        env: env_values(&request.environment),
+                        cmd: request.command.as_ref().map(command_to_vec),
+                        entrypoint: request.entrypoint.as_ref().map(command_to_vec),
+                        exposed_ports: exposed_ports(&request.ports),
+                        healthcheck: request.healthcheck.as_ref().map(health_config),
+                        labels: Some(labels),
+                        host_config: Some(host_config),
+                        networking_config,
                         ..Default::default()
                     },
                 )
@@ -447,6 +470,200 @@ fn labels_to_hashmap(labels: IndexMap<LabelKey, LabelValue>) -> HashMap<String, 
         .into_iter()
         .map(|(key, value)| (key.as_str().to_owned(), value.as_str().to_owned()))
         .collect()
+}
+
+fn merged_labels(
+    container_labels: IndexMap<String, String>,
+    ownership: IndexMap<LabelKey, LabelValue>,
+) -> HashMap<String, String> {
+    let mut labels = container_labels.into_iter().collect::<HashMap<_, _>>();
+    labels.extend(labels_to_hashmap(ownership));
+    labels
+}
+
+fn env_values(environment: &IndexMap<String, Option<String>>) -> Option<Vec<String>> {
+    if environment.is_empty() {
+        return None;
+    }
+    Some(
+        environment
+            .iter()
+            .map(|(key, value)| match value {
+                Some(value) => format!("{key}={value}"),
+                None => key.clone(),
+            })
+            .collect(),
+    )
+}
+
+fn command_to_vec(command: &Command) -> Vec<String> {
+    match command {
+        Command::Shell(value) => vec![value.clone()],
+        Command::Exec(values) => values.clone(),
+    }
+}
+
+fn exposed_ports(ports: &[CanonicalPort]) -> Option<Vec<String>> {
+    if ports.is_empty() {
+        return None;
+    }
+    Some(ports.iter().map(port_key).collect())
+}
+
+fn host_config(request: &CreateContainerRequest) -> HostConfig {
+    HostConfig {
+        port_bindings: port_bindings(&request.ports),
+        mounts: mount_values(&request.volumes),
+        restart_policy: request.restart.as_deref().and_then(restart_policy),
+        network_mode: request
+            .networks
+            .keys()
+            .next()
+            .map(|network| network.as_str().to_owned()),
+        ..Default::default()
+    }
+}
+
+fn port_bindings(ports: &[CanonicalPort]) -> Option<PortMap> {
+    let mut map = HashMap::new();
+    for port in ports {
+        let Some(published) = port.published else {
+            continue;
+        };
+        let bindings = match published {
+            PublishedPort::Single(port_value) => vec![PortBinding {
+                host_ip: port.host_ip.clone(),
+                host_port: Some(port_value.to_string()),
+            }],
+            PublishedPort::Range { start, end } => (start..=end)
+                .map(|port_value| PortBinding {
+                    host_ip: port.host_ip.clone(),
+                    host_port: Some(port_value.to_string()),
+                })
+                .collect(),
+        };
+        map.insert(port_key(port), Some(bindings));
+    }
+    (!map.is_empty()).then_some(map)
+}
+
+fn port_key(port: &CanonicalPort) -> String {
+    let protocol = match port.protocol {
+        Protocol::Tcp => "tcp",
+        Protocol::Udp => "udp",
+        Protocol::Sctp => "sctp",
+    };
+    format!("{}/{}", port.target, protocol)
+}
+
+fn mount_values(volumes: &[CanonicalVolume]) -> Option<Vec<Mount>> {
+    if volumes.is_empty() {
+        return None;
+    }
+    Some(
+        volumes
+            .iter()
+            .map(|volume| Mount {
+                target: Some(volume.target.clone()),
+                source: volume.source.clone(),
+                typ: Some(match volume.kind {
+                    VolumeKind::Volume | VolumeKind::Anonymous => DockerMountType::VOLUME,
+                    VolumeKind::Bind => DockerMountType::BIND,
+                }),
+                read_only: Some(volume.read_only),
+                ..Default::default()
+            })
+            .collect(),
+    )
+}
+
+fn networking_config(
+    networks: &IndexMap<ResourceName, NetworkAttachment>,
+) -> Option<NetworkingConfig> {
+    if networks.is_empty() {
+        return None;
+    }
+    let endpoints_config = networks
+        .iter()
+        .map(|(name, attachment)| {
+            (
+                name.as_str().to_owned(),
+                EndpointSettings {
+                    aliases: (!attachment.aliases.is_empty()).then_some(attachment.aliases.clone()),
+                    ..Default::default()
+                },
+            )
+        })
+        .collect();
+    Some(NetworkingConfig {
+        endpoints_config: Some(endpoints_config),
+    })
+}
+
+fn health_config(healthcheck: &Healthcheck) -> HealthConfig {
+    HealthConfig {
+        test: health_test(healthcheck),
+        interval: healthcheck.interval.as_deref().and_then(duration_to_nanos),
+        timeout: healthcheck.timeout.as_deref().and_then(duration_to_nanos),
+        start_period: healthcheck
+            .start_period
+            .as_deref()
+            .and_then(duration_to_nanos),
+        retries: healthcheck.retries.map(i64::from),
+        ..Default::default()
+    }
+}
+
+fn health_test(healthcheck: &Healthcheck) -> Option<Vec<String>> {
+    if healthcheck.disable {
+        return Some(vec!["NONE".to_owned()]);
+    }
+    healthcheck.test.as_ref().map(|command| match command {
+        Command::Shell(value) => vec!["CMD-SHELL".to_owned(), value.clone()],
+        Command::Exec(values) => std::iter::once("CMD".to_owned())
+            .chain(values.iter().cloned())
+            .collect(),
+    })
+}
+
+fn duration_to_nanos(value: &str) -> Option<i64> {
+    let trimmed = value.trim();
+    let (number, multiplier) = if let Some(number) = trimmed.strip_suffix("ms") {
+        (number, 1_000_000_i64)
+    } else if let Some(number) = trimmed.strip_suffix("us") {
+        (number, 1_000_i64)
+    } else if let Some(number) = trimmed.strip_suffix("ns") {
+        (number, 1_i64)
+    } else if let Some(number) = trimmed.strip_suffix('s') {
+        (number, 1_000_000_000_i64)
+    } else if let Some(number) = trimmed.strip_suffix('m') {
+        (number, 60_000_000_000_i64)
+    } else {
+        (trimmed, 1_000_000_000_i64)
+    };
+    number
+        .parse::<i64>()
+        .ok()
+        .and_then(|value| value.checked_mul(multiplier))
+}
+
+fn restart_policy(value: &str) -> Option<RestartPolicy> {
+    let (name, maximum_retry_count) = value
+        .split_once(':')
+        .map(|(name, count)| (name, count.parse::<i64>().ok()))
+        .unwrap_or((value, None));
+    let name = match name {
+        "" => RestartPolicyNameEnum::EMPTY,
+        "no" => RestartPolicyNameEnum::NO,
+        "always" => RestartPolicyNameEnum::ALWAYS,
+        "unless-stopped" => RestartPolicyNameEnum::UNLESS_STOPPED,
+        "on-failure" => RestartPolicyNameEnum::ON_FAILURE,
+        _ => return None,
+    };
+    Some(RestartPolicy {
+        name: Some(name),
+        maximum_retry_count,
+    })
 }
 
 fn label_value<'a>(labels: &'a IndexMap<LabelKey, LabelValue>, key: &str) -> Option<&'a str> {
