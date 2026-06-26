@@ -2,7 +2,7 @@
 
 use indexmap::{IndexMap, IndexSet};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
-use susun_engine::{NetworkIdentity, VolumeIdentity};
+use susun_engine::{NetworkIdentity, ResourceName, VolumeIdentity};
 use susun_model::{ImageRef, VolumeKind, VolumeName};
 
 use crate::{
@@ -21,8 +21,12 @@ const REQUIRED_IMAGE_MISSING: &str = "SUS-PLAN-003";
 pub struct UpResourceActions {
     /// Network prerequisite action by canonical network name.
     pub networks: IndexMap<String, ActionId>,
+    /// Runtime network names by canonical network name.
+    pub network_names: IndexMap<String, ResourceName>,
     /// Volume prerequisite action by canonical volume name.
     pub volumes: IndexMap<String, ActionId>,
+    /// Runtime volume names by canonical volume name.
+    pub volume_names: IndexMap<String, ResourceName>,
     /// Image prerequisite action by image reference.
     pub images: IndexMap<String, ActionId>,
 }
@@ -46,6 +50,9 @@ pub(crate) fn plan_prerequisite_resources(
                     detail: err.to_string(),
                 })?;
         if network_exists_owned(input, runtime_name.as_str()) {
+            planned
+                .network_names
+                .insert(network_name.as_str().to_owned(), runtime_name.clone());
             let action = PlanAction::NoOp(NoOpAction {
                 resource: format!("network:{}", network_name.as_str()),
                 description: format!("network '{}' already exists", runtime_name.as_str()),
@@ -68,6 +75,9 @@ pub(crate) fn plan_prerequisite_resources(
                 runtime_name.as_str(),
             ));
         } else {
+            planned
+                .network_names
+                .insert(network_name.as_str().to_owned(), runtime_name.clone());
             let action = PlanAction::CreateNetwork(CreateNetworkAction {
                 identity,
                 name: runtime_name,
@@ -96,6 +106,9 @@ pub(crate) fn plan_prerequisite_resources(
                     detail: err.to_string(),
                 })?;
         if volume_exists_owned(input, runtime_name.as_str()) {
+            planned
+                .volume_names
+                .insert(volume_name.as_str().to_owned(), runtime_name.clone());
             let action = PlanAction::NoOp(NoOpAction {
                 resource: format!("volume:{}", volume_name.as_str()),
                 description: format!("volume '{}' already exists", runtime_name.as_str()),
@@ -115,6 +128,9 @@ pub(crate) fn plan_prerequisite_resources(
         } else if volume_name_conflicts(input, runtime_name.as_str()) {
             diagnostics.push(foreign_resource_diagnostic("volume", runtime_name.as_str()));
         } else {
+            planned
+                .volume_names
+                .insert(volume_name.as_str().to_owned(), runtime_name.clone());
             let action = PlanAction::CreateVolume(CreateVolumeAction {
                 identity,
                 name: runtime_name,

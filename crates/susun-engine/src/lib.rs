@@ -4,14 +4,25 @@
 //! future runtime adapters. It intentionally has no Docker client dependency.
 
 pub mod capability;
+pub mod engine;
+pub mod error;
 pub mod identity;
+pub mod operation;
 pub mod resource;
 pub mod snapshot;
 
 pub use capability::{EngineApiVersion, EngineCapabilities, MountType, SupportLevel};
+pub use engine::{BoxEngineFuture, ContainerEngine};
+pub use error::{EngineConnectionError, EngineError, EngineOperation, ResourceIdentity};
 pub use identity::{
     IdentityError, NetworkIdentity, ProjectIdentity, ProjectInstanceId, ReplicaIndex,
     ServiceInstanceId, VolumeIdentity,
+};
+pub use operation::{
+    ActionProgress, BoxLogStream, ContainerRef, CreateContainerRequest, CreateNetworkRequest,
+    CreateVolumeRequest, EngineEndpoint, EngineImageRef, LogEvent, LogSource, LogsRequest,
+    NetworkRef, ProgressSink, PullImageRequest, PullPolicy, RemoveContainerOptions,
+    StopContainerRequest, VolumeRef,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,

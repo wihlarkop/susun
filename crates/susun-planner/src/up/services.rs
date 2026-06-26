@@ -2,8 +2,8 @@
 
 use indexmap::{IndexMap, IndexSet};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
-use susun_engine::{ReplicaIndex, ServiceInstanceId};
-use susun_model::{DependencyCondition, VolumeKind};
+use susun_engine::{ReplicaIndex, ResourceName, ServiceInstanceId};
+use susun_model::{DependencyCondition, NetworkAttachment, VolumeKind, volume::CanonicalVolume};
 
 use crate::{
     ActionId, ActionReason, ActionSafety, CreateContainerAction, NamingPolicy, PlanAction,
@@ -58,11 +58,20 @@ pub(crate) fn plan_services(
             continue;
         }
 
-        let create_action = PlanAction::CreateContainer(CreateContainerAction {
+        let create_action = PlanAction::CreateContainer(Box::new(CreateContainerAction {
             identity: identity.clone(),
             name: runtime_name,
             image: service.image.clone(),
-        });
+            command: service.command.clone(),
+            entrypoint: service.entrypoint.clone(),
+            environment: service.environment.clone(),
+            labels: service.labels.clone(),
+            ports: service.ports.clone(),
+            volumes: runtime_volumes(service, resources),
+            networks: runtime_networks(service, resources),
+            healthcheck: service.healthcheck.clone(),
+            restart: service.restart.clone(),
+        }));
         let create_id = make_action_id(input, &create_action, "0");
         let mut create_node = node(
             create_id,
@@ -101,6 +110,43 @@ pub(crate) fn plan_services(
     }
 
     Ok(())
+}
+
+fn runtime_networks(
+    service: &susun_model::Service,
+    resources: &UpResourceActions,
+) -> IndexMap<ResourceName, NetworkAttachment> {
+    service
+        .networks
+        .iter()
+        .filter_map(|(name, attachment)| {
+            resources
+                .network_names
+                .get(name.as_str())
+                .cloned()
+                .map(|runtime_name| (runtime_name, attachment.clone()))
+        })
+        .collect()
+}
+
+fn runtime_volumes(
+    service: &susun_model::Service,
+    resources: &UpResourceActions,
+) -> Vec<CanonicalVolume> {
+    service
+        .volumes
+        .iter()
+        .cloned()
+        .map(|mut volume| {
+            if volume.kind == VolumeKind::Volume
+                && let Some(source) = &volume.source
+                && let Some(runtime_name) = resources.volume_names.get(source)
+            {
+                volume.source = Some(runtime_name.as_str().to_owned());
+            }
+            volume
+        })
+        .collect()
 }
 
 fn add_service_resource_dependencies(

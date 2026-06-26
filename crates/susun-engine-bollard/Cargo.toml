@@ -1,0 +1,22 @@
+[package]
+name = "susun-engine-bollard"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+susun-engine = { workspace = true }
+susun-model = { workspace = true }
+bollard = { workspace = true }
+futures-util = { workspace = true }
+indexmap = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+susun-testkit = { workspace = true }
+tokio = { workspace = true }

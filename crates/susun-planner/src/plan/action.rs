@@ -7,7 +7,9 @@ use susun_diagnostics::DiagnosticReport;
 use susun_engine::{
     NetworkIdentity, ProjectIdentity, ResourceName, ServiceInstanceId, VolumeIdentity,
 };
-use susun_model::ImageRef;
+use susun_model::{
+    Command, Healthcheck, ImageRef, NetworkAttachment, port::CanonicalPort, volume::CanonicalVolume,
+};
 
 use crate::{
     ActionExplanation, ActionId, ActionSafety, PlanId, PlanSchemaVersion, StableIdBuilder,
@@ -116,7 +118,7 @@ pub enum PlanAction {
     /// Create a volume.
     CreateVolume(CreateVolumeAction),
     /// Create a container.
-    CreateContainer(CreateContainerAction),
+    CreateContainer(Box<CreateContainerAction>),
     /// Start a container.
     StartContainer(StartContainerAction),
     /// Wait for a dependency condition.
@@ -213,6 +215,24 @@ pub struct CreateContainerAction {
     pub name: ResourceName,
     /// Image to run.
     pub image: Option<ImageRef>,
+    /// Command override.
+    pub command: Option<Command>,
+    /// Entrypoint override.
+    pub entrypoint: Option<Command>,
+    /// Container environment values.
+    pub environment: IndexMap<String, Option<String>>,
+    /// User-defined container labels.
+    pub labels: IndexMap<String, String>,
+    /// Port mappings.
+    pub ports: Vec<CanonicalPort>,
+    /// Volume mounts.
+    pub volumes: Vec<CanonicalVolume>,
+    /// Network attachments.
+    pub networks: IndexMap<ResourceName, NetworkAttachment>,
+    /// Healthcheck configuration.
+    pub healthcheck: Option<Healthcheck>,
+    /// Restart policy.
+    pub restart: Option<String>,
 }
 
 /// Start-container action.

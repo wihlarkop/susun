@@ -7,10 +7,14 @@
 pub mod analyzer;
 pub mod planning;
 pub mod render;
+pub mod runtime;
 
 pub use analyzer::{AnalysisResult, Analyzer};
 pub use planning::Planner;
 pub use render::{render_diagnostics, render_diagnostics_json};
+pub use runtime::{
+    RuntimeOperationError, RuntimeOperationResult, down_with_engine, up_with_engine,
+};
 pub use susun_loader::LoadContext;
 
 use thiserror::Error;

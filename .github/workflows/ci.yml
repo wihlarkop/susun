@@ -45,6 +45,14 @@ jobs:
       - run: cargo check -p susun-model --features serde
       - run: cargo test  -p susun-model --features serde
 
+  docker-integration:
+    name: Docker integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bash scripts/run-docker-integration.sh
+
   platform:
     name: Platform (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
