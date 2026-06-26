@@ -5,15 +5,16 @@ use std::path::{Path, PathBuf};
 use indexmap::IndexMap;
 use susun_diagnostics::DiagnosticReport;
 use susun_model::{
-    CanonicalVolume, Command, ConfigName, DependencyCondition, Healthcheck, ImageRef,
-    NetworkAttachment, NetworkName, Project, ProjectName, ResourceDefinition, ResourceMount,
-    SecretName, Service, ServiceDependency, ServiceName, VolumeKind, VolumeName,
+    BuildDefinition, CanonicalVolume, Command, ConfigName, DependencyCondition, Healthcheck,
+    ImageRef, NetworkAttachment, NetworkName, Project, ProjectName, ResourceDefinition,
+    ResourceMount, SecretName, Service, ServiceDependency, ServiceName, VolumeKind, VolumeName,
 };
 
 use crate::{
     error::NormalizeError,
     input::{
         MergeProject, ParsedService,
+        build::RawBuildDefinition,
         command::RawStringOrList,
         dependency::{RawDependencies, RawDependency},
         environment::RawMapping,
@@ -87,6 +88,7 @@ fn normalize_service(svc: ParsedService, project_dir: &Path) -> (Service, Servic
     let image_span = svc.image.as_ref().map(|s| s.span);
 
     let image = svc.image.map(|s| ImageRef::new(s.value));
+    let build = svc.build.map(normalize_build);
     let command = normalize_command(svc.command);
     let entrypoint = normalize_command(svc.entrypoint);
     let environment = normalize_mapping(svc.environment);
@@ -103,6 +105,7 @@ fn normalize_service(svc: ParsedService, project_dir: &Path) -> (Service, Servic
 
     let canonical = Service {
         image,
+        build,
         command,
         entrypoint,
         environment,
@@ -118,6 +121,24 @@ fn normalize_service(svc: ParsedService, project_dir: &Path) -> (Service, Servic
         profiles,
     };
     (canonical, ServiceProvenance { image_span })
+}
+
+fn normalize_build(raw: RawBuildDefinition) -> BuildDefinition {
+    BuildDefinition {
+        context: raw.context.map(|s| s.value),
+        dockerfile: raw.dockerfile.map(|s| s.value),
+        target: raw.target.map(|s| s.value),
+        args: raw
+            .args
+            .into_iter()
+            .map(|(key, value)| (key, value.map(|s| s.value)))
+            .collect(),
+        platforms: raw.platforms.into_iter().map(|s| s.value).collect(),
+        secrets: raw.secrets.into_iter().map(|s| s.value).collect(),
+        ssh: raw.ssh.into_iter().map(|s| s.value).collect(),
+        cache_from: raw.cache_from.into_iter().map(|s| s.value).collect(),
+        cache_to: raw.cache_to.into_iter().map(|s| s.value).collect(),
+    }
 }
 
 fn normalize_command(raw: RawStringOrList) -> Option<Command> {

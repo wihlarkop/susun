@@ -37,6 +37,7 @@ pub fn expand_project(parsed: ParsedProject) -> MergeProject {
 fn expand_service(svc: ParsedService) -> ParsedService {
     ParsedService {
         image: svc.image,
+        build: svc.build,
         command: expand_command(svc.command),
         entrypoint: expand_command(svc.entrypoint),
         environment: expand_mapping(svc.environment),

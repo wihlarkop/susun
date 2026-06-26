@@ -1055,6 +1055,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "susun-build"
+version = "0.1.0"
+dependencies = [
+ "sha2",
+ "susun-model",
+ "thiserror",
+]
+
+[[package]]
 name = "susun-cli"
 version = "0.1.0"
 dependencies = [

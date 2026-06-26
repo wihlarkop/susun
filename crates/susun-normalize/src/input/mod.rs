@@ -3,6 +3,8 @@
 //! These types form the boundary between the parser adapter and the
 //! normalizer. No parser-vendor types appear here.
 
+/// Raw `build` types.
+pub mod build;
 /// Raw `command` / `entrypoint` types.
 pub mod command;
 /// Raw `depends_on` types.
@@ -20,6 +22,7 @@ pub mod service;
 /// Raw `volumes` types.
 pub mod volume;
 
+pub use build::RawBuildDefinition;
 pub use command::RawStringOrList;
 pub use dependency::{RawDependencies, RawDependency};
 pub use environment::RawMapping;
