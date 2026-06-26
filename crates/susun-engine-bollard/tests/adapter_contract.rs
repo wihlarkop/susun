@@ -40,6 +40,10 @@ async fn bollard_creates_snapshots_and_removes_project_resources() -> Result<(),
 
 #[tokio::test]
 async fn bollard_runs_prebuilt_container_and_streams_logs() -> Result<(), EngineError> {
+    if cfg!(windows) && !support::docker_required() {
+        eprintln!("skipping Linux image lifecycle contract on optional Windows platform job");
+        return Ok(());
+    }
     let Some(engine) = support::docker_engine().await? else {
         return Ok(());
     };

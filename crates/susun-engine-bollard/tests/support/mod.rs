@@ -6,9 +6,14 @@ use susun_engine::{
 };
 use susun_engine_bollard::BollardEngine;
 
+/// Returns true when Docker integration is mandatory for this test process.
+pub fn docker_required() -> bool {
+    std::env::var_os("SUSUN_DOCKER_REQUIRED").is_some()
+}
+
 /// Returns a local Docker engine when available, otherwise skips the caller.
 pub async fn docker_engine() -> Result<Option<BollardEngine>, EngineError> {
-    let required = std::env::var_os("SUSUN_DOCKER_REQUIRED").is_some();
+    let required = docker_required();
     let engine = match BollardEngine::connect_local() {
         Ok(engine) => engine,
         Err(error) => {
