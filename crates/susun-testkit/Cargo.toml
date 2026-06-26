@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 susun-engine = { workspace = true }
+susun-build = { workspace = true }
 susun-planner = { workspace = true }
 susun-model = { workspace = true }
 susun-graph = { workspace = true }
