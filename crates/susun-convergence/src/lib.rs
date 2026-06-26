@@ -4,6 +4,7 @@
 //! observed deployments, ownership indexing, convergence policies, and
 //! explainable decisions. It must not depend on Docker adapters.
 
+pub mod converge;
 pub mod decision;
 pub mod deployment;
 pub mod diagnostics;
@@ -16,9 +17,11 @@ pub mod orphan;
 pub mod ownership;
 pub mod plan;
 pub mod policy;
+pub mod render;
 pub mod scale;
 pub mod volume;
 
+pub use converge::{ConvergenceInput, ConvergenceOutcome, plan_convergence};
 pub use decision::{
     ChangedField, ConvergenceDecision, ConvergenceDecisionKind, DecisionReason, InstanceDifference,
     RuntimeDrift,
@@ -51,5 +54,6 @@ pub use policy::{
     AnonymousVolumePolicy, ConvergencePolicy, DependencyRecreatePolicy, ImageChangePolicy,
     OrphanPolicy, RecreatePolicy, ReplacementStrategy,
 };
+pub use render::render_convergence_human;
 pub use scale::{ScaleDelta, classify_scale_delta, expand_desired_replicas};
 pub use volume::{VolumeDisposition, classify_volume_for_replacement};

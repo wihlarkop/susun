@@ -7,6 +7,7 @@ pub mod report;
 pub mod retry;
 pub mod runtime;
 pub mod validate;
+pub mod verify;
 
 pub use cancel::CancellationToken;
 pub use error::{PlanValidationError, RuntimeError};
@@ -15,3 +16,4 @@ pub use report::{ActionExecutionResult, ActionOutput, ActionStatus, ExecutionRep
 pub use retry::RetryPolicy;
 pub use runtime::{Runtime, RuntimeOptions};
 pub use validate::validate_plan_for_execution;
+pub use verify::{VerificationFinding, VerificationReport, verify_execution_snapshot};
