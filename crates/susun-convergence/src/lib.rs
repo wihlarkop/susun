@@ -10,7 +10,9 @@ pub mod diagnostics;
 pub mod diff;
 pub mod error;
 pub mod fingerprint;
+pub mod impact;
 pub mod ownership;
+pub mod plan;
 pub mod policy;
 
 pub use decision::{
@@ -31,7 +33,9 @@ pub use fingerprint::{
     ResolvedImageIdentity, ResolvedResourceNames, RuntimeDefaults, VersionedFingerprint,
     compute_configuration_fingerprint, parse_configuration_fingerprint,
 };
+pub use impact::{DependencyImpact, DependencyWait, propagate_dependency_impact};
 pub use ownership::{OwnershipConflict, OwnershipIndex};
+pub use plan::{ConvergencePlanFragment, ReplacementInput, plan_noop_or_start, plan_replacement};
 pub use policy::{
     AnonymousVolumePolicy, ConvergencePolicy, DependencyRecreatePolicy, ImageChangePolicy,
     OrphanPolicy, RecreatePolicy, ReplacementStrategy,

@@ -32,8 +32,9 @@ pub use ownership::{OwnedResourceIndex, index_owned_resources};
 pub use plan::{
     ActionExplanation, ActionReason, ActionSafety, CreateContainerAction, CreateNetworkAction,
     CreateVolumeAction, ExecutionPlan, NoOpAction, PlanAction, PlanActionNode, PlanSchemaVersion,
-    PlanSummary, PlannedOperation, PullImageAction, RemoveContainerAction, RemoveNetworkAction,
-    RemoveVolumeAction, StartContainerAction, StopContainerAction, WaitForDependencyAction,
+    PlanSummary, PlannedOperation, PreserveVolumeAction, PullImageAction, RecreateContainerAction,
+    RemoveContainerAction, RemoveNetworkAction, RemoveVolumeAction, RenameContainerAction,
+    StartContainerAction, StopContainerAction, VerifyReplacementAction, WaitForDependencyAction,
 };
 pub use render::render_plan_human;
 #[cfg(feature = "serde")]

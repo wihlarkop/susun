@@ -407,6 +407,12 @@ where
                 self.engine.remove_volume(volume).await?;
                 Ok(ActionOutput::None)
             }
+            PlanAction::RenameContainer(_) => Err(EngineError::Unsupported {
+                capability: "container rename during convergence replacement",
+            }),
+            PlanAction::RecreateContainer(_)
+            | PlanAction::PreserveVolume(_)
+            | PlanAction::VerifyReplacement(_) => Ok(ActionOutput::None),
         }
     }
 
