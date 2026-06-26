@@ -61,6 +61,12 @@ fn safety_label(safety: ActionSafety) -> &'static str {
 
 fn action_label(action: &PlanAction) -> String {
     match action {
+        PlanAction::VerifyBuildInputs(action) => {
+            format!("verify build inputs {}", action.identity.service.as_str())
+        }
+        PlanAction::BuildImage(action) => {
+            format!("build image {}", action.identity.service.as_str())
+        }
         PlanAction::PullImage(action) => format!("pull image {}", action.image.as_str()),
         PlanAction::CreateNetwork(action) => {
             format!("create network {}", action.name.as_str())

@@ -1,5 +1,6 @@
 //! Image identity change classification.
 
+use susun_build::BuildResult;
 use susun_engine::ObservedImageRef;
 use susun_model::ImageRef;
 
@@ -12,6 +13,16 @@ pub struct DesiredImageIdentity {
     pub reference: Option<ImageRef>,
     /// Desired digest when available.
     pub digest: Option<String>,
+}
+
+impl DesiredImageIdentity {
+    /// Builds desired image identity from a neutral build result.
+    pub fn from_build_result(result: &BuildResult) -> Self {
+        Self {
+            reference: Some(ImageRef::new(result.image.reference.clone())),
+            digest: result.image.digest.clone(),
+        }
+    }
 }
 
 /// Image comparison result.

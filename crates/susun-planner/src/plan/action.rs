@@ -111,6 +111,10 @@ pub struct PlanActionNode {
     serde(tag = "type", content = "payload", rename_all = "snake_case")
 )]
 pub enum PlanAction {
+    /// Verify build inputs before execution.
+    VerifyBuildInputs(VerifyBuildInputsAction),
+    /// Build an image.
+    BuildImage(Box<BuildImageAction>),
     /// Pull an image.
     PullImage(PullImageAction),
     /// Create a network.
@@ -153,6 +157,8 @@ impl PlanAction {
     /// Stable action kind.
     pub fn kind(&self) -> &'static str {
         match self {
+            Self::VerifyBuildInputs(_) => "verify_build_inputs",
+            Self::BuildImage(_) => "build_image",
             Self::PullImage(_) => "pull_image",
             Self::CreateNetwork(_) => "create_network",
             Self::CreateVolume(_) => "create_volume",
@@ -177,6 +183,10 @@ impl PlanAction {
     /// Stable resource key for ID generation.
     pub fn resource_key(&self) -> String {
         match self {
+            Self::VerifyBuildInputs(action) => {
+                format!("build:{}", action.identity.service.as_str())
+            }
+            Self::BuildImage(action) => format!("build:{}", action.identity.service.as_str()),
             Self::PullImage(action) => format!("image:{}", action.image.as_str()),
             Self::CreateNetwork(action) => format!("network:{}", action.identity.network.as_str()),
             Self::CreateVolume(action) => format!("volume:{}", action.identity.volume.as_str()),
@@ -213,6 +223,26 @@ impl PlanAction {
             Self::NoOp(action) => action.resource.clone(),
         }
     }
+}
+
+/// Verify-build-inputs action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct VerifyBuildInputsAction {
+    /// Service instance identity.
+    pub identity: ServiceInstanceId,
+}
+
+/// Build-image action.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct BuildImageAction {
+    /// Service instance identity.
+    pub identity: ServiceInstanceId,
+    /// Build definition from canonical Compose state.
+    pub build: susun_model::BuildDefinition,
+    /// Optional image tag to produce.
+    pub image: Option<ImageRef>,
 }
 
 /// Pull-image action.

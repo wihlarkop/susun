@@ -53,6 +53,8 @@ pub fn verify_execution_snapshot(
 fn service_instance(action: &susun_planner::PlanAction) -> Option<&ServiceInstanceId> {
     match action {
         susun_planner::PlanAction::CreateContainer(action) => Some(&action.identity),
+        susun_planner::PlanAction::VerifyBuildInputs(action) => Some(&action.identity),
+        susun_planner::PlanAction::BuildImage(action) => Some(&action.identity),
         susun_planner::PlanAction::StartContainer(action) => Some(&action.identity),
         susun_planner::PlanAction::VerifyReplacement(action) => Some(&action.identity),
         susun_planner::PlanAction::ScaleUpReplica(action) => Some(&action.identity),

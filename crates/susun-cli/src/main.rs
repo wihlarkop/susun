@@ -8,13 +8,18 @@ use susun::{
     Analyzer, LoadContext, Planner, down_with_engine, render_diagnostics, render_diagnostics_json,
     up_with_engine,
 };
+use susun_build::{
+    BuildCancellationToken, BuildEngine, BuildEventSink, BuildInputManifest, BuildRequest,
+    BuildSecret, BuildSshForward, BuildxProcessBuildEngine, CacheEntry, Dockerignore,
+    InsecureEntitlements, resolve_build_inputs, validate_dockerfile_source,
+};
 use susun_engine::{
     ContainerEngine, ContainerRef, EngineCapabilities, EngineSnapshot, LogsRequest,
     ProjectIdentity, ProjectInstanceId, StopContainerRequest,
 };
 use susun_engine_bollard::BollardEngine;
 use susun_planner::{
-    DownPlanOptions, ExecutionPlan, UpPlanOptions, render_plan_human, render_plan_json,
+    BuildPolicy, DownPlanOptions, ExecutionPlan, UpPlanOptions, render_plan_human, render_plan_json,
 };
 use susun_runtime::ExecutionReport;
 
@@ -30,6 +35,7 @@ async fn main() {
         Command::Plan { command } => plan(&cli.ctx, command),
         Command::InspectPlan { path } => inspect_plan(&cli.ctx, &path),
         Command::Up {
+            build,
             detach: _,
             scale,
             remove_orphans,
@@ -39,6 +45,7 @@ async fn main() {
         } => {
             runtime_up(
                 &cli.ctx,
+                build,
                 scale,
                 remove_orphans,
                 force_recreate,
@@ -47,6 +54,7 @@ async fn main() {
             )
             .await
         }
+        Command::Build => build_images(&cli.ctx).await,
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -194,7 +202,17 @@ fn plan(ctx: &ContextArgs, command: PlanCommand) -> i32 {
             );
 
             let outcome = match command {
-                PlanCommand::Up => planner.plan_up(&result, UpPlanOptions::default()),
+                PlanCommand::Up { build } => {
+                    let options = UpPlanOptions {
+                        build_policy: if build {
+                            BuildPolicy::BuildDeclared
+                        } else {
+                            BuildPolicy::NeverBuild
+                        },
+                        ..UpPlanOptions::default()
+                    };
+                    planner.plan_up(&result, options)
+                }
                 PlanCommand::Down { remove_volumes } => {
                     let options = DownPlanOptions {
                         remove_volumes,
@@ -266,6 +284,7 @@ fn inspect_plan(ctx: &ContextArgs, path: &Path) -> i32 {
 
 async fn runtime_up(
     ctx: &ContextArgs,
+    build: bool,
     scale: Vec<String>,
     remove_orphans: bool,
     force_recreate: bool,
@@ -280,6 +299,12 @@ async fn runtime_up(
     let Some((analysis, identity)) = analyze_for_runtime(ctx) else {
         return 1;
     };
+    if build {
+        let build_code = build_images_from_analysis(ctx, &analysis).await;
+        if build_code != 0 {
+            return build_code;
+        }
+    }
     let engine = match connect_engine() {
         Ok(engine) => Arc::new(engine),
         Err(code) => return code,
@@ -290,6 +315,134 @@ async fn runtime_up(
             eprintln!("susun: {error}");
             2
         }
+    }
+}
+
+async fn build_images(ctx: &ContextArgs) -> i32 {
+    let Some((analysis, _)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    build_images_from_analysis(ctx, &analysis).await
+}
+
+async fn build_images_from_analysis(ctx: &ContextArgs, analysis: &susun::AnalysisResult) -> i32 {
+    let Some(project) = analysis.project.as_ref() else {
+        eprintln!("susun: no project to build");
+        return 1;
+    };
+    let Some(selection) = analysis.selection.as_ref() else {
+        eprintln!("susun: no selected services to build");
+        return 1;
+    };
+
+    let build_engine = BuildxProcessBuildEngine::default();
+    let project_dir = project_directory(ctx);
+    let mut built = 0_usize;
+
+    for service_name in &selection.active_services {
+        let Some(service) = project.services.get(service_name) else {
+            continue;
+        };
+        let Some(build) = &service.build else {
+            continue;
+        };
+
+        let paths = match resolve_build_inputs(&project_dir, build) {
+            Ok(paths) => paths,
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        };
+        if let Err(error) = validate_dockerfile_source(&paths.dockerfile, build.target.as_deref()) {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+        let dockerignore = read_dockerignore(&paths.context_dir);
+        let manifest = match BuildInputManifest::from_context(&paths.context_dir, &dockerignore) {
+            Ok(manifest) => manifest,
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        };
+
+        let request = BuildRequest {
+            definition: build.clone(),
+            context_dir: paths.context_dir,
+            dockerfile: paths.dockerfile,
+            manifest,
+            image_tag: service
+                .image
+                .as_ref()
+                .map(|image| image.as_str().to_owned()),
+            secrets: build
+                .secrets
+                .iter()
+                .map(|id| BuildSecret {
+                    id: id.clone(),
+                    source: None,
+                })
+                .collect(),
+            ssh: build
+                .ssh
+                .iter()
+                .map(|id| BuildSshForward { id: id.clone() })
+                .collect(),
+            cache_from: build
+                .cache_from
+                .iter()
+                .map(|spec| CacheEntry { spec: spec.clone() })
+                .collect(),
+            cache_to: build
+                .cache_to
+                .iter()
+                .map(|spec| CacheEntry { spec: spec.clone() })
+                .collect(),
+            insecure_entitlements: InsecureEntitlements::default(),
+            labels: Default::default(),
+        };
+
+        match build_engine
+            .build(
+                request,
+                BuildEventSink::discard(),
+                BuildCancellationToken::new(),
+            )
+            .await
+        {
+            Ok(result) => {
+                built += 1;
+                if !ctx.quiet && ctx.format == OutputFormat::Human {
+                    println!(
+                        "built {} as {}",
+                        service_name.as_str(),
+                        result.image.reference
+                    );
+                }
+            }
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        }
+    }
+
+    if built == 0 {
+        if !ctx.quiet {
+            println!("no build definitions found");
+        }
+    } else if ctx.format == OutputFormat::Json {
+        println!("{}", serde_json::json!({ "built": built }));
+    }
+    0
+}
+
+fn read_dockerignore(context_dir: &Path) -> Dockerignore {
+    let path = context_dir.join(".dockerignore");
+    match std::fs::read_to_string(path) {
+        Ok(contents) => Dockerignore::parse(&contents),
+        Err(_) => Dockerignore::default(),
     }
 }
 

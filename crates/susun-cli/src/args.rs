@@ -75,6 +75,9 @@ pub enum Command {
     },
     /// Bring the project up using Docker Engine.
     Up {
+        /// Build service images before starting containers.
+        #[arg(long)]
+        build: bool,
         /// Run in detached mode. Accepted for Compose compatibility.
         #[arg(long)]
         detach: bool,
@@ -94,6 +97,8 @@ pub enum Command {
         #[arg(long)]
         renew_anon_volumes: bool,
     },
+    /// Build service images.
+    Build,
     /// Tear the project down using Docker Engine.
     Down {
         /// Include named volume removal.
@@ -140,7 +145,11 @@ pub enum Command {
 #[derive(Debug, Subcommand)]
 pub enum PlanCommand {
     /// Plan service startup.
-    Up,
+    Up {
+        /// Include build actions for services with build definitions.
+        #[arg(long)]
+        build: bool,
+    },
     /// Plan service teardown.
     Down {
         /// Include named volume removal in the plan.

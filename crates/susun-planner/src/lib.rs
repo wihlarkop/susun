@@ -25,17 +25,18 @@ pub use id::{ActionId, PlanId, StableIdBuilder};
 pub use input::{PlanOutcome, PlanningInput};
 pub use naming::{ComposeCompatibleNamingPolicy, NamingError, NamingPolicy, SusunNamingPolicy};
 pub use options::{
-    DependencyWaitPolicy, DownPlanOptions, ExistingResourcePolicy, ImageAcquisitionPolicy,
-    UpPlanOptions,
+    BuildPolicy, DependencyWaitPolicy, DownPlanOptions, ExistingResourcePolicy,
+    ImageAcquisitionPolicy, UpPlanOptions,
 };
 pub use ownership::{OwnedResourceIndex, index_owned_resources};
 pub use plan::{
-    ActionExplanation, ActionReason, ActionSafety, CreateContainerAction, CreateNetworkAction,
-    CreateVolumeAction, ExecutionPlan, NoOpAction, PlanAction, PlanActionNode, PlanSchemaVersion,
-    PlanSummary, PlannedOperation, PreserveVolumeAction, PullImageAction, RecreateContainerAction,
-    RemoveContainerAction, RemoveNetworkAction, RemoveOrphanAction, RemoveVolumeAction,
-    RenameContainerAction, ScaleDownReplicaAction, ScaleUpReplicaAction, StartContainerAction,
-    StopContainerAction, VerifyReplacementAction, WaitForDependencyAction,
+    ActionExplanation, ActionReason, ActionSafety, BuildImageAction, CreateContainerAction,
+    CreateNetworkAction, CreateVolumeAction, ExecutionPlan, NoOpAction, PlanAction, PlanActionNode,
+    PlanSchemaVersion, PlanSummary, PlannedOperation, PreserveVolumeAction, PullImageAction,
+    RecreateContainerAction, RemoveContainerAction, RemoveNetworkAction, RemoveOrphanAction,
+    RemoveVolumeAction, RenameContainerAction, ScaleDownReplicaAction, ScaleUpReplicaAction,
+    StartContainerAction, StopContainerAction, VerifyBuildInputsAction, VerifyReplacementAction,
+    WaitForDependencyAction,
 };
 pub use render::render_plan_human;
 #[cfg(feature = "serde")]

@@ -12,6 +12,10 @@ pub enum ActionReason {
     ResourceMissing,
     /// Image is unavailable locally.
     ImageUnavailableLocally,
+    /// Service declares a build definition.
+    BuildDeclared,
+    /// Build inputs must be verified before execution.
+    BuildInputsRequireVerification,
     /// Service was explicitly requested.
     ServiceRequested,
     /// Action is needed by a dependency.

@@ -18,6 +18,17 @@ pub enum ImageAcquisitionPolicy {
     RequirePresent,
 }
 
+/// Build policy for services with `build:` definitions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum BuildPolicy {
+    /// Do not plan build actions.
+    NeverBuild,
+    /// Plan builds for services with build definitions.
+    BuildDeclared,
+}
+
 /// Existing resource handling policy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -48,6 +59,8 @@ pub enum DependencyWaitPolicy {
 pub struct UpPlanOptions {
     /// Image acquisition policy.
     pub image_policy: ImageAcquisitionPolicy,
+    /// Build action policy.
+    pub build_policy: BuildPolicy,
     /// Existing resource policy.
     pub existing_resource_policy: ExistingResourcePolicy,
     /// Dependency wait policy.
@@ -58,6 +71,7 @@ impl Default for UpPlanOptions {
     fn default() -> Self {
         Self {
             image_policy: ImageAcquisitionPolicy::PullIfMissing,
+            build_policy: BuildPolicy::NeverBuild,
             existing_resource_policy: ExistingResourcePolicy::AcceptOwned,
             dependency_wait_policy: DependencyWaitPolicy::EmitSupported,
         }

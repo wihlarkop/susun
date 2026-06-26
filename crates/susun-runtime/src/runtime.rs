@@ -281,6 +281,7 @@ where
         outputs: &RuntimeOutputs,
     ) -> Result<ActionOutput, EngineError> {
         match action {
+            PlanAction::VerifyBuildInputs(_) | PlanAction::BuildImage(_) => Ok(ActionOutput::None),
             PlanAction::PullImage(action) => {
                 let progress_action = action_id.clone();
                 let events = self.events.clone();
