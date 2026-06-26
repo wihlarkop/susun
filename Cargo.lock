@@ -1058,6 +1058,7 @@ dependencies = [
 name = "susun-build"
 version = "0.1.0"
 dependencies = [
+ "indexmap",
  "sha2",
  "susun-model",
  "thiserror",
@@ -1217,6 +1218,7 @@ name = "susun-testkit"
 version = "0.1.0"
 dependencies = [
  "indexmap",
+ "susun-build",
  "susun-engine",
  "susun-graph",
  "susun-model",
