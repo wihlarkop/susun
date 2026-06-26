@@ -31,7 +31,7 @@ pub use port::{RawPortEntry, RawPortLong, RawPortShort};
 pub use resource::{
     RawNetworkAttachment, RawResourceDefinition, RawResourceMount, RawResources, RawServiceNetworks,
 };
-pub use service::ParsedService;
+pub use service::{ParsedService, RawExtends, ServiceMergeTag};
 pub use volume::{RawVolumeLong, RawVolumeMount, RawVolumeShort};
 
 use indexmap::IndexMap;
@@ -41,6 +41,8 @@ use susun_source::Spanned;
 pub struct ParsedProject {
     /// The top-level `name:` field, if present.
     pub name: Option<Spanned<String>>,
+    /// Top-level include paths.
+    pub includes: Vec<Spanned<String>>,
     /// Services declared under `services:`, keyed by service name.
     pub services: IndexMap<String, Spanned<ParsedService>>,
     /// Top-level networks.
@@ -57,6 +59,8 @@ pub struct ParsedProject {
 pub struct MergeProject {
     /// The top-level `name:` field, if present.
     pub name: Option<Spanned<String>>,
+    /// Top-level include paths retained for diagnostics.
+    pub includes: Vec<Spanned<String>>,
     /// Services, keyed by service name.
     pub services: IndexMap<String, Spanned<ParsedService>>,
     /// Top-level networks.
@@ -73,6 +77,7 @@ impl From<ParsedProject> for MergeProject {
     fn from(p: ParsedProject) -> Self {
         MergeProject {
             name: p.name,
+            includes: p.includes,
             services: p.services,
             networks: p.networks,
             volumes: p.volumes,

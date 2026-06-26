@@ -7,10 +7,10 @@ use indexmap::IndexMap;
 use saphyr::{LoadableYamlNode, MarkedYamlOwned, YamlDataOwned};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Label, Severity};
 use susun_normalize::input::{
-    ParsedProject, ParsedService, RawBuildDefinition, RawDependency, RawHealthcheck, RawMapping,
-    RawNetworkAttachment, RawPortEntry, RawPortLong, RawPortShort, RawResourceDefinition,
-    RawResourceMount, RawResources, RawServiceNetworks, RawStringOrList, RawVolumeLong,
-    RawVolumeMount, RawVolumeShort,
+    ParsedProject, ParsedService, RawBuildDefinition, RawDependency, RawExtends, RawHealthcheck,
+    RawMapping, RawNetworkAttachment, RawPortEntry, RawPortLong, RawPortShort,
+    RawResourceDefinition, RawResourceMount, RawResources, RawServiceNetworks, RawStringOrList,
+    RawVolumeLong, RawVolumeMount, RawVolumeShort, ServiceMergeTag,
 };
 use susun_source::{SourceId, Span, Spanned, TextOffset};
 
@@ -64,7 +64,7 @@ pub(crate) fn parse(
         return Some(empty_project());
     };
 
-    let mapping = match doc.data {
+    let mapping = match untagged(&doc).data.clone() {
         YamlDataOwned::Mapping(m) => m,
         _ => {
             let span = node_span(contents, source_id, &doc);
@@ -81,6 +81,7 @@ pub(crate) fn parse(
     };
 
     let mut project_name: Option<Spanned<String>> = None;
+    let mut includes = Vec::new();
     let mut services: IndexMap<String, Spanned<ParsedService>> = IndexMap::new();
     let mut networks = IndexMap::new();
     let mut volumes = IndexMap::new();
@@ -105,6 +106,9 @@ pub(crate) fn parse(
             "services" => {
                 services = parse_services(source_id, contents, v_node, resolver, report);
             }
+            "include" => {
+                includes = parse_includes(contents, source_id, v_node, resolver, report);
+            }
             "networks" => {
                 networks = parse_resources(source_id, contents, v_node);
             }
@@ -121,7 +125,7 @@ pub(crate) fn parse(
             // Extension fields accepted silently
             k if k.starts_with("x-") => {}
             // Deferred fields: known but not yet supported
-            "version" | "deploy" | "include" | "extends" | "develop" | "watch" => {
+            "version" | "deploy" | "extends" | "develop" | "watch" => {
                 let span = node_span(contents, source_id, k_node);
                 report.push(
                     Diagnostic::new(
@@ -149,6 +153,7 @@ pub(crate) fn parse(
 
     Some(ParsedProject {
         name: project_name,
+        includes,
         services,
         networks,
         volumes,
@@ -164,7 +169,7 @@ fn parse_services(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> IndexMap<String, Spanned<ParsedService>> {
-    let mapping = match &node.data {
+    let mapping = match &untagged(node).data {
         YamlDataOwned::Mapping(m) => m,
         _ => return IndexMap::new(),
     };
@@ -189,13 +194,23 @@ fn parse_service(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> ParsedService {
-    let mapping = match &node.data {
+    let mut merge_tag = ServiceMergeTag::Merge;
+    let node = match &node.data {
+        YamlDataOwned::Tagged(tag, inner) => {
+            merge_tag = merge_tag_from_yaml(tag);
+            inner.as_ref()
+        }
+        _ => node,
+    };
+
+    let mapping = match &untagged(node).data {
         YamlDataOwned::Mapping(m) => m,
         _ => return ParsedService::default(),
     };
 
     let mut image: Option<Spanned<String>> = None;
     let mut build = None;
+    let mut extends = None;
     let mut command = RawStringOrList::Null;
     let mut entrypoint = RawStringOrList::Null;
     let mut environment = RawMapping::default();
@@ -221,6 +236,9 @@ fn parse_service(
             }
             "build" => {
                 build = parse_build(contents, source_id, v_node, resolver, report);
+            }
+            "extends" => {
+                extends = parse_extends(contents, source_id, v_node, resolver, report);
             }
             "command" => {
                 command = parse_string_or_list(contents, source_id, v_node, resolver, report)
@@ -255,7 +273,7 @@ fn parse_service(
             "profiles" => {
                 profiles = parse_string_sequence(contents, source_id, v_node, resolver, report)
             }
-            "deploy" | "develop" | "watch" | "extends" => {
+            "deploy" | "develop" | "watch" => {
                 let span = node_span(contents, source_id, k_node);
                 report.push(
                     Diagnostic::new(
@@ -271,8 +289,10 @@ fn parse_service(
     }
 
     ParsedService {
+        merge_tag,
         image,
         build,
+        extends,
         command,
         entrypoint,
         environment,
@@ -289,6 +309,85 @@ fn parse_service(
     }
 }
 
+fn merge_tag_from_yaml(tag: &saphyr_parser::Tag) -> ServiceMergeTag {
+    match tag.suffix.as_str() {
+        "reset" => ServiceMergeTag::Reset,
+        "override" => ServiceMergeTag::Override,
+        _ => ServiceMergeTag::Merge,
+    }
+}
+
+fn parse_includes(
+    contents: &str,
+    source_id: SourceId,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Vec<Spanned<String>> {
+    match &untagged(node).data {
+        YamlDataOwned::Sequence(items) => items
+            .iter()
+            .filter_map(|item| parse_include_entry(contents, source_id, item, resolver, report))
+            .collect(),
+        _ => parse_include_entry(contents, source_id, node, resolver, report)
+            .into_iter()
+            .collect(),
+    }
+}
+
+fn parse_include_entry(
+    contents: &str,
+    source_id: SourceId,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Option<Spanned<String>> {
+    match &untagged(node).data {
+        YamlDataOwned::Mapping(fields) => fields.iter().find_map(|(k_node, v_node)| {
+            if node_as_str(k_node) == Some("path") {
+                interpolated_spanned(contents, source_id, v_node, resolver, report)
+            } else {
+                None
+            }
+        }),
+        _ => interpolated_spanned(contents, source_id, node, resolver, report),
+    }
+}
+
+fn parse_extends(
+    contents: &str,
+    source_id: SourceId,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> Option<RawExtends> {
+    match &untagged(node).data {
+        YamlDataOwned::Mapping(fields) => {
+            let mut service = None;
+            let mut file = None;
+            for (k_node, v_node) in fields {
+                match node_as_str(k_node) {
+                    Some("service") => {
+                        service =
+                            interpolated_spanned(contents, source_id, v_node, resolver, report)
+                    }
+                    Some("file") => {
+                        file = interpolated_spanned(contents, source_id, v_node, resolver, report)
+                    }
+                    _ => {}
+                }
+            }
+            service.map(|service| RawExtends { service, file })
+        }
+        _ => interpolated_spanned(contents, source_id, node, resolver, report).map(|service| {
+            RawExtends {
+                service,
+                file: None,
+            }
+        }),
+    }
+}
+
 fn parse_build(
     contents: &str,
     source_id: SourceId,
@@ -296,7 +395,7 @@ fn parse_build(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Option<RawBuildDefinition> {
-    match &node.data {
+    match &untagged(node).data {
         YamlDataOwned::Mapping(fields) => {
             let mut build = RawBuildDefinition::default();
             for (k_node, v_node) in fields {
@@ -374,12 +473,12 @@ fn parse_build_identities(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Vec<Spanned<String>> {
-    let YamlDataOwned::Sequence(items) = &node.data else {
+    let YamlDataOwned::Sequence(items) = &untagged(node).data else {
         return Vec::new();
     };
     items
         .iter()
-        .filter_map(|item| match &item.data {
+        .filter_map(|item| match &untagged(item).data {
             YamlDataOwned::Mapping(fields) => {
                 parse_build_identity_mapping(contents, source_id, fields.iter(), resolver, report)
             }
@@ -412,6 +511,7 @@ fn parse_build_identity_mapping<'a>(
 fn empty_project() -> ParsedProject {
     ParsedProject {
         name: None,
+        includes: Vec::new(),
         services: IndexMap::new(),
         networks: IndexMap::new(),
         volumes: IndexMap::new(),
@@ -421,7 +521,7 @@ fn empty_project() -> ParsedProject {
 }
 
 fn parse_resources(source_id: SourceId, contents: &str, node: &MarkedYamlOwned) -> RawResources {
-    let YamlDataOwned::Mapping(mapping) = &node.data else {
+    let YamlDataOwned::Mapping(mapping) = &untagged(node).data else {
         return IndexMap::new();
     };
 
@@ -431,7 +531,7 @@ fn parse_resources(source_id: SourceId, contents: &str, node: &MarkedYamlOwned) 
             continue;
         };
         let mut definition = RawResourceDefinition::default();
-        if let YamlDataOwned::Mapping(fields) = &v_node.data {
+        if let YamlDataOwned::Mapping(fields) = &untagged(v_node).data {
             for (field_node, value_node) in fields {
                 if node_as_str(field_node) == Some("external") {
                     definition.external = scalar_spanned(contents, source_id, value_node);
@@ -451,7 +551,7 @@ fn parse_string_or_list(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> RawStringOrList {
-    match &node.data {
+    match &untagged(node).data {
         YamlDataOwned::Sequence(items) => RawStringOrList::List(
             items
                 .iter()
@@ -473,7 +573,7 @@ fn parse_string_sequence(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Vec<Spanned<String>> {
-    let YamlDataOwned::Sequence(items) = &node.data else {
+    let YamlDataOwned::Sequence(items) = &untagged(node).data else {
         return Vec::new();
     };
     items
@@ -489,7 +589,7 @@ fn parse_mapping(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> RawMapping {
-    match &node.data {
+    match &untagged(node).data {
         YamlDataOwned::Mapping(mapping) => {
             let mut result = IndexMap::new();
             for (k_node, v_node) in mapping {
@@ -522,12 +622,12 @@ fn parse_ports(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Vec<RawPortEntry> {
-    let YamlDataOwned::Sequence(items) = &node.data else {
+    let YamlDataOwned::Sequence(items) = &untagged(node).data else {
         return Vec::new();
     };
     items
         .iter()
-        .filter_map(|item| match &item.data {
+        .filter_map(|item| match &untagged(item).data {
             YamlDataOwned::Mapping(fields) => Some(RawPortEntry::Long(parse_port_long(
                 contents,
                 source_id,
@@ -579,12 +679,12 @@ fn parse_volumes(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Vec<RawVolumeMount> {
-    let YamlDataOwned::Sequence(items) = &node.data else {
+    let YamlDataOwned::Sequence(items) = &untagged(node).data else {
         return Vec::new();
     };
     items
         .iter()
-        .filter_map(|item| match &item.data {
+        .filter_map(|item| match &untagged(item).data {
             YamlDataOwned::Mapping(fields) => Some(RawVolumeMount::Long(parse_volume_long(
                 contents,
                 source_id,
@@ -635,7 +735,7 @@ fn parse_depends_on(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> IndexMap<String, RawDependency> {
-    match &node.data {
+    match &untagged(node).data {
         YamlDataOwned::Sequence(items) => items
             .iter()
             .filter_map(|item| interpolated_spanned(contents, source_id, item, resolver, report))
@@ -665,7 +765,7 @@ fn parse_dependency(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> RawDependency {
-    let YamlDataOwned::Mapping(fields) = &node.data else {
+    let YamlDataOwned::Mapping(fields) = &untagged(node).data else {
         return RawDependency::default();
     };
     let mut dep = RawDependency::default();
@@ -693,7 +793,7 @@ fn parse_service_networks(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> RawServiceNetworks {
-    match &node.data {
+    match &untagged(node).data {
         YamlDataOwned::Sequence(items) => items
             .iter()
             .filter_map(|item| interpolated_spanned(contents, source_id, item, resolver, report))
@@ -723,7 +823,7 @@ fn parse_network_attachment(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> RawNetworkAttachment {
-    let YamlDataOwned::Mapping(fields) = &node.data else {
+    let YamlDataOwned::Mapping(fields) = &untagged(node).data else {
         return RawNetworkAttachment::default();
     };
     let mut attachment = RawNetworkAttachment::default();
@@ -743,12 +843,12 @@ fn parse_resource_mounts(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Vec<RawResourceMount> {
-    let YamlDataOwned::Sequence(items) = &node.data else {
+    let YamlDataOwned::Sequence(items) = &untagged(node).data else {
         return Vec::new();
     };
     items
         .iter()
-        .filter_map(|item| match &item.data {
+        .filter_map(|item| match &untagged(item).data {
             YamlDataOwned::Mapping(fields) => {
                 parse_resource_mount(contents, source_id, fields.iter(), resolver, report)
             }
@@ -792,7 +892,7 @@ fn parse_healthcheck(
     resolver: &EnvResolver,
     report: &mut DiagnosticReport,
 ) -> Option<RawHealthcheck> {
-    let YamlDataOwned::Mapping(fields) = &node.data else {
+    let YamlDataOwned::Mapping(fields) = &untagged(node).data else {
         return None;
     };
     let mut healthcheck = RawHealthcheck::default();
@@ -868,10 +968,17 @@ fn scalar_spanned(
 
 /// Extract a string value from a YAML node, handling both `Value` and tagged `Representation`.
 fn node_as_str(node: &MarkedYamlOwned) -> Option<&str> {
-    match &node.data {
+    match &untagged(node).data {
         YamlDataOwned::Value(v) => v.as_str(),
         YamlDataOwned::Representation(v, _, _) => Some(v.as_str()),
         _ => None,
+    }
+}
+
+fn untagged(node: &MarkedYamlOwned) -> &MarkedYamlOwned {
+    match &node.data {
+        YamlDataOwned::Tagged(_, inner) => untagged(inner.as_ref()),
+        _ => node,
     }
 }
 
