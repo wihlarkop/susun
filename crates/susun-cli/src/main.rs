@@ -4,6 +4,7 @@ use std::{collections::BTreeSet, path::Path, process, sync::Arc, time::SystemTim
 
 use clap::Parser;
 use futures_util::StreamExt;
+use indexmap::IndexMap;
 use susun::{
     Analyzer, LoadContext, Planner, down_with_engine, render_diagnostics, render_diagnostics_json,
     up_with_engine,
@@ -14,10 +15,12 @@ use susun_build::{
     InsecureEntitlements, resolve_build_inputs, validate_dockerfile_source,
 };
 use susun_engine::{
-    ContainerEngine, ContainerRef, EngineCapabilities, EngineSnapshot, LogsRequest,
-    ProjectIdentity, ProjectInstanceId, StopContainerRequest,
+    ContainerEngine, ContainerRef, CreateContainerRequest, EngineCapabilities, EngineSnapshot,
+    LabelKey, LabelValue, LogsRequest, ProjectIdentity, ProjectInstanceId, RemoveContainerOptions,
+    ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest, WaitContainerRequest,
 };
 use susun_engine_bollard::BollardEngine;
+use susun_model::Command as EngineCommand;
 use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, UpPlanOptions, render_plan_human, render_plan_json,
 };
@@ -55,6 +58,11 @@ async fn main() {
             .await
         }
         Command::Build => build_images(&cli.ctx).await,
+        Command::Run {
+            no_rm,
+            service,
+            command,
+        } => runtime_run(&cli.ctx, !no_rm, service, command).await,
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -465,6 +473,182 @@ async fn runtime_down(ctx: &ContextArgs, remove_volumes: bool) -> i32 {
             2
         }
     }
+}
+
+async fn runtime_run(ctx: &ContextArgs, rm: bool, service: String, command: Vec<String>) -> i32 {
+    let Some((analysis, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let Some(project) = analysis.project.as_ref() else {
+        eprintln!("susun: no project to run");
+        return 1;
+    };
+    let service_name = susun_model::ServiceName::new(service.clone());
+    let Some(service_model) = project.services.get(&service_name) else {
+        eprintln!("susun: service '{service}' was not found");
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+
+    let instance = ServiceInstanceId::new(
+        identity.working_set.clone(),
+        service_name.clone(),
+        ReplicaIndex::new(one_off_replica_index()),
+    );
+    let name = match ResourceName::new(format!(
+        "susun-{}-{}-run-{}",
+        identity.working_set.as_str(),
+        service_name.as_str(),
+        one_off_suffix()
+    )) {
+        Ok(name) => name,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let container = match engine
+        .create_container(CreateContainerRequest {
+            project: identity.clone(),
+            service: instance,
+            name,
+            image: service_model.image.clone(),
+            command: (!command.is_empty()).then_some(EngineCommand::Exec(command)),
+            entrypoint: service_model.entrypoint.clone(),
+            environment: service_model.environment.clone(),
+            container_labels: service_model.labels.clone(),
+            ports: Vec::new(),
+            volumes: service_model.volumes.clone(),
+            configs: Vec::new(),
+            secrets: Vec::new(),
+            networks: IndexMap::new(),
+            healthcheck: None,
+            restart: Some("no".to_owned()),
+            labels: one_off_labels(&identity, service_name.as_str()),
+        })
+        .await
+    {
+        Ok(container) => container,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+
+    if let Err(error) = engine.start_container(&container).await {
+        eprintln!("susun: {error}");
+        let _ = cleanup_one_off(&engine, &container, rm).await;
+        return 2;
+    }
+
+    let logs_result = stream_container_logs(&engine, &container, true, false, None, None).await;
+    let wait = engine
+        .wait_container(WaitContainerRequest {
+            container: container.clone(),
+        })
+        .await;
+    let cleanup = cleanup_one_off(&engine, &container, rm).await;
+
+    if let Err(error) = logs_result {
+        eprintln!("susun: {error}");
+        return 2;
+    }
+    let exit_code = match wait {
+        Ok(result) => result.exit_code,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    if let Err(error) = cleanup {
+        eprintln!("susun: {error}");
+        return 2;
+    }
+    i32::try_from(exit_code).unwrap_or(1)
+}
+
+async fn stream_container_logs(
+    engine: &impl ContainerEngine,
+    container: &ContainerRef,
+    follow: bool,
+    timestamps: bool,
+    tail: Option<usize>,
+    prefix: Option<&str>,
+) -> Result<(), susun_engine::EngineError> {
+    let mut logs = engine
+        .logs(LogsRequest {
+            container: container.clone(),
+            follow,
+            timestamps,
+            tail,
+        })
+        .await?;
+    while let Some(event) = logs.next().await {
+        let event = event?;
+        if let Some(prefix) = prefix {
+            print!("{prefix} | ");
+        }
+        print!("{}", event.line);
+    }
+    Ok(())
+}
+
+async fn cleanup_one_off(
+    engine: &impl ContainerEngine,
+    container: &ContainerRef,
+    rm: bool,
+) -> Result<(), susun_engine::EngineError> {
+    if !rm {
+        return Ok(());
+    }
+    engine
+        .remove_container(
+            container,
+            RemoveContainerOptions {
+                remove_anonymous_volumes: true,
+                force: false,
+            },
+        )
+        .await
+}
+
+fn one_off_labels(identity: &ProjectIdentity, service: &str) -> IndexMap<LabelKey, LabelValue> {
+    let mut labels = IndexMap::new();
+    insert_label(&mut labels, "io.susun.project", identity.name.as_str());
+    insert_label(
+        &mut labels,
+        "io.susun.project-instance",
+        identity.working_set.as_str(),
+    );
+    insert_label(&mut labels, "io.susun.service", service);
+    insert_label(&mut labels, "io.susun.oneoff", "true");
+    insert_label(&mut labels, "io.susun.model-version", "1");
+    labels
+}
+
+fn insert_label(labels: &mut IndexMap<LabelKey, LabelValue>, key: &str, value: &str) {
+    if let (Ok(key), Ok(value)) = (LabelKey::new(key), LabelValue::new(value)) {
+        labels.insert(key, value);
+    }
+}
+
+fn one_off_suffix() -> String {
+    let millis = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    format!("{millis:x}")
+}
+
+fn one_off_replica_index() -> u32 {
+    let millis = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    u32::try_from(millis % u128::from(u32::MAX)).unwrap_or_default()
 }
 
 async fn runtime_ps(ctx: &ContextArgs) -> i32 {

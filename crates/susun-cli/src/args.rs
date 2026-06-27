@@ -99,6 +99,17 @@ pub enum Command {
     },
     /// Build service images.
     Build,
+    /// Run a one-off service container.
+    Run {
+        /// Keep the one-off container after it exits.
+        #[arg(long)]
+        no_rm: bool,
+        /// Service to run.
+        service: String,
+        /// Command override.
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        command: Vec<String>,
+    },
     /// Tear the project down using Docker Engine.
     Down {
         /// Include named volume removal.
