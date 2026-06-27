@@ -110,16 +110,16 @@ pub(crate) fn parse(
                 includes = parse_includes(contents, source_id, v_node, resolver, report);
             }
             "networks" => {
-                networks = parse_resources(source_id, contents, v_node);
+                networks = parse_resources(source_id, contents, v_node, resolver, report);
             }
             "volumes" => {
-                volumes = parse_resources(source_id, contents, v_node);
+                volumes = parse_resources(source_id, contents, v_node, resolver, report);
             }
             "configs" => {
-                configs = parse_resources(source_id, contents, v_node);
+                configs = parse_resources(source_id, contents, v_node, resolver, report);
             }
             "secrets" => {
-                secrets = parse_resources(source_id, contents, v_node);
+                secrets = parse_resources(source_id, contents, v_node, resolver, report);
             }
             "profiles" => {}
             // Extension fields accepted silently
@@ -520,7 +520,13 @@ fn empty_project() -> ParsedProject {
     }
 }
 
-fn parse_resources(source_id: SourceId, contents: &str, node: &MarkedYamlOwned) -> RawResources {
+fn parse_resources(
+    source_id: SourceId,
+    contents: &str,
+    node: &MarkedYamlOwned,
+    resolver: &EnvResolver,
+    report: &mut DiagnosticReport,
+) -> RawResources {
     let YamlDataOwned::Mapping(mapping) = &untagged(node).data else {
         return IndexMap::new();
     };
@@ -533,8 +539,19 @@ fn parse_resources(source_id: SourceId, contents: &str, node: &MarkedYamlOwned) 
         let mut definition = RawResourceDefinition::default();
         if let YamlDataOwned::Mapping(fields) = &untagged(v_node).data {
             for (field_node, value_node) in fields {
-                if node_as_str(field_node) == Some("external") {
-                    definition.external = scalar_spanned(contents, source_id, value_node);
+                match node_as_str(field_node) {
+                    Some("external") => {
+                        definition.external = scalar_spanned(contents, source_id, value_node)
+                    }
+                    Some("name") => {
+                        definition.name =
+                            interpolated_spanned(contents, source_id, value_node, resolver, report)
+                    }
+                    Some("file") => {
+                        definition.file =
+                            interpolated_spanned(contents, source_id, value_node, resolver, report)
+                    }
+                    _ => {}
                 }
             }
         }
@@ -856,6 +873,9 @@ fn parse_resource_mounts(
                 RawResourceMount {
                     source,
                     target: None,
+                    uid: None,
+                    gid: None,
+                    mode: None,
                 }
             }),
         })
@@ -871,6 +891,9 @@ fn parse_resource_mount<'a>(
 ) -> Option<RawResourceMount> {
     let mut source = None;
     let mut target = None;
+    let mut uid = None;
+    let mut gid = None;
+    let mut mode = None;
     for (k_node, v_node) in fields {
         match node_as_str(k_node) {
             Some("source") => {
@@ -879,10 +902,25 @@ fn parse_resource_mount<'a>(
             Some("target") => {
                 target = interpolated_spanned(contents, source_id, v_node, resolver, report)
             }
+            Some("uid") => {
+                uid = interpolated_spanned(contents, source_id, v_node, resolver, report)
+            }
+            Some("gid") => {
+                gid = interpolated_spanned(contents, source_id, v_node, resolver, report)
+            }
+            Some("mode") => {
+                mode = interpolated_spanned(contents, source_id, v_node, resolver, report)
+            }
             _ => {}
         }
     }
-    source.map(|source| RawResourceMount { source, target })
+    source.map(|source| RawResourceMount {
+        source,
+        target,
+        uid,
+        gid,
+        mode,
+    })
 }
 
 fn parse_healthcheck(

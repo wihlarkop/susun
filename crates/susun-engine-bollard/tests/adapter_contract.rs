@@ -101,6 +101,8 @@ async fn run_container_contract(
             )]),
             ports: Vec::<CanonicalPort>::new(),
             volumes: Vec::<CanonicalVolume>::new(),
+            configs: Vec::new(),
+            secrets: Vec::new(),
             networks: IndexMap::from([(
                 project.network_name.clone(),
                 NetworkAttachment {

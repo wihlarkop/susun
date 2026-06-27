@@ -21,8 +21,8 @@ pub use identity::{
 pub use operation::{
     ActionProgress, BoxLogStream, ContainerRef, CreateContainerRequest, CreateNetworkRequest,
     CreateVolumeRequest, EngineEndpoint, EngineImageRef, LogEvent, LogSource, LogsRequest,
-    NetworkRef, ProgressSink, PullImageRequest, PullPolicy, RemoveContainerOptions,
-    StopContainerRequest, VolumeRef,
+    MaterializedResourceMount, NetworkRef, ProgressSink, PullImageRequest, PullPolicy,
+    RemoveContainerOptions, StopContainerRequest, VolumeRef,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,

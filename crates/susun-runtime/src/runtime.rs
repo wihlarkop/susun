@@ -353,6 +353,8 @@ where
                         container_labels: action.labels.clone(),
                         ports: action.ports.clone(),
                         volumes: action.volumes.clone(),
+                        configs: action.configs.clone(),
+                        secrets: action.secrets.clone(),
                         networks: action.networks.clone(),
                         healthcheck: action.healthcheck.clone(),
                         restart: action.restart.clone(),

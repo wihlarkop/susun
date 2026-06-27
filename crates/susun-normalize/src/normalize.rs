@@ -67,10 +67,26 @@ pub fn normalize(
     let project = Project {
         name: metadata.project_name,
         services,
-        networks: normalize_resource_map(input.networks, NetworkName::new),
-        volumes: normalize_resource_map(input.volumes, VolumeName::new),
-        configs: normalize_resource_map(input.configs, ConfigName::new),
-        secrets: normalize_resource_map(input.secrets, SecretName::new),
+        networks: normalize_resource_map(
+            input.networks,
+            NetworkName::new,
+            &metadata.project_directory,
+        ),
+        volumes: normalize_resource_map(
+            input.volumes,
+            VolumeName::new,
+            &metadata.project_directory,
+        ),
+        configs: normalize_resource_map(
+            input.configs,
+            ConfigName::new,
+            &metadata.project_directory,
+        ),
+        secrets: normalize_resource_map(
+            input.secrets,
+            SecretName::new,
+            &metadata.project_directory,
+        ),
     };
     let provenance = ProjectProvenance {
         name_span: input.name.map(|s| s.span),
@@ -221,21 +237,34 @@ fn normalize_volumes(
 fn normalize_resource_map<N>(
     raw: RawResources,
     name: impl Fn(String) -> N,
+    project_dir: &Path,
 ) -> IndexMap<N, ResourceDefinition>
 where
     N: std::hash::Hash + Eq,
 {
     raw.into_iter()
-        .map(|(key, definition)| (name(key), normalize_resource_definition(definition.value)))
+        .map(|(key, definition)| {
+            (
+                name(key),
+                normalize_resource_definition(definition.value, project_dir),
+            )
+        })
         .collect()
 }
 
-fn normalize_resource_definition(raw: RawResourceDefinition) -> ResourceDefinition {
+fn normalize_resource_definition(
+    raw: RawResourceDefinition,
+    project_dir: &Path,
+) -> ResourceDefinition {
     ResourceDefinition {
         external: raw
             .external
             .as_ref()
             .is_some_and(|value| parse_bool(value.value.as_str())),
+        name: raw.name.map(|value| value.value),
+        file: raw
+            .file
+            .map(|value| resolve_project_path(project_dir, value.value)),
     }
 }
 
@@ -297,6 +326,9 @@ fn normalize_mounts<N>(
         .map(|mount| ResourceMount {
             source: name(mount.source.value),
             target: mount.target.map(|target| target.value),
+            uid: mount.uid.map(|uid| uid.value),
+            gid: mount.gid.map(|gid| gid.value),
+            mode: mount.mode.map(|mode| mode.value),
         })
         .collect()
 }
@@ -319,4 +351,13 @@ fn normalize_healthcheck(raw: RawHealthcheck) -> Healthcheck {
 
 fn parse_bool(value: &str) -> bool {
     matches!(value, "true" | "True" | "TRUE" | "yes" | "1")
+}
+
+fn resolve_project_path(project_dir: &Path, value: String) -> String {
+    let path = Path::new(&value);
+    if path.is_absolute() {
+        value
+    } else {
+        project_dir.join(path).to_string_lossy().into_owned()
+    }
 }

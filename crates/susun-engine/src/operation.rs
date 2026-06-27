@@ -1,6 +1,6 @@
 //! Neutral executable engine operation types.
 
-use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
+use std::{future::Future, path::PathBuf, pin::Pin, sync::Arc, time::Duration};
 
 use futures_core::Stream;
 use indexmap::IndexMap;
@@ -180,6 +180,27 @@ pub struct CreateVolumeRequest {
     pub labels: IndexMap<LabelKey, LabelValue>,
 }
 
+/// File-backed config or secret materialized into a container.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct MaterializedResourceMount {
+    /// Host-side file path. Contents are never serialized by Susun.
+    pub source: PathBuf,
+    /// Container target path.
+    pub target: String,
+    /// Requested uid for the mounted file.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub uid: Option<String>,
+    /// Requested gid for the mounted file.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub gid: Option<String>,
+    /// Requested file mode.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub mode: Option<String>,
+    /// Whether this mount contains secret material.
+    pub secret: bool,
+}
+
 /// Create-container request for the Phase 3 supported subset.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -204,6 +225,10 @@ pub struct CreateContainerRequest {
     pub ports: Vec<CanonicalPort>,
     /// Volume mounts.
     pub volumes: Vec<CanonicalVolume>,
+    /// File-backed config mounts.
+    pub configs: Vec<MaterializedResourceMount>,
+    /// File-backed secret mounts.
+    pub secrets: Vec<MaterializedResourceMount>,
     /// Network attachments.
     pub networks: IndexMap<ResourceName, NetworkAttachment>,
     /// Healthcheck configuration.
