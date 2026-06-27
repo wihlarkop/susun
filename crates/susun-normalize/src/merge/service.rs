@@ -2,7 +2,7 @@
 
 use indexmap::IndexMap;
 
-use crate::input::{ParsedService, RawMapping, RawStringOrList};
+use crate::input::{ParsedService, RawMapping, RawStringOrList, ServiceMergeTag};
 
 use super::unique::{unique_ports, unique_volumes};
 
@@ -15,9 +15,21 @@ use super::unique::{unique_ports, unique_volumes};
 /// - `ports`: concatenated, then deduplicated by canonical key (overlay wins).
 /// - `volumes`: concatenated, then deduplicated by target path (overlay wins).
 pub fn merge_services(base: ParsedService, overlay: ParsedService) -> ParsedService {
+    if matches!(
+        overlay.merge_tag,
+        ServiceMergeTag::Reset | ServiceMergeTag::Override
+    ) {
+        return ParsedService {
+            merge_tag: ServiceMergeTag::Merge,
+            ..overlay
+        };
+    }
+
     ParsedService {
+        merge_tag: ServiceMergeTag::Merge,
         image: overlay.image.or(base.image),
         build: overlay.build.or(base.build),
+        extends: overlay.extends.or(base.extends),
         command: merge_string_or_list(base.command, overlay.command),
         entrypoint: merge_string_or_list(base.entrypoint, overlay.entrypoint),
         environment: merge_mapping(base.environment, overlay.environment),

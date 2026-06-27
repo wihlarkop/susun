@@ -40,6 +40,7 @@ pub fn merge_projects(base: MergeProject, overlay: MergeProject) -> MergeProject
 
     MergeProject {
         name: overlay.name.or(base.name),
+        includes: Vec::new(),
         services,
         networks: merge_resource_map(base.networks, overlay.networks),
         volumes: merge_resource_map(base.volumes, overlay.volumes),

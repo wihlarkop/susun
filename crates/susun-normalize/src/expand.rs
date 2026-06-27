@@ -19,6 +19,7 @@ use crate::input::{
 pub fn expand_project(parsed: ParsedProject) -> MergeProject {
     MergeProject {
         name: parsed.name,
+        includes: parsed.includes,
         services: parsed
             .services
             .into_iter()
@@ -36,8 +37,10 @@ pub fn expand_project(parsed: ParsedProject) -> MergeProject {
 
 fn expand_service(svc: ParsedService) -> ParsedService {
     ParsedService {
+        merge_tag: svc.merge_tag,
         image: svc.image,
         build: svc.build,
+        extends: svc.extends,
         command: expand_command(svc.command),
         entrypoint: expand_command(svc.entrypoint),
         environment: expand_mapping(svc.environment),
