@@ -1,9 +1,14 @@
 //! Service action planning for `up`.
 
+use std::path::PathBuf;
+
 use indexmap::{IndexMap, IndexSet};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
-use susun_engine::{ReplicaIndex, ResourceName, ServiceInstanceId};
-use susun_model::{DependencyCondition, NetworkAttachment, VolumeKind, volume::CanonicalVolume};
+use susun_engine::{MaterializedResourceMount, ReplicaIndex, ResourceName, ServiceInstanceId};
+use susun_model::{
+    ConfigName, DependencyCondition, NetworkAttachment, ResourceDefinition, ResourceMount,
+    SecretName, VolumeKind, volume::CanonicalVolume,
+};
 
 use crate::{
     ActionId, ActionReason, ActionSafety, CreateContainerAction, NamingPolicy, PlanAction,
@@ -68,6 +73,8 @@ pub(crate) fn plan_services(
             labels: service.labels.clone(),
             ports: service.ports.clone(),
             volumes: runtime_volumes(service, resources),
+            configs: runtime_configs(input.project, service),
+            secrets: runtime_secrets(input.project, service),
             networks: runtime_networks(service, resources),
             healthcheck: service.healthcheck.clone(),
             restart: service.restart.clone(),
@@ -152,6 +159,62 @@ fn runtime_volumes(
             volume
         })
         .collect()
+}
+
+fn runtime_configs(
+    project: &susun_model::Project,
+    service: &susun_model::Service,
+) -> Vec<MaterializedResourceMount> {
+    service
+        .configs
+        .iter()
+        .filter_map(|mount| {
+            let definition = project.configs.get(&mount.source)?;
+            materialized_mount(mount, definition, default_config_target, false)
+        })
+        .collect()
+}
+
+fn runtime_secrets(
+    project: &susun_model::Project,
+    service: &susun_model::Service,
+) -> Vec<MaterializedResourceMount> {
+    service
+        .secrets
+        .iter()
+        .filter_map(|mount| {
+            let definition = project.secrets.get(&mount.source)?;
+            materialized_mount(mount, definition, default_secret_target, true)
+        })
+        .collect()
+}
+
+fn materialized_mount<N>(
+    mount: &ResourceMount<N>,
+    definition: &ResourceDefinition,
+    default_target: impl Fn(&N) -> String,
+    secret: bool,
+) -> Option<MaterializedResourceMount> {
+    let source = definition.file.as_ref()?;
+    Some(MaterializedResourceMount {
+        source: PathBuf::from(source),
+        target: mount
+            .target
+            .clone()
+            .unwrap_or_else(|| default_target(&mount.source)),
+        uid: mount.uid.clone(),
+        gid: mount.gid.clone(),
+        mode: mount.mode.clone(),
+        secret,
+    })
+}
+
+fn default_config_target(source: &ConfigName) -> String {
+    format!("/{}", source.as_str())
+}
+
+fn default_secret_target(source: &SecretName) -> String {
+    format!("/run/secrets/{}", source.as_str())
 }
 
 fn add_service_resource_dependencies(

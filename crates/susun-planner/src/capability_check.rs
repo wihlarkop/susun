@@ -10,6 +10,7 @@ const UNSUPPORTED_MOUNT: &str = "SUS-CAP-001";
 const UNSUPPORTED_HEALTH: &str = "SUS-CAP-002";
 const UNSUPPORTED_ALIAS: &str = "SUS-CAP-003";
 const MISSING_IMAGE: &str = "SUS-CAP-004";
+const UNSUPPORTED_RESOURCE_MATERIALIZATION: &str = "SUS-CAP-005";
 
 /// Runs capability checks for `up` planning.
 pub fn check_up_capabilities(
@@ -46,6 +47,36 @@ pub fn check_up_capabilities(
                         mount_type
                     ),
                 ));
+            }
+        }
+
+        for mount in &service.configs {
+            match input.project.configs.get(&mount.source) {
+                Some(definition) if definition.file.is_some() && !definition.external => {}
+                _ => report.push(Diagnostic::new(
+                    UNSUPPORTED_RESOURCE_MATERIALIZATION,
+                    Severity::Error,
+                    format!(
+                        "service '{}' references config '{}' that cannot be materialized by the local runtime subset",
+                        service_name.as_str(),
+                        mount.source.as_str()
+                    ),
+                )),
+            }
+        }
+
+        for mount in &service.secrets {
+            match input.project.secrets.get(&mount.source) {
+                Some(definition) if definition.file.is_some() && !definition.external => {}
+                _ => report.push(Diagnostic::new(
+                    UNSUPPORTED_RESOURCE_MATERIALIZATION,
+                    Severity::Error,
+                    format!(
+                        "service '{}' references secret '{}' that cannot be materialized by the local runtime subset",
+                        service_name.as_str(),
+                        mount.source.as_str()
+                    ),
+                )),
             }
         }
 

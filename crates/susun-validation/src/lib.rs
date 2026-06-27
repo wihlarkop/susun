@@ -1,9 +1,11 @@
 //! Semantic validation for normalized Compose projects.
 
-use std::collections::HashSet;
+use std::{collections::HashSet, path::Path};
 
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
-use susun_model::{DependencyCondition, Project, Protocol, PublishedPort, ServiceName};
+use susun_model::{
+    DependencyCondition, Project, Protocol, PublishedPort, ResourceDefinition, ServiceName,
+};
 use susun_normalize::selection::ProjectSelection;
 
 const UNKNOWN_SERVICE: &str = "SUS-SEM-001";
@@ -12,6 +14,7 @@ const UNKNOWN_VOLUME: &str = "SUS-SEM-003";
 const UNKNOWN_NETWORK: &str = "SUS-SEM-004";
 const UNKNOWN_CONFIG_SECRET: &str = "SUS-SEM-005";
 const HEALTH_WITHOUT_CHECK: &str = "SUS-SEM-006";
+const INVALID_CONFIG_SECRET: &str = "SUS-SEM-007";
 
 /// Semantic validation result.
 pub struct ValidationOutcome {
@@ -23,9 +26,45 @@ pub struct ValidationOutcome {
 pub fn validate(project: &Project, selection: &ProjectSelection) -> ValidationOutcome {
     let mut report = DiagnosticReport::new();
     validate_references(project, selection, &mut report);
+    validate_config_secret_definitions(project, &mut report);
     validate_ports(project, selection, &mut report);
     validate_health_dependencies(project, selection, &mut report);
     ValidationOutcome { report }
+}
+
+fn validate_config_secret_definitions(project: &Project, report: &mut DiagnosticReport) {
+    for (name, definition) in &project.configs {
+        validate_config_secret_definition("config", name.as_str(), definition, report);
+    }
+
+    for (name, definition) in &project.secrets {
+        validate_config_secret_definition("secret", name.as_str(), definition, report);
+    }
+}
+
+fn validate_config_secret_definition(
+    kind: &str,
+    name: &str,
+    definition: &ResourceDefinition,
+    report: &mut DiagnosticReport,
+) {
+    if definition.external && definition.file.is_some() {
+        report.push(Diagnostic::new(
+            INVALID_CONFIG_SECRET,
+            Severity::Error,
+            format!("{kind} `{name}` cannot be both external and file-backed"),
+        ));
+    }
+
+    if let Some(file) = &definition.file
+        && !Path::new(file).is_file()
+    {
+        report.push(Diagnostic::new(
+            INVALID_CONFIG_SECRET,
+            Severity::Error,
+            format!("{kind} `{name}` file `{file}` does not exist"),
+        ));
+    }
 }
 
 fn validate_references(

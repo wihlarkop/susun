@@ -327,6 +327,12 @@ pub struct CanonicalResourceMount {
     pub runtime_name: Option<String>,
     /// Container target.
     pub target: Option<String>,
+    /// Requested uid.
+    pub uid: Option<String>,
+    /// Requested gid.
+    pub gid: Option<String>,
+    /// Requested file mode.
+    pub mode: Option<String>,
 }
 
 impl CanonicalResourceMount {
@@ -335,6 +341,9 @@ impl CanonicalResourceMount {
             source: mount.source.as_str().to_string(),
             runtime_name: runtime_name.cloned(),
             target: mount.target.clone(),
+            uid: mount.uid.clone(),
+            gid: mount.gid.clone(),
+            mode: mount.mode.clone(),
         }
     }
 
@@ -343,6 +352,9 @@ impl CanonicalResourceMount {
             source: mount.source.as_str().to_string(),
             runtime_name: runtime_name.cloned(),
             target: mount.target.clone(),
+            uid: mount.uid.clone(),
+            gid: mount.gid.clone(),
+            mode: mount.mode.clone(),
         }
     }
 }

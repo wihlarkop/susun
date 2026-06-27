@@ -6,6 +6,10 @@ use susun_source::Spanned;
 pub struct RawResourceDefinition {
     /// `external`.
     pub external: Option<Spanned<String>>,
+    /// `name`.
+    pub name: Option<Spanned<String>>,
+    /// `file`.
+    pub file: Option<Spanned<String>>,
 }
 
 /// Raw service network attachment.
@@ -22,6 +26,12 @@ pub struct RawResourceMount {
     pub source: Spanned<String>,
     /// Optional target.
     pub target: Option<Spanned<String>>,
+    /// Optional uid.
+    pub uid: Option<Spanned<String>>,
+    /// Optional gid.
+    pub gid: Option<Spanned<String>>,
+    /// Optional file mode.
+    pub mode: Option<Spanned<String>>,
 }
 
 /// Raw top-level resource map.

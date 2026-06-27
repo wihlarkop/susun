@@ -5,7 +5,8 @@ use std::time::SystemTime;
 use indexmap::{IndexMap, IndexSet};
 use susun_diagnostics::DiagnosticReport;
 use susun_engine::{
-    NetworkIdentity, ProjectIdentity, ResourceName, ServiceInstanceId, VolumeIdentity,
+    MaterializedResourceMount, NetworkIdentity, ProjectIdentity, ResourceName, ServiceInstanceId,
+    VolumeIdentity,
 };
 use susun_model::{
     Command, Healthcheck, ImageRef, NetworkAttachment, port::CanonicalPort, volume::CanonicalVolume,
@@ -295,6 +296,10 @@ pub struct CreateContainerAction {
     pub ports: Vec<CanonicalPort>,
     /// Volume mounts.
     pub volumes: Vec<CanonicalVolume>,
+    /// File-backed config mounts.
+    pub configs: Vec<MaterializedResourceMount>,
+    /// File-backed secret mounts.
+    pub secrets: Vec<MaterializedResourceMount>,
     /// Network attachments.
     pub networks: IndexMap<ResourceName, NetworkAttachment>,
     /// Healthcheck configuration.

@@ -32,7 +32,7 @@ use susun_engine::{
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
     port::{CanonicalPort, Protocol},
-    volume::{CanonicalVolume, VolumeKind},
+    volume::VolumeKind,
 };
 
 /// Bollard-backed Docker Engine adapter.
@@ -513,7 +513,7 @@ fn exposed_ports(ports: &[CanonicalPort]) -> Option<Vec<String>> {
 fn host_config(request: &CreateContainerRequest) -> HostConfig {
     HostConfig {
         port_bindings: port_bindings(&request.ports),
-        mounts: mount_values(&request.volumes),
+        mounts: mount_values(request),
         restart_policy: request.restart.as_deref().and_then(restart_policy),
         network_mode: request
             .networks
@@ -556,25 +556,38 @@ fn port_key(port: &CanonicalPort) -> String {
     format!("{}/{}", port.target, protocol)
 }
 
-fn mount_values(volumes: &[CanonicalVolume]) -> Option<Vec<Mount>> {
-    if volumes.is_empty() {
+fn mount_values(request: &CreateContainerRequest) -> Option<Vec<Mount>> {
+    if request.volumes.is_empty() && request.configs.is_empty() && request.secrets.is_empty() {
         return None;
     }
-    Some(
-        volumes
+    let mut mounts = request
+        .volumes
+        .iter()
+        .map(|volume| Mount {
+            target: Some(volume.target.clone()),
+            source: volume.source.clone(),
+            typ: Some(match volume.kind {
+                VolumeKind::Volume | VolumeKind::Anonymous => DockerMountType::VOLUME,
+                VolumeKind::Bind => DockerMountType::BIND,
+            }),
+            read_only: Some(volume.read_only),
+            ..Default::default()
+        })
+        .collect::<Vec<_>>();
+    mounts.extend(
+        request
+            .configs
             .iter()
-            .map(|volume| Mount {
-                target: Some(volume.target.clone()),
-                source: volume.source.clone(),
-                typ: Some(match volume.kind {
-                    VolumeKind::Volume | VolumeKind::Anonymous => DockerMountType::VOLUME,
-                    VolumeKind::Bind => DockerMountType::BIND,
-                }),
-                read_only: Some(volume.read_only),
+            .chain(request.secrets.iter())
+            .map(|mount| Mount {
+                target: Some(mount.target.clone()),
+                source: Some(mount.source.to_string_lossy().into_owned()),
+                typ: Some(DockerMountType::BIND),
+                read_only: Some(true),
                 ..Default::default()
-            })
-            .collect(),
-    )
+            }),
+    );
+    Some(mounts)
 }
 
 fn networking_config(
