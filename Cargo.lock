@@ -1192,6 +1192,7 @@ dependencies = [
  "susun-planner",
  "susun-runtime",
  "susun-source",
+ "susun-watch",
  "tar",
  "tokio",
 ]

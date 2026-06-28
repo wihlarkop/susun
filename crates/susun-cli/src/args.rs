@@ -157,6 +157,24 @@ pub enum Command {
         /// Optional container-side port filter, for example `80` or `80/tcp`.
         private_port: Option<String>,
     },
+    /// Watch project files and run rebuild/restart/sync actions.
+    Watch {
+        /// Watch action to run when a file event is observed.
+        #[arg(long = "action", value_enum, default_value_t = WatchAction::Restart)]
+        action: WatchAction,
+        /// Service selection for rebuild and restart actions.
+        #[arg(long = "service")]
+        service: Vec<String>,
+        /// Sync mapping as SERVICE:HOST_PATH:CONTAINER_DIR. Repeatable.
+        #[arg(long = "sync")]
+        sync: Vec<String>,
+        /// Additional host paths to watch. Defaults to the project root.
+        #[arg(long = "watch")]
+        watch: Vec<PathBuf>,
+        /// Debounce window in milliseconds.
+        #[arg(long = "debounce-ms", default_value_t = 150)]
+        debounce_ms: u64,
+    },
     /// Tear the project down using Docker Engine.
     Down {
         /// Include named volume removal.
@@ -234,4 +252,17 @@ pub enum ColorChoice {
     Always,
     /// Never colorize.
     Never,
+}
+
+/// Watch action subset.
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum WatchAction {
+    /// Build declared service images after file changes.
+    Rebuild,
+    /// Restart selected running services after file changes.
+    Restart,
+    /// Sync changed files into selected running service containers.
+    Sync,
+    /// Sync changed files and then restart selected running services.
+    SyncRestart,
 }
