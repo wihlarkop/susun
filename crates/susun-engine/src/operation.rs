@@ -289,6 +289,30 @@ pub struct LogsRequest {
     pub tail: Option<usize>,
 }
 
+/// Exec request for a running container.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ExecRequest {
+    /// Container reference.
+    pub container: ContainerRef,
+    /// Command and arguments.
+    pub command: Vec<String>,
+    /// Allocate a pseudo-TTY.
+    pub tty: bool,
+    /// Attach stdin.
+    pub stdin: bool,
+    /// Optional user.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub user: Option<String>,
+    /// Optional working directory.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub working_dir: Option<String>,
+}
+
+/// Exec output stream.
+pub type BoxExecStream =
+    Pin<Box<dyn Stream<Item = Result<LogEvent, crate::EngineError>> + Send + 'static>>;
+
 /// Log event source stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

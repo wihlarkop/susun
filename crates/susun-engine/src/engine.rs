@@ -3,10 +3,11 @@
 use std::{future::Future, pin::Pin};
 
 use crate::{
-    BoxLogStream, ContainerRef, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
-    EngineCapabilities, EngineError, EngineImageRef, EngineSnapshot, LogsRequest, NetworkRef,
-    ProgressSink, ProjectIdentity, PullImageRequest, RemoveContainerOptions, StopContainerRequest,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    BoxExecStream, BoxLogStream, ContainerRef, CreateContainerRequest, CreateNetworkRequest,
+    CreateVolumeRequest, EngineCapabilities, EngineError, EngineImageRef, EngineSnapshot,
+    ExecRequest, LogsRequest, NetworkRef, ProgressSink, ProjectIdentity, PullImageRequest,
+    RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 
 /// Boxed engine future.
@@ -66,4 +67,7 @@ pub trait ContainerEngine: Send + Sync {
 
     /// Opens a neutral log stream.
     fn logs(&self, request: LogsRequest) -> BoxEngineFuture<'_, BoxLogStream>;
+
+    /// Executes a command inside a running container and opens its output stream.
+    fn exec(&self, request: ExecRequest) -> BoxEngineFuture<'_, BoxExecStream>;
 }

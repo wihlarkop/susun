@@ -110,6 +110,20 @@ pub enum Command {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
     },
+    /// Execute a command in a running service container.
+    Exec {
+        /// Allocate a pseudo-TTY.
+        #[arg(short = 't', long)]
+        tty: bool,
+        /// Attach stdin.
+        #[arg(short = 'i', long)]
+        stdin: bool,
+        /// Service to exec into.
+        service: String,
+        /// Command and arguments to execute.
+        #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
+        command: Vec<String>,
+    },
     /// Tear the project down using Docker Engine.
     Down {
         /// Include named volume removal.

@@ -5,6 +5,7 @@ use std::{collections::HashMap, time::SystemTime};
 use bollard::{
     Docker,
     container::LogOutput,
+    exec::{CreateExecOptions, StartExecOptions, StartExecResults},
     models::{
         ContainerCreateBody, EndpointSettings, HealthConfig, HostConfig, Mount,
         MountType as DockerMountType, NetworkCreateRequest, NetworkingConfig, PortBinding, PortMap,
@@ -20,15 +21,15 @@ use bollard::{
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun_engine::{
-    BoxEngineFuture, BoxLogStream, ContainerEngine, ContainerId, ContainerRef,
+    BoxEngineFuture, BoxExecStream, BoxLogStream, ContainerEngine, ContainerId, ContainerRef,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
     EngineCapabilities, EngineEndpoint, EngineError, EngineImageRef, EngineOperation,
-    EngineSnapshot, HealthState, LabelKey, LabelValue, LogEvent, LogSource, LogsRequest,
-    MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer, ObservedImage,
-    ObservedImageRef, ObservedNetwork, ObservedVolume, ProgressSink, ProjectIdentity,
-    PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName, ServiceInstanceId,
-    SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId, VolumeRef,
-    WaitContainerRequest, WaitContainerResult,
+    EngineSnapshot, ExecRequest, HealthState, LabelKey, LabelValue, LogEvent, LogSource,
+    LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
+    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, ProgressSink,
+    ProjectIdentity, PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName,
+    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -465,6 +466,51 @@ impl ContainerEngine for BollardEngine {
                     Err(error) => Err(EngineError::api(EngineOperation::Logs, error)),
                 });
             Ok(Box::pin(stream) as BoxLogStream)
+        })
+    }
+
+    fn exec(&self, request: ExecRequest) -> BoxEngineFuture<'_, BoxExecStream> {
+        Box::pin(async move {
+            let created = self
+                .docker
+                .create_exec(
+                    request.container.id.as_str(),
+                    CreateExecOptions {
+                        attach_stdin: Some(request.stdin),
+                        attach_stdout: Some(true),
+                        attach_stderr: Some(true),
+                        tty: Some(request.tty),
+                        cmd: Some(request.command),
+                        user: request.user,
+                        working_dir: request.working_dir,
+                        ..Default::default()
+                    },
+                )
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::Exec, error))?;
+            match self
+                .docker
+                .start_exec(
+                    &created.id,
+                    Some(StartExecOptions {
+                        tty: request.tty,
+                        ..Default::default()
+                    }),
+                )
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::Exec, error))?
+            {
+                StartExecResults::Attached { output, .. } => {
+                    let stream = output.map(|item| match item {
+                        Ok(output) => Ok(log_event(output)),
+                        Err(error) => Err(EngineError::api(EngineOperation::Exec, error)),
+                    });
+                    Ok(Box::pin(stream) as BoxExecStream)
+                }
+                StartExecResults::Detached => Err(EngineError::Unsupported {
+                    capability: "detached exec output",
+                }),
+            }
         })
     }
 }

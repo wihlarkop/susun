@@ -36,6 +36,8 @@ pub enum EngineOperation {
     RemoveContainer,
     /// Stream logs.
     Logs,
+    /// Execute a command in a container.
+    Exec,
     /// Wait for a condition.
     Wait,
 }
@@ -55,6 +57,7 @@ impl fmt::Display for EngineOperation {
             Self::StopContainer => "stop container",
             Self::RemoveContainer => "remove container",
             Self::Logs => "logs",
+            Self::Exec => "exec",
             Self::Wait => "wait",
         })
     }
