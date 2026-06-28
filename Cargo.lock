@@ -1087,6 +1087,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "susun-compat"
+version = "0.1.0"
+dependencies = [
+ "indexmap",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "susun-convergence"
 version = "0.1.0"
 dependencies = [

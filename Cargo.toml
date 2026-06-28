@@ -23,6 +23,7 @@ susun-planner = { path = "crates/susun-planner" }
 susun-runtime = { path = "crates/susun-runtime" }
 susun-convergence = { path = "crates/susun-convergence" }
 susun-build = { path = "crates/susun-build" }
+susun-compat = { path = "crates/susun-compat" }
 susun-engine-bollard = { path = "crates/susun-engine-bollard" }
 susun-testkit = { path = "crates/susun-testkit" }
 susun = { path = "crates/susun" }
