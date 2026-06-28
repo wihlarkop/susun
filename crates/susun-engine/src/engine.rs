@@ -6,7 +6,7 @@ use crate::{
     BoxLogStream, ContainerRef, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
     EngineCapabilities, EngineError, EngineImageRef, EngineSnapshot, LogsRequest, NetworkRef,
     ProgressSink, ProjectIdentity, PullImageRequest, RemoveContainerOptions, StopContainerRequest,
-    VolumeRef,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
 /// Boxed engine future.
@@ -50,6 +50,12 @@ pub trait ContainerEngine: Send + Sync {
 
     /// Stops a container.
     fn stop_container(&self, request: StopContainerRequest) -> BoxEngineFuture<'_, ()>;
+
+    /// Waits for a container to exit.
+    fn wait_container(
+        &self,
+        request: WaitContainerRequest,
+    ) -> BoxEngineFuture<'_, WaitContainerResult>;
 
     /// Removes a container.
     fn remove_container(

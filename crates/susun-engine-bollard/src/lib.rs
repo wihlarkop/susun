@@ -14,7 +14,7 @@ use bollard::{
         CreateContainerOptionsBuilder, CreateImageOptionsBuilder, ListContainersOptionsBuilder,
         ListImagesOptionsBuilder, ListNetworksOptionsBuilder, ListVolumesOptionsBuilder,
         LogsOptionsBuilder, RemoveContainerOptionsBuilder, RemoveVolumeOptionsBuilder,
-        StopContainerOptionsBuilder,
+        StopContainerOptionsBuilder, WaitContainerOptions,
     },
 };
 use futures_util::StreamExt;
@@ -28,6 +28,7 @@ use susun_engine::{
     ObservedImageRef, ObservedNetwork, ObservedVolume, ProgressSink, ProjectIdentity,
     PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName, ServiceInstanceId,
     SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId, VolumeRef,
+    WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -396,6 +397,26 @@ impl ContainerEngine for BollardEngine {
                 )
                 .await
                 .map_err(|error| EngineError::api(EngineOperation::StopContainer, error))
+        })
+    }
+
+    fn wait_container(
+        &self,
+        request: WaitContainerRequest,
+    ) -> BoxEngineFuture<'_, WaitContainerResult> {
+        Box::pin(async move {
+            let mut stream = self
+                .docker
+                .wait_container(request.container.id.as_str(), None::<WaitContainerOptions>);
+            match stream.next().await {
+                Some(Ok(result)) => Ok(WaitContainerResult {
+                    exit_code: result.status_code,
+                }),
+                Some(Err(error)) => Err(EngineError::api(EngineOperation::Wait, error)),
+                None => Err(EngineError::Unsupported {
+                    capability: "container wait returned no status",
+                }),
+            }
         })
     }
 

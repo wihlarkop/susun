@@ -22,7 +22,8 @@ pub use operation::{
     ActionProgress, BoxLogStream, ContainerRef, CreateContainerRequest, CreateNetworkRequest,
     CreateVolumeRequest, EngineEndpoint, EngineImageRef, LogEvent, LogSource, LogsRequest,
     MaterializedResourceMount, NetworkRef, ProgressSink, PullImageRequest, PullPolicy,
-    RemoveContainerOptions, StopContainerRequest, VolumeRef,
+    RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,

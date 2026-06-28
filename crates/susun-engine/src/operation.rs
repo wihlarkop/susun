@@ -249,6 +249,22 @@ pub struct StopContainerRequest {
     pub timeout: Duration,
 }
 
+/// Wait-container request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WaitContainerRequest {
+    /// Container reference.
+    pub container: ContainerRef,
+}
+
+/// Wait-container result.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct WaitContainerResult {
+    /// Process exit code.
+    pub exit_code: i64,
+}
+
 /// Remove-container options.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
