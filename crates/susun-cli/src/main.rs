@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     process,
     sync::Arc,
-    time::SystemTime,
+    time::{Duration, SystemTime},
 };
 
 use clap::Parser;
@@ -35,9 +35,10 @@ use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, UpPlanOptions, render_plan_human, render_plan_json,
 };
 use susun_runtime::ExecutionReport;
+use susun_watch::{WatchEvent, WatchEventKind, WatchOptions, WatchSession};
 
 mod args;
-use args::{Cli, Command, ContextArgs, OutputFormat, PlanCommand};
+use args::{Cli, Command, ContextArgs, OutputFormat, PlanCommand, WatchAction};
 
 #[tokio::main]
 async fn main() {
@@ -86,6 +87,13 @@ async fn main() {
             service,
             private_port,
         } => runtime_port(&cli.ctx, service, private_port).await,
+        Command::Watch {
+            action,
+            service,
+            sync,
+            watch,
+            debounce_ms,
+        } => runtime_watch(&cli.ctx, action, service, sync, watch, debounce_ms).await,
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -901,6 +909,164 @@ async fn runtime_port(ctx: &ContextArgs, service: String, private_port: Option<S
     0
 }
 
+async fn runtime_watch(
+    ctx: &ContextArgs,
+    action: WatchAction,
+    service: Vec<String>,
+    sync: Vec<String>,
+    watch: Vec<PathBuf>,
+    debounce_ms: u64,
+) -> i32 {
+    let Some((analysis, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let project_dir = project_directory(ctx);
+    let sync_specs = match parse_sync_specs(sync) {
+        Ok(specs) => specs,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    if matches!(action, WatchAction::Sync | WatchAction::SyncRestart) && sync_specs.is_empty() {
+        eprintln!(
+            "susun: watch action requires at least one --sync SERVICE:HOST_PATH:CONTAINER_DIR mapping"
+        );
+        return 2;
+    }
+
+    let dockerignore = read_dockerignore(&project_dir);
+    let options = WatchOptions::new(project_dir.clone())
+        .with_paths(watch)
+        .with_debounce(Duration::from_millis(debounce_ms))
+        .with_ignore(dockerignore);
+    let session = match WatchSession::start(options) {
+        Ok(session) => session,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    if !ctx.quiet {
+        eprintln!("susun: watching for file changes");
+    }
+
+    loop {
+        let event = match session.recv() {
+            Ok(event) => event,
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        };
+        if !ctx.quiet && ctx.format == OutputFormat::Human {
+            eprintln!("susun: {:?} {}", event.kind, event.relative_path.display());
+        }
+        if let Err(code) = apply_watch_action(
+            ctx,
+            &analysis,
+            &identity,
+            action,
+            &service,
+            &sync_specs,
+            &event,
+        )
+        .await
+        {
+            return code;
+        }
+    }
+}
+
+async fn apply_watch_action(
+    ctx: &ContextArgs,
+    analysis: &susun::AnalysisResult,
+    identity: &ProjectIdentity,
+    action: WatchAction,
+    services: &[String],
+    sync_specs: &[SyncSpec],
+    event: &WatchEvent,
+) -> Result<(), i32> {
+    match action {
+        WatchAction::Rebuild => {
+            let code = build_images_from_analysis(ctx, analysis).await;
+            if code == 0 { Ok(()) } else { Err(code) }
+        }
+        WatchAction::Restart => restart_services(ctx, services.to_vec()).await,
+        WatchAction::Sync => sync_watch_event(identity, sync_specs, event).await,
+        WatchAction::SyncRestart => {
+            sync_watch_event(identity, sync_specs, event).await?;
+            restart_services(ctx, services.to_vec()).await
+        }
+    }
+}
+
+async fn restart_services(ctx: &ContextArgs, services: Vec<String>) -> Result<(), i32> {
+    let code = runtime_lifecycle(ctx, services, LifecycleCommand::Restart).await;
+    if code == 0 { Ok(()) } else { Err(code) }
+}
+
+async fn sync_watch_event(
+    identity: &ProjectIdentity,
+    sync_specs: &[SyncSpec],
+    event: &WatchEvent,
+) -> Result<(), i32> {
+    if event.kind == WatchEventKind::Removed {
+        eprintln!(
+            "susun: remove event for {} not synced; destructive sync requires explicit support",
+            event.relative_path.display()
+        );
+        return Ok(());
+    }
+    let matching_specs = sync_specs
+        .iter()
+        .filter_map(|spec| spec.target_for_event(event))
+        .collect::<Vec<_>>();
+    if matching_specs.is_empty() {
+        return Ok(());
+    }
+
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return Err(code),
+    };
+    let snapshot = match engine.snapshot(identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return Err(2);
+        }
+    };
+    for target in matching_specs {
+        let Some(container) = selected_service_container(&snapshot, &target.service) else {
+            eprintln!(
+                "susun: running service container '{}' was not found",
+                target.service
+            );
+            return Err(1);
+        };
+        let archive = match build_host_archive(&event.absolute_path) {
+            Ok(archive) => archive,
+            Err(error) => {
+                eprintln!("susun: failed to build sync archive: {error}");
+                return Err(2);
+            }
+        };
+        if let Err(error) = engine
+            .copy_to_container(CopyToContainerRequest {
+                container,
+                path: target.container_dir,
+                archive,
+            })
+            .await
+        {
+            eprintln!("susun: {error}");
+            return Err(2);
+        }
+    }
+    Ok(())
+}
+
 fn event_service(event: &EngineEvent) -> Option<&str> {
     event.attributes.get("io.susun.service").map(String::as_str)
 }
@@ -952,6 +1118,104 @@ fn matching_service_containers(
             ))
         })
         .collect()
+}
+
+#[derive(Debug, Clone)]
+struct SyncSpec {
+    service: String,
+    source_root: PathBuf,
+    container_root: String,
+}
+
+#[derive(Debug, Clone)]
+struct SyncTarget {
+    service: String,
+    container_dir: String,
+}
+
+impl SyncSpec {
+    fn target_for_event(&self, event: &WatchEvent) -> Option<SyncTarget> {
+        if !event.absolute_path.starts_with(&self.source_root) {
+            return None;
+        }
+        let relative = event.absolute_path.strip_prefix(&self.source_root).ok()?;
+        let upload_dir = relative
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(|parent| container_join(&self.container_root, parent))
+            .unwrap_or_else(|| self.container_root.clone());
+        Some(SyncTarget {
+            service: self.service.clone(),
+            container_dir: upload_dir,
+        })
+    }
+}
+
+fn parse_sync_specs(values: Vec<String>) -> Result<Vec<SyncSpec>, String> {
+    values
+        .into_iter()
+        .map(|value| parse_sync_spec(&value))
+        .collect()
+}
+
+fn parse_sync_spec(value: &str) -> Result<SyncSpec, String> {
+    let Some(service_separator) = value.find(':') else {
+        return Err(format!(
+            "invalid sync mapping '{value}'; expected SERVICE:HOST_PATH:CONTAINER_DIR"
+        ));
+    };
+    let service = &value[..service_separator];
+    if service.is_empty() {
+        return Err(format!("invalid sync mapping '{value}'; service is empty"));
+    }
+    let remainder = &value[service_separator + 1..];
+    let Some(target_separator) = container_target_separator(remainder) else {
+        return Err(format!(
+            "invalid sync mapping '{value}'; container directory must be an absolute path"
+        ));
+    };
+    let host_path = &remainder[..target_separator];
+    let container_root = &remainder[target_separator + 1..];
+    validate_container_path(container_root)?;
+    if !container_root.starts_with('/') {
+        return Err(format!(
+            "invalid sync mapping '{value}'; container directory must start with /"
+        ));
+    }
+    let source_root = fs::canonicalize(host_path)
+        .map_err(|error| format!("failed to resolve sync host path '{host_path}': {error}"))?;
+    Ok(SyncSpec {
+        service: service.to_owned(),
+        source_root,
+        container_root: container_root.to_owned(),
+    })
+}
+
+fn container_target_separator(value: &str) -> Option<usize> {
+    value
+        .char_indices()
+        .filter_map(|(index, ch)| {
+            (ch == ':'
+                && value
+                    .get(index + 1..)
+                    .is_some_and(|tail| tail.starts_with('/') || tail.starts_with('\\')))
+            .then_some(index)
+        })
+        .next_back()
+}
+
+fn container_join(root: &str, relative_parent: &Path) -> String {
+    let suffix = relative_parent
+        .components()
+        .filter_map(|component| component.as_os_str().to_str())
+        .filter(|segment| !segment.is_empty())
+        .collect::<Vec<_>>()
+        .join("/");
+    if suffix.is_empty() {
+        root.to_owned()
+    } else {
+        format!("{}/{}", root.trim_end_matches('/'), suffix)
+    }
 }
 
 #[derive(Debug)]

@@ -23,6 +23,7 @@ susun-engine-bollard = { workspace = true }
 susun-planner = { workspace = true, features = ["serde"] }
 susun-runtime = { workspace = true, features = ["serde"] }
 susun-source  = { workspace = true }
+susun-watch   = { workspace = true }
 clap          = { workspace = true }
 futures-util  = { workspace = true }
 indexmap      = { workspace = true }
