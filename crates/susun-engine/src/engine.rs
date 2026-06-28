@@ -3,11 +3,12 @@
 use std::{future::Future, pin::Pin};
 
 use crate::{
-    BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef, CreateContainerRequest,
-    CreateNetworkRequest, CreateVolumeRequest, EngineCapabilities, EngineError, EngineImageRef,
-    EngineSnapshot, EventsRequest, ExecRequest, LogsRequest, NetworkRef, ProgressSink,
-    ProjectIdentity, PullImageRequest, RemoveContainerOptions, StopContainerRequest, VolumeRef,
-    WaitContainerRequest, WaitContainerResult,
+    BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef,
+    CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
+    CreateVolumeRequest, EngineCapabilities, EngineError, EngineImageRef, EngineSnapshot,
+    EventsRequest, ExecRequest, LogsRequest, NetworkRef, PortRequest, ProgressSink,
+    ProjectIdentity, PublishedPortBinding, PullImageRequest, RemoveContainerOptions,
+    StopContainerRequest, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
 /// Boxed engine future.
@@ -73,4 +74,16 @@ pub trait ContainerEngine: Send + Sync {
 
     /// Executes a command inside a running container and opens its output stream.
     fn exec(&self, request: ExecRequest) -> BoxEngineFuture<'_, BoxExecStream>;
+
+    /// Copies a container path as a tar archive stream.
+    fn copy_from_container(
+        &self,
+        request: CopyFromContainerRequest,
+    ) -> BoxEngineFuture<'_, BoxByteStream>;
+
+    /// Copies a tar archive into a container directory.
+    fn copy_to_container(&self, request: CopyToContainerRequest) -> BoxEngineFuture<'_, ()>;
+
+    /// Queries published host ports for a container.
+    fn port(&self, request: PortRequest) -> BoxEngineFuture<'_, Vec<PublishedPortBinding>>;
 }

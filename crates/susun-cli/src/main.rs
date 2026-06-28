@@ -1,6 +1,14 @@
 //! Susun CLI binary.
 
-use std::{collections::BTreeSet, path::Path, process, sync::Arc, time::SystemTime};
+use std::{
+    collections::BTreeSet,
+    fs,
+    io::{self, Cursor},
+    path::{Path, PathBuf},
+    process,
+    sync::Arc,
+    time::SystemTime,
+};
 
 use clap::Parser;
 use futures_util::StreamExt;
@@ -15,10 +23,11 @@ use susun_build::{
     InsecureEntitlements, resolve_build_inputs, validate_dockerfile_source,
 };
 use susun_engine::{
-    ContainerEngine, ContainerRef, CreateContainerRequest, EngineCapabilities, EngineEvent,
-    EngineSnapshot, EventsRequest, LabelKey, LabelValue, LogsRequest, ProjectIdentity,
-    ProjectInstanceId, RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId,
-    StopContainerRequest, WaitContainerRequest,
+    ContainerEngine, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
+    CreateContainerRequest, EngineCapabilities, EngineEvent, EngineSnapshot, EventsRequest,
+    LabelKey, LabelValue, LogsRequest, PortRequest, ProjectIdentity, ProjectInstanceId,
+    RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest,
+    WaitContainerRequest,
 };
 use susun_engine_bollard::BollardEngine;
 use susun_model::Command as EngineCommand;
@@ -72,6 +81,11 @@ async fn main() {
         } => runtime_exec(&cli.ctx, tty, stdin, service, command).await,
         Command::Events { service } => runtime_events(&cli.ctx, service).await,
         Command::Wait { service } => runtime_wait(&cli.ctx, service).await,
+        Command::Cp { source, target } => runtime_cp(&cli.ctx, source, target).await,
+        Command::Port {
+            service,
+            private_port,
+        } => runtime_port(&cli.ctx, service, private_port).await,
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -719,6 +733,174 @@ async fn runtime_wait(ctx: &ContextArgs, service: Vec<String>) -> i32 {
     exit_code
 }
 
+async fn runtime_cp(ctx: &ContextArgs, source: String, target: String) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let source = match parse_cp_location(&source) {
+        Ok(location) => location,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let target = match parse_cp_location(&target) {
+        Ok(location) => location,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+
+    match (source, target) {
+        (CopyLocation::Container { service, path }, CopyLocation::Host(target)) => {
+            let Some(container) = selected_service_container(&snapshot, &service) else {
+                eprintln!("susun: running service container '{service}' was not found");
+                return 1;
+            };
+            let mut stream = match engine
+                .copy_from_container(CopyFromContainerRequest { container, path })
+                .await
+            {
+                Ok(stream) => stream,
+                Err(error) => {
+                    eprintln!("susun: {error}");
+                    return 2;
+                }
+            };
+            let mut archive = Vec::new();
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(chunk) => archive.extend(chunk),
+                    Err(error) => {
+                        eprintln!("susun: {error}");
+                        return 2;
+                    }
+                }
+            }
+            match extract_container_archive(&archive, &target) {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("susun: failed to extract archive: {error}");
+                    2
+                }
+            }
+        }
+        (CopyLocation::Host(source), CopyLocation::Container { service, path }) => {
+            let Some(container) = selected_service_container(&snapshot, &service) else {
+                eprintln!("susun: running service container '{service}' was not found");
+                return 1;
+            };
+            let archive = match build_host_archive(&source) {
+                Ok(archive) => archive,
+                Err(error) => {
+                    eprintln!("susun: failed to build archive: {error}");
+                    return 2;
+                }
+            };
+            match engine
+                .copy_to_container(CopyToContainerRequest {
+                    container,
+                    path,
+                    archive,
+                })
+                .await
+            {
+                Ok(()) => 0,
+                Err(error) => {
+                    eprintln!("susun: {error}");
+                    2
+                }
+            }
+        }
+        (CopyLocation::Host(_), CopyLocation::Host(_)) => {
+            eprintln!("susun: cp requires exactly one SERVICE:PATH endpoint");
+            2
+        }
+        (CopyLocation::Container { .. }, CopyLocation::Container { .. }) => {
+            eprintln!("susun: container-to-container cp is not supported");
+            2
+        }
+    }
+}
+
+async fn runtime_port(ctx: &ContextArgs, service: String, private_port: Option<String>) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let (private_port, protocol) = match private_port.as_deref().map(parse_private_port).transpose()
+    {
+        Ok(value) => value.unwrap_or((None, None)),
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let Some(container) = selected_service_container(&snapshot, &service) else {
+        eprintln!("susun: running service container '{service}' was not found");
+        return 1;
+    };
+    let bindings = match engine
+        .port(PortRequest {
+            container,
+            private_port,
+            protocol,
+        })
+        .await
+    {
+        Ok(bindings) => bindings,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    if bindings.is_empty() {
+        eprintln!("susun: no published ports found for service '{service}'");
+        return 1;
+    }
+    match ctx.format {
+        OutputFormat::Json => match serde_json::to_string_pretty(&bindings) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("susun: failed to serialize ports: {error}");
+                return 2;
+            }
+        },
+        OutputFormat::Human => {
+            for binding in bindings {
+                let host_ip = binding.host_ip.unwrap_or_else(|| "0.0.0.0".to_owned());
+                println!(
+                    "{}/{} -> {}:{}",
+                    binding.private_port, binding.protocol, host_ip, binding.host_port
+                );
+            }
+        }
+    }
+    0
+}
+
 fn event_service(event: &EngineEvent) -> Option<&str> {
     event.attributes.get("io.susun.service").map(String::as_str)
 }
@@ -770,6 +952,134 @@ fn matching_service_containers(
             ))
         })
         .collect()
+}
+
+#[derive(Debug)]
+enum CopyLocation {
+    Host(PathBuf),
+    Container { service: String, path: String },
+}
+
+fn parse_cp_location(value: &str) -> Result<CopyLocation, String> {
+    let Some(index) = container_location_separator(value) else {
+        return Ok(CopyLocation::Host(PathBuf::from(value)));
+    };
+    let (service, path) = value.split_at(index);
+    let path = &path[1..];
+    if service.is_empty() {
+        return Err("container copy source is missing a service name".to_owned());
+    }
+    validate_container_path(path)?;
+    Ok(CopyLocation::Container {
+        service: service.to_owned(),
+        path: path.to_owned(),
+    })
+}
+
+fn container_location_separator(value: &str) -> Option<usize> {
+    let index = value.find(':')?;
+    if index == 1
+        && value
+            .as_bytes()
+            .first()
+            .is_some_and(u8::is_ascii_alphabetic)
+    {
+        return None;
+    }
+    let first_separator = value.find(['/', '\\']).unwrap_or(usize::MAX);
+    (index < first_separator).then_some(index)
+}
+
+fn validate_container_path(path: &str) -> Result<(), String> {
+    if path.trim().is_empty() {
+        return Err("container copy path cannot be empty".to_owned());
+    }
+    if path.contains('\0') {
+        return Err("container copy path cannot contain NUL bytes".to_owned());
+    }
+    Ok(())
+}
+
+fn parse_private_port(value: &str) -> Result<(Option<u16>, Option<String>), String> {
+    let (port, protocol) = value
+        .split_once('/')
+        .map(|(port, protocol)| (port, Some(protocol)))
+        .unwrap_or((value, None));
+    let port = port
+        .parse::<u16>()
+        .map_err(|_| format!("invalid private port '{value}'"))?;
+    let protocol = protocol.map(|protocol| protocol.to_ascii_lowercase());
+    if protocol
+        .as_deref()
+        .is_some_and(|protocol| !matches!(protocol, "tcp" | "udp" | "sctp"))
+    {
+        return Err(format!("invalid private port protocol in '{value}'"));
+    }
+    Ok((Some(port), protocol))
+}
+
+fn build_host_archive(source: &Path) -> io::Result<Vec<u8>> {
+    let metadata = fs::metadata(source)?;
+    let mut archive = Vec::new();
+    {
+        let mut builder = tar::Builder::new(&mut archive);
+        let name = source.file_name().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "source has no file name")
+        })?;
+        if metadata.is_dir() {
+            builder.append_dir_all(name, source)?;
+        } else {
+            builder.append_path_with_name(source, name)?;
+        }
+        builder.finish()?;
+    }
+    Ok(archive)
+}
+
+fn extract_container_archive(archive: &[u8], target: &Path) -> io::Result<()> {
+    if target.exists() && target.is_file()
+        || !target.exists() && archive_contains_single_file(archive)?
+    {
+        extract_single_file(tar::Archive::new(Cursor::new(archive)), target)
+    } else {
+        fs::create_dir_all(target)?;
+        let mut archive = tar::Archive::new(Cursor::new(archive));
+        archive.unpack(target)
+    }
+}
+
+fn archive_contains_single_file(archive: &[u8]) -> io::Result<bool> {
+    let mut archive = tar::Archive::new(Cursor::new(archive));
+    let mut entries = archive.entries()?;
+    let Some(entry) = entries.next() else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "container archive is empty",
+        ));
+    };
+    let entry = entry?;
+    Ok(entry.header().entry_type().is_file() && entries.next().is_none())
+}
+
+fn extract_single_file<R: io::Read>(mut archive: tar::Archive<R>, target: &Path) -> io::Result<()> {
+    let mut entries = archive.entries()?;
+    let Some(entry) = entries.next() else {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "container archive is empty",
+        ));
+    };
+    if entries.next().is_some() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "cannot copy multiple archive entries to a file target",
+        ));
+    }
+    let mut entry = entry?;
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    entry.unpack(target).map(|_| ())
 }
 
 fn selected_service_container(snapshot: &EngineSnapshot, service: &str) -> Option<ContainerRef> {

@@ -19,12 +19,12 @@ pub use identity::{
     ServiceInstanceId, VolumeIdentity,
 };
 pub use operation::{
-    ActionProgress, BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef,
-    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineEndpoint, EngineEvent,
-    EngineImageRef, EventsRequest, ExecRequest, LogEvent, LogSource, LogsRequest,
-    MaterializedResourceMount, NetworkRef, ProgressSink, PullImageRequest, PullPolicy,
-    RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
-    WaitContainerResult,
+    ActionProgress, BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef,
+    CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
+    CreateVolumeRequest, EngineEndpoint, EngineEvent, EngineImageRef, EventsRequest, ExecRequest,
+    LogEvent, LogSource, LogsRequest, MaterializedResourceMount, NetworkRef, PortRequest,
+    ProgressSink, PublishedPortBinding, PullImageRequest, PullPolicy, RemoveContainerOptions,
+    StopContainerRequest, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,

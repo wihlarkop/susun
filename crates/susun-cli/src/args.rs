@@ -134,6 +134,20 @@ pub enum Command {
         /// Selected service names.
         service: Vec<String>,
     },
+    /// Copy files between the host and a service container.
+    Cp {
+        /// Source path. Use SERVICE:PATH for container paths.
+        source: String,
+        /// Target path. Use SERVICE:PATH for container paths.
+        target: String,
+    },
+    /// Print published host ports for a service.
+    Port {
+        /// Service name.
+        service: String,
+        /// Optional container-side port filter, for example `80` or `80/tcp`.
+        private_port: Option<String>,
+    },
     /// Tear the project down using Docker Engine.
     Down {
         /// Include named volume removal.
