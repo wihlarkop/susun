@@ -63,6 +63,12 @@ async fn main() {
             service,
             command,
         } => runtime_run(&cli.ctx, !no_rm, service, command).await,
+        Command::Exec {
+            tty,
+            stdin,
+            service,
+            command,
+        } => runtime_exec(&cli.ctx, tty, stdin, service, command).await,
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -568,6 +574,76 @@ async fn runtime_run(ctx: &ContextArgs, rm: bool, service: String, command: Vec<
         return 2;
     }
     i32::try_from(exit_code).unwrap_or(1)
+}
+
+async fn runtime_exec(
+    ctx: &ContextArgs,
+    tty: bool,
+    stdin: bool,
+    service: String,
+    command: Vec<String>,
+) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let Some(container) = selected_service_container(&snapshot, &service) else {
+        eprintln!("susun: running service container '{service}' was not found");
+        return 1;
+    };
+    let mut output = match engine
+        .exec(susun_engine::ExecRequest {
+            container,
+            command,
+            tty,
+            stdin,
+            user: None,
+            working_dir: None,
+        })
+        .await
+    {
+        Ok(output) => output,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    while let Some(event) = output.next().await {
+        match event {
+            Ok(event) => print!("{}", event.line),
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        }
+    }
+    0
+}
+
+fn selected_service_container(snapshot: &EngineSnapshot, service: &str) -> Option<ContainerRef> {
+    snapshot
+        .containers
+        .values()
+        .find(|container| {
+            container
+                .service_identity
+                .as_ref()
+                .is_some_and(|identity| identity.service.as_str() == service)
+                && container.state == susun_engine::ContainerState::Running
+        })
+        .map(|container| ContainerRef {
+            id: container.id.clone(),
+        })
 }
 
 async fn stream_container_logs(
