@@ -7,27 +7,27 @@ use bollard::{
     container::LogOutput,
     exec::{CreateExecOptions, StartExecOptions, StartExecResults},
     models::{
-        ContainerCreateBody, EndpointSettings, HealthConfig, HostConfig, Mount,
-        MountType as DockerMountType, NetworkCreateRequest, NetworkingConfig, PortBinding, PortMap,
-        RestartPolicy, RestartPolicyNameEnum, VolumeCreateRequest,
+        ContainerCreateBody, EndpointSettings, EventActor, EventMessage, HealthConfig, HostConfig,
+        Mount, MountType as DockerMountType, NetworkCreateRequest, NetworkingConfig, PortBinding,
+        PortMap, RestartPolicy, RestartPolicyNameEnum, VolumeCreateRequest,
     },
     query_parameters::{
-        CreateContainerOptionsBuilder, CreateImageOptionsBuilder, ListContainersOptionsBuilder,
-        ListImagesOptionsBuilder, ListNetworksOptionsBuilder, ListVolumesOptionsBuilder,
-        LogsOptionsBuilder, RemoveContainerOptionsBuilder, RemoveVolumeOptionsBuilder,
-        StopContainerOptionsBuilder, WaitContainerOptions,
+        CreateContainerOptionsBuilder, CreateImageOptionsBuilder, EventsOptionsBuilder,
+        ListContainersOptionsBuilder, ListImagesOptionsBuilder, ListNetworksOptionsBuilder,
+        ListVolumesOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder,
+        RemoveVolumeOptionsBuilder, StopContainerOptionsBuilder, WaitContainerOptions,
     },
 };
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun_engine::{
-    BoxEngineFuture, BoxExecStream, BoxLogStream, ContainerEngine, ContainerId, ContainerRef,
-    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
-    EngineCapabilities, EngineEndpoint, EngineError, EngineImageRef, EngineOperation,
-    EngineSnapshot, ExecRequest, HealthState, LabelKey, LabelValue, LogEvent, LogSource,
-    LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
-    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, ProgressSink,
-    ProjectIdentity, PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName,
+    BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine, ContainerId,
+    ContainerRef, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
+    EngineApiVersion, EngineCapabilities, EngineEndpoint, EngineError, EngineEvent, EngineImageRef,
+    EngineOperation, EngineSnapshot, EventsRequest, ExecRequest, HealthState, LabelKey, LabelValue,
+    LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef,
+    ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume,
+    ProgressSink, ProjectIdentity, PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName,
     ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
     VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
@@ -469,6 +469,22 @@ impl ContainerEngine for BollardEngine {
         })
     }
 
+    fn events(&self, request: EventsRequest) -> BoxEngineFuture<'_, BoxEventStream> {
+        Box::pin(async move {
+            let filters = label_filters(&request.project);
+            let stream = self
+                .docker
+                .events(Some(
+                    EventsOptionsBuilder::default().filters(&filters).build(),
+                ))
+                .map(|item| match item {
+                    Ok(event) => Ok(engine_event(event)),
+                    Err(error) => Err(EngineError::api(EngineOperation::Events, error)),
+                });
+            Ok(Box::pin(stream) as BoxEventStream)
+        })
+    }
+
     fn exec(&self, request: ExecRequest) -> BoxEngineFuture<'_, BoxExecStream> {
         Box::pin(async move {
             let created = self
@@ -815,4 +831,39 @@ fn log_event(output: LogOutput) -> LogEvent {
             line: String::from_utf8_lossy(&message).into_owned(),
         },
     }
+}
+
+fn engine_event(event: EventMessage) -> EngineEvent {
+    let EventMessage {
+        typ,
+        action,
+        actor,
+        time,
+        time_nano,
+        ..
+    } = event;
+    let EventActor { id, attributes } = actor.unwrap_or_default();
+    EngineEvent {
+        kind: typ
+            .map(|kind| kind.as_ref().to_owned())
+            .unwrap_or_else(|| "unknown".to_owned()),
+        action: action.unwrap_or_else(|| "unknown".to_owned()),
+        resource_id: id,
+        attributes: safe_event_attributes(attributes.unwrap_or_default()),
+        time,
+        time_nano,
+    }
+}
+
+fn safe_event_attributes(attributes: HashMap<String, String>) -> IndexMap<String, String> {
+    attributes
+        .into_iter()
+        .filter(|(key, _)| {
+            key.starts_with("io.susun.")
+                || matches!(
+                    key.as_str(),
+                    "container" | "exitCode" | "health_status" | "image" | "name" | "signal"
+                )
+        })
+        .collect()
 }
