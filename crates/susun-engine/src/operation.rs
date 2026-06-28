@@ -265,6 +265,35 @@ pub struct WaitContainerResult {
     pub exit_code: i64,
 }
 
+/// Project-scoped event stream request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EventsRequest {
+    /// Project identity.
+    pub project: ProjectIdentity,
+}
+
+/// Neutral project event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EngineEvent {
+    /// Resource kind that emitted the event.
+    pub kind: String,
+    /// Event action.
+    pub action: String,
+    /// Adapter resource identifier.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub resource_id: Option<String>,
+    /// Safe, redacted event attributes.
+    pub attributes: IndexMap<String, String>,
+    /// Event timestamp in seconds when supplied by the engine.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub time: Option<i64>,
+    /// Event timestamp in nanoseconds when supplied by the engine.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub time_nano: Option<i64>,
+}
+
 /// Remove-container options.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -312,6 +341,10 @@ pub struct ExecRequest {
 /// Exec output stream.
 pub type BoxExecStream =
     Pin<Box<dyn Stream<Item = Result<LogEvent, crate::EngineError>> + Send + 'static>>;
+
+/// Boxed neutral engine event stream.
+pub type BoxEventStream =
+    Pin<Box<dyn Stream<Item = Result<EngineEvent, crate::EngineError>> + Send + 'static>>;
 
 /// Log event source stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

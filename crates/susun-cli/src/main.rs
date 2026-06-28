@@ -18,9 +18,10 @@ use susun_compat::{
     CompatibilityHarness, ComposeReference, CorpusManifest, OracleCommand, matrix_for_current_phase,
 };
 use susun_engine::{
-    ContainerEngine, ContainerRef, CreateContainerRequest, EngineCapabilities, EngineSnapshot,
-    LabelKey, LabelValue, LogsRequest, ProjectIdentity, ProjectInstanceId, RemoveContainerOptions,
-    ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest, WaitContainerRequest,
+    ContainerEngine, ContainerRef, CreateContainerRequest, EngineCapabilities, EngineEvent,
+    EngineSnapshot, EventsRequest, LabelKey, LabelValue, LogsRequest, ProjectIdentity,
+    ProjectInstanceId, RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId,
+    StopContainerRequest, WaitContainerRequest,
 };
 use susun_engine_bollard::BollardEngine;
 use susun_model::Command as EngineCommand;
@@ -76,6 +77,8 @@ async fn main() {
             service,
             command,
         } => runtime_exec(&cli.ctx, tty, stdin, service, command).await,
+        Command::Events { service } => runtime_events(&cli.ctx, service).await,
+        Command::Wait { service } => runtime_wait(&cli.ctx, service).await,
         Command::Down {
             remove_volumes,
             remove_orphans: _,
@@ -721,6 +724,145 @@ async fn runtime_exec(
         }
     }
     0
+}
+
+async fn runtime_events(ctx: &ContextArgs, service: Vec<String>) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let mut events = match engine
+        .events(EventsRequest {
+            project: identity.clone(),
+        })
+        .await
+    {
+        Ok(events) => events,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let selected = service.into_iter().collect::<BTreeSet<_>>();
+    while let Some(event) = events.next().await {
+        let event = match event {
+            Ok(event) => event,
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        };
+        if !selected.is_empty()
+            && !event_service(&event).is_some_and(|name| selected.contains(name))
+        {
+            continue;
+        }
+        emit_event(ctx, &event);
+    }
+    0
+}
+
+async fn runtime_wait(ctx: &ContextArgs, service: Vec<String>) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let selected = service.into_iter().collect::<BTreeSet<_>>();
+    let containers = matching_service_containers(&snapshot, &selected);
+    if containers.is_empty() {
+        eprintln!("susun: no matching project service containers were found");
+        return 1;
+    }
+
+    let mut exit_code = 0;
+    for (service, container) in containers {
+        match engine
+            .wait_container(WaitContainerRequest {
+                container: container.clone(),
+            })
+            .await
+        {
+            Ok(result) => {
+                if !ctx.quiet && ctx.format == OutputFormat::Human {
+                    println!("{service} exited with {}", result.exit_code);
+                }
+                if result.exit_code != 0 {
+                    exit_code = 1;
+                }
+            }
+            Err(error) => {
+                eprintln!("susun: {error}");
+                return 2;
+            }
+        }
+    }
+    exit_code
+}
+
+fn event_service(event: &EngineEvent) -> Option<&str> {
+    event.attributes.get("io.susun.service").map(String::as_str)
+}
+
+fn emit_event(ctx: &ContextArgs, event: &EngineEvent) {
+    match ctx.format {
+        OutputFormat::Json => println!(
+            "{}",
+            serde_json::json!({
+                "kind": event.kind,
+                "action": event.action,
+                "resource_id": event.resource_id,
+                "attributes": event.attributes,
+                "time": event.time,
+                "time_nano": event.time_nano,
+            })
+        ),
+        OutputFormat::Human => {
+            let service = event_service(event).unwrap_or("-");
+            let resource = event.resource_id.as_deref().unwrap_or("-");
+            println!(
+                "{}\t{}\t{}\t{}",
+                event.kind, event.action, service, resource
+            );
+        }
+    }
+}
+
+fn matching_service_containers(
+    snapshot: &EngineSnapshot,
+    selected: &BTreeSet<String>,
+) -> Vec<(String, ContainerRef)> {
+    snapshot
+        .containers
+        .values()
+        .filter_map(|container| {
+            let service = container
+                .service_identity
+                .as_ref()
+                .map(|identity| identity.service.as_str().to_owned())?;
+            if !selected.is_empty() && !selected.contains(&service) {
+                return None;
+            }
+            Some((
+                service,
+                ContainerRef {
+                    id: container.id.clone(),
+                },
+            ))
+        })
+        .collect()
 }
 
 fn selected_service_container(snapshot: &EngineSnapshot, service: &str) -> Option<ContainerRef> {

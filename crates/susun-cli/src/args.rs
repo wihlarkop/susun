@@ -133,6 +133,16 @@ pub enum Command {
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
     },
+    /// Stream project engine events.
+    Events {
+        /// Selected service names.
+        service: Vec<String>,
+    },
+    /// Wait for selected project service containers to exit.
+    Wait {
+        /// Selected service names.
+        service: Vec<String>,
+    },
     /// Tear the project down using Docker Engine.
     Down {
         /// Include named volume removal.
