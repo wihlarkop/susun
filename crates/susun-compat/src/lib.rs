@@ -10,6 +10,7 @@ pub mod error;
 pub mod harness;
 pub mod matrix;
 pub mod oracle;
+pub mod security;
 
 pub use corpus::{
     CorpusCoverage, CorpusFixture, CorpusManifest, CorpusSchemaVersion, SecretHygiene,
@@ -23,4 +24,8 @@ pub use matrix::{
 pub use oracle::{
     ComposeReference, FixtureConfig, OracleCommand, OracleConfig, OracleOperation,
     OracleSchemaVersion,
+};
+pub use security::{
+    SecurityAuditReport, SecurityFinding, SecurityFindingSeverity, audit_corpus_security,
+    redact_sensitive_text,
 };

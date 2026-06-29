@@ -6,6 +6,7 @@ mkdir -p "$out_dir"
 
 cargo run -p susun-cli -- compatibility > "$out_dir/capability-matrix.json"
 cargo run -p susun-cli -- compatibility --corpus fixtures/compatibility/corpus.json > "$out_dir/oracle-plan.json"
+cargo run -p susun-cli -- compatibility --security-audit fixtures/compatibility/corpus.json > "$out_dir/security-audit.json"
 
 cp fixtures/compatibility/version-matrix.json "$out_dir/version-matrix.json"
 cp fixtures/compatibility/performance-budgets.json "$out_dir/performance-budgets.json"

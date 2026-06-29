@@ -102,8 +102,11 @@ pub enum Command {
     /// Emit Susun's compatibility artifacts.
     Compatibility {
         /// Optional corpus manifest to convert into an oracle run plan.
-        #[arg(long)]
+        #[arg(long, conflicts_with = "security_audit")]
         corpus: Option<PathBuf>,
+        /// Optional corpus manifest to audit for compatibility security hygiene.
+        #[arg(long = "security-audit", conflicts_with = "corpus")]
+        security_audit: Option<PathBuf>,
     },
     /// Run a one-off service container.
     Run {

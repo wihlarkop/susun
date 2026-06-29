@@ -61,7 +61,10 @@ async fn main() {
             .await
         }
         Command::Build => build_images(&cli.ctx).await,
-        Command::Compatibility { corpus } => compatibility(corpus.as_deref()),
+        Command::Compatibility {
+            corpus,
+            security_audit,
+        } => compatibility(corpus.as_deref(), security_audit.as_deref()),
         Command::Run {
             no_rm,
             service,
@@ -91,9 +94,12 @@ async fn main() {
     process::exit(code);
 }
 
-fn compatibility(corpus: Option<&Path>) -> i32 {
+fn compatibility(corpus: Option<&Path>, security_audit: Option<&Path>) -> i32 {
     if let Some(path) = corpus {
         return compatibility_corpus(path);
+    }
+    if let Some(path) = security_audit {
+        return compatibility_security_audit(path);
     }
 
     let matrix = matrix_for_current_phase(env!("CARGO_PKG_VERSION"), "Docker Compose documented");
@@ -109,20 +115,26 @@ fn compatibility(corpus: Option<&Path>) -> i32 {
     }
 }
 
-fn compatibility_corpus(path: &Path) -> i32 {
-    let content = match std::fs::read_to_string(path) {
-        Ok(content) => content,
-        Err(error) => {
-            eprintln!("susun: failed to read compatibility corpus: {error}");
-            return 2;
-        }
+fn compatibility_security_audit(path: &Path) -> i32 {
+    let Some(manifest) = read_corpus_manifest(path) else {
+        return 2;
     };
-    let manifest = match CorpusManifest::from_json_str(&content) {
-        Ok(manifest) => manifest,
-        Err(error) => {
-            eprintln!("susun: {error}");
-            return 2;
+    let report = susun_compat::audit_corpus_security(&manifest);
+    match serde_json::to_string_pretty(&report) {
+        Ok(json) => {
+            println!("{json}");
+            if report.has_errors() { 1 } else { 0 }
         }
+        Err(error) => {
+            eprintln!("susun: failed to serialize compatibility security audit: {error}");
+            2
+        }
+    }
+}
+
+fn compatibility_corpus(path: &Path) -> i32 {
+    let Some(manifest) = read_corpus_manifest(path) else {
+        return 2;
     };
     let config = manifest.to_oracle_config(
         ComposeReference {
@@ -147,6 +159,23 @@ fn compatibility_corpus(path: &Path) -> i32 {
         Err(error) => {
             eprintln!("susun: failed to serialize compatibility run plan: {error}");
             2
+        }
+    }
+}
+
+fn read_corpus_manifest(path: &Path) -> Option<CorpusManifest> {
+    let content = match std::fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) => {
+            eprintln!("susun: failed to read compatibility corpus: {error}");
+            return None;
+        }
+    };
+    match CorpusManifest::from_json_str(&content) {
+        Ok(manifest) => Some(manifest),
+        Err(error) => {
+            eprintln!("susun: {error}");
+            None
         }
     }
 }
