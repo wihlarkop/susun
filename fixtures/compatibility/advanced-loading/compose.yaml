@@ -1,0 +1,12 @@
+name: compat-advanced-loading
+include:
+  - path: included.yaml
+services:
+  base:
+    image: alpine:3.20
+    command: ["true"]
+  app:
+    extends:
+      service: base
+    environment:
+      FEATURE: advanced-loading

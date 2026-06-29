@@ -89,32 +89,48 @@
         "convergence"
       ],
       "license": "project-owned",
-      "secret_hygiene": "no_secrets",
-      "deferred": [
-        "events/wait/cp/port coverage requires the runtime expansion PRs to be merged"
-      ]
+      "secret_hygiene": "no_secrets"
     },
     {
-      "id": "advanced-loading-deferred",
-      "description": "Tracks advanced loading coverage that needs the final include/extends/merge-tag behavior locked before oracle comparison.",
-      "project_dir": "fixtures/compatibility/advanced-loading-deferred",
+      "id": "watch-develop",
+      "description": "Watch/develop subset fixture for restart and sync workflows.",
+      "project_dir": "fixtures/compatibility/watch-develop",
       "compose_files": [
         "compose.yaml"
       ],
       "operations": [
-        "analyze"
+        "config",
+        "analyze",
+        "plan"
+      ],
+      "coverage": [
+        "analysis",
+        "config",
+        "plan",
+        "watch"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "no_secrets"
+    },
+    {
+      "id": "advanced-loading",
+      "description": "Advanced loading fixture covering include metadata, local extends, and merge-tag parsing.",
+      "project_dir": "fixtures/compatibility/advanced-loading",
+      "compose_files": [
+        "compose.yaml"
+      ],
+      "operations": [
+        "config",
+        "analyze",
+        "plan"
       ],
       "coverage": [
         "include",
         "extends",
-        "merge_tags",
-        "deferred"
+        "merge_tags"
       ],
       "license": "project-owned",
-      "secret_hygiene": "no_secrets",
-      "deferred": [
-        "include/extends/merge-tag differential expectations need final Compose parity review"
-      ]
+      "secret_hygiene": "no_secrets"
     }
   ]
 }

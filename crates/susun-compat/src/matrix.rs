@@ -105,7 +105,7 @@ pub fn matrix_for_current_phase(
     susun_version: impl Into<String>,
     compose_reference: impl Into<String>,
 ) -> CapabilityMatrix {
-    use FeatureSupport::{Experimental, Supported, SupportedSubset, Unsupported};
+    use FeatureSupport::{Supported, SupportedSubset, Unsupported};
 
     CapabilityMatrix::new(susun_version, compose_reference)
         .with_feature(
@@ -190,28 +190,28 @@ pub fn matrix_for_current_phase(
         )
         .with_feature(
             "runtime.events",
-            Unsupported,
-            "Not present on the current mainline stack.",
+            SupportedSubset,
+            "Neutral project event stream with service filtering.",
         )
         .with_feature(
             "runtime.wait",
-            Unsupported,
-            "Not present on the current mainline stack.",
+            SupportedSubset,
+            "Waits for selected project service containers to exit.",
         )
         .with_feature(
             "runtime.cp",
-            Unsupported,
-            "Not present on the current mainline stack.",
+            SupportedSubset,
+            "Explicit host/container copy semantics for selected service containers.",
         )
         .with_feature(
             "runtime.port",
-            Unsupported,
-            "Not present on the current mainline stack.",
+            Supported,
+            "Published host port lookup for selected services.",
         )
         .with_feature(
             "watch.develop",
-            Experimental,
-            "Available only in unmerged Phase 5 watch PRs.",
+            SupportedSubset,
+            "Rebuild, restart, sync, and sync-restart actions with safe file event normalization.",
         )
         .with_feature(
             "deploy",

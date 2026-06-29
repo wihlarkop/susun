@@ -64,6 +64,8 @@ pub enum CorpusCoverage {
     Secrets,
     /// Runtime command surface.
     RuntimeCommands,
+    /// Watch/develop file event workflows.
+    Watch,
     /// Convergence planning and fingerprints.
     Convergence,
     /// Explicitly deferred coverage area.

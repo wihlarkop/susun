@@ -1,5 +1,0 @@
-name: compat-advanced-loading
-services:
-  base:
-    image: alpine:3.20
-    command: ["true"]
