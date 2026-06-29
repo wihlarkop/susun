@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0
+
 - Expanded the Phase 1 canonical model with Compose resources, service
   references, dependencies, healthchecks, restart policies, and profiles.
 - Added active profile selection, semantic validation, and deterministic
