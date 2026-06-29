@@ -1,0 +1,26 @@
+name: Compatibility Matrix
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-compose-oracle:
+        description: "Run Docker Compose oracle checks"
+        type: boolean
+        default: false
+
+jobs:
+  compatibility:
+    name: Compatibility report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Generate compatibility artifacts
+        env:
+          SUSUN_RUN_COMPOSE_ORACLE: ${{ inputs.run-compose-oracle && '1' || '0' }}
+        run: bash scripts/run-compatibility-matrix.sh
+      - name: Upload compatibility artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report
+          path: target/compatibility

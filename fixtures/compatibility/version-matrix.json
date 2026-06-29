@@ -1,0 +1,21 @@
+{
+  "schema_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "policy": "bounded",
+  "entries": [
+    {
+      "id": "github-ubuntu-bundled-compose",
+      "runner": "ubuntu-latest",
+      "docker_engine": "github-hosted",
+      "docker_compose": "bundled",
+      "buildkit": "engine-default",
+      "default_in_ci": true
+    }
+  ],
+  "deferred": [
+    "Pinned historical Compose versions are intentionally not run on every PR to control CI minutes.",
+    "Broader Docker Engine and BuildKit version coverage should be run manually before release candidates."
+  ]
+}
