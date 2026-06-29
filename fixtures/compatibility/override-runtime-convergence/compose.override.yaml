@@ -1,0 +1,6 @@
+services:
+  api:
+    environment:
+      RUST_LOG: info
+    labels:
+      com.example.compat: "true"

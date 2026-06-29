@@ -11,9 +11,10 @@ workspace = true
 
 [features]
 default = []
-serde = ["dep:serde", "indexmap/serde"]
+serde = ["dep:serde", "dep:serde_json", "indexmap/serde"]
 
 [dependencies]
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }

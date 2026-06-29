@@ -30,4 +30,13 @@ pub enum CompatibilityError {
     /// The external oracle command has no executable.
     #[error("compose oracle executable must not be empty")]
     EmptyOracleExecutable,
+
+    /// A corpus manifest has no fixtures.
+    #[error("compatibility corpus must include at least one fixture")]
+    EmptyCorpus,
+
+    /// A corpus manifest could not be parsed from JSON.
+    #[cfg(feature = "serde")]
+    #[error("failed to parse compatibility corpus manifest: {0}")]
+    CorpusJson(#[from] serde_json::Error),
 }

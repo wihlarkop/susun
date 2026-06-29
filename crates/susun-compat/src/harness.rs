@@ -85,6 +85,7 @@ impl CompatibilityHarness {
 
 /// Prepared work for a single compatibility fixture.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct FixtureRunPlan {
     /// Stable fixture identifier.
     pub fixture_id: String,
@@ -94,6 +95,7 @@ pub struct FixtureRunPlan {
 
 /// Prepared external oracle command.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct OracleInvocation {
     /// Compatibility operation represented by this invocation.
     pub operation: OracleOperation,

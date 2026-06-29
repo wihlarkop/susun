@@ -5,11 +5,15 @@
 //! its own yet; later Phase 5 tasks can build runners, reports, and release
 //! artifacts on top of these contracts.
 
+pub mod corpus;
 pub mod error;
 pub mod harness;
 pub mod matrix;
 pub mod oracle;
 
+pub use corpus::{
+    CorpusCoverage, CorpusFixture, CorpusManifest, CorpusSchemaVersion, SecretHygiene,
+};
 pub use error::CompatibilityError;
 pub use harness::{CompatibilityHarness, FixtureRunPlan, OracleInvocation};
 pub use matrix::{

@@ -70,6 +70,7 @@ impl Default for OracleCommand {
 /// Operation that should be compared against the external Compose oracle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum OracleOperation {
     /// Compare normalized configuration output.
     Config,

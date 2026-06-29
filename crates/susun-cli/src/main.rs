@@ -14,7 +14,9 @@ use susun_build::{
     BuildSecret, BuildSshForward, BuildxProcessBuildEngine, CacheEntry, Dockerignore,
     InsecureEntitlements, resolve_build_inputs, validate_dockerfile_source,
 };
-use susun_compat::matrix_for_current_phase;
+use susun_compat::{
+    CompatibilityHarness, ComposeReference, CorpusManifest, OracleCommand, matrix_for_current_phase,
+};
 use susun_engine::{
     ContainerEngine, ContainerRef, CreateContainerRequest, EngineCapabilities, EngineSnapshot,
     LabelKey, LabelValue, LogsRequest, ProjectIdentity, ProjectInstanceId, RemoveContainerOptions,
@@ -59,7 +61,7 @@ async fn main() {
             .await
         }
         Command::Build => build_images(&cli.ctx).await,
-        Command::Compatibility => compatibility_matrix(),
+        Command::Compatibility { corpus } => compatibility(corpus.as_deref()),
         Command::Run {
             no_rm,
             service,
@@ -89,7 +91,11 @@ async fn main() {
     process::exit(code);
 }
 
-fn compatibility_matrix() -> i32 {
+fn compatibility(corpus: Option<&Path>) -> i32 {
+    if let Some(path) = corpus {
+        return compatibility_corpus(path);
+    }
+
     let matrix = matrix_for_current_phase(env!("CARGO_PKG_VERSION"), "Docker Compose documented");
     match serde_json::to_string_pretty(&matrix) {
         Ok(json) => {
@@ -98,6 +104,48 @@ fn compatibility_matrix() -> i32 {
         }
         Err(error) => {
             eprintln!("susun: failed to serialize capability matrix: {error}");
+            2
+        }
+    }
+}
+
+fn compatibility_corpus(path: &Path) -> i32 {
+    let content = match std::fs::read_to_string(path) {
+        Ok(content) => content,
+        Err(error) => {
+            eprintln!("susun: failed to read compatibility corpus: {error}");
+            return 2;
+        }
+    };
+    let manifest = match CorpusManifest::from_json_str(&content) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let config = manifest.to_oracle_config(
+        ComposeReference {
+            name: "docker compose".to_owned(),
+            version: "documented".to_owned(),
+            engine_api_version: None,
+        },
+        OracleCommand::docker_compose(),
+    );
+    let harness = match CompatibilityHarness::new(config) {
+        Ok(harness) => harness,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    match serde_json::to_string_pretty(&harness.run_plan()) {
+        Ok(json) => {
+            println!("{json}");
+            0
+        }
+        Err(error) => {
+            eprintln!("susun: failed to serialize compatibility run plan: {error}");
             2
         }
     }

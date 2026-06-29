@@ -1,0 +1,120 @@
+{
+  "schema_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "name": "phase5-core",
+  "fixtures": [
+    {
+      "id": "analysis-minimal",
+      "description": "Minimal service analysis and canonical config.",
+      "project_dir": "fixtures/compatibility/analysis-minimal",
+      "compose_files": [
+        "compose.yaml"
+      ],
+      "operations": [
+        "config",
+        "analyze",
+        "plan"
+      ],
+      "coverage": [
+        "analysis",
+        "config",
+        "plan"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "no_secrets"
+    },
+    {
+      "id": "build-context",
+      "description": "Build context, Dockerfile, build args, target, cache, SSH, and secret identities.",
+      "project_dir": "fixtures/compatibility/build-context",
+      "compose_files": [
+        "compose.yaml"
+      ],
+      "operations": [
+        "config",
+        "analyze",
+        "plan"
+      ],
+      "coverage": [
+        "analysis",
+        "config",
+        "plan",
+        "build"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "synthetic_only"
+    },
+    {
+      "id": "resources-configs-secrets",
+      "description": "File-backed config and secret resources with service mounts.",
+      "project_dir": "fixtures/compatibility/resources-configs-secrets",
+      "compose_files": [
+        "compose.yaml"
+      ],
+      "operations": [
+        "config",
+        "analyze",
+        "plan"
+      ],
+      "coverage": [
+        "analysis",
+        "config",
+        "plan",
+        "configs",
+        "secrets"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "synthetic_only"
+    },
+    {
+      "id": "override-runtime-convergence",
+      "description": "Multiple Compose files covering overrides, ports, volumes, dependencies, runtime run/exec inputs, and convergence planning.",
+      "project_dir": "fixtures/compatibility/override-runtime-convergence",
+      "compose_files": [
+        "compose.yaml",
+        "compose.override.yaml"
+      ],
+      "operations": [
+        "config",
+        "analyze",
+        "plan"
+      ],
+      "coverage": [
+        "analysis",
+        "config",
+        "plan",
+        "runtime_commands",
+        "convergence"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "no_secrets",
+      "deferred": [
+        "events/wait/cp/port coverage requires the runtime expansion PRs to be merged"
+      ]
+    },
+    {
+      "id": "advanced-loading-deferred",
+      "description": "Tracks advanced loading coverage that needs the final include/extends/merge-tag behavior locked before oracle comparison.",
+      "project_dir": "fixtures/compatibility/advanced-loading-deferred",
+      "compose_files": [
+        "compose.yaml"
+      ],
+      "operations": [
+        "analyze"
+      ],
+      "coverage": [
+        "include",
+        "extends",
+        "merge_tags",
+        "deferred"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "no_secrets",
+      "deferred": [
+        "include/extends/merge-tag differential expectations need final Compose parity review"
+      ]
+    }
+  ]
+}

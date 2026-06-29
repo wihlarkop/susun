@@ -1,0 +1,7 @@
+name: compat-analysis-minimal
+services:
+  web:
+    image: nginx:1.27-alpine
+    command: ["nginx", "-g", "daemon off;"]
+    environment:
+      APP_ENV: compatibility
