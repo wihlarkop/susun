@@ -1,0 +1,348 @@
+# Stable diagnostic and finding code catalog.
+#
+# Production code that emits a `SUS-*` diagnostic or machine-readable finding
+# must be registered here before it is exposed to users or automation.
+
+[[code]]
+code = "SUS-CAP-001"
+severity = "error"
+domain = "capability"
+owner = "susun-loader/susun-planner"
+status = "stable"
+summary = "A Compose capability is known but unsupported by the current parser or runtime capability set."
+
+[[code]]
+code = "SUS-CAP-002"
+severity = "error"
+domain = "capability"
+owner = "susun-planner"
+status = "stable"
+summary = "A service requires healthcheck support or health-based dependency waits that are unavailable."
+
+[[code]]
+code = "SUS-CAP-003"
+severity = "error"
+domain = "capability"
+owner = "susun-planner"
+status = "stable"
+summary = "A service uses network aliases but aliases are unavailable in the selected runtime."
+
+[[code]]
+code = "SUS-CAP-004"
+severity = "error"
+domain = "capability"
+owner = "susun-planner"
+status = "stable"
+summary = "A service has no prebuilt image available for planning."
+
+[[code]]
+code = "SUS-CAP-005"
+severity = "error"
+domain = "capability"
+owner = "susun-planner"
+status = "stable"
+summary = "A config or secret cannot be materialized by the local runtime subset."
+
+[[code]]
+code = "SUS-COMPAT-SEC-ABSOLUTE-PATH"
+severity = "error"
+domain = "compatibility-security"
+owner = "susun-compat"
+status = "stable"
+summary = "A compatibility corpus path is absolute instead of repository-relative."
+
+[[code]]
+code = "SUS-COMPAT-SEC-DEFERRED"
+severity = "deferred"
+domain = "compatibility-security"
+owner = "susun-compat"
+status = "stable"
+summary = "A compatibility fixture declares deferred coverage or unresolved audit notes."
+
+[[code]]
+code = "SUS-COMPAT-SEC-NO-SECRETS"
+severity = "info"
+domain = "compatibility-security"
+owner = "susun-compat"
+status = "stable"
+summary = "A compatibility fixture declares that it contains no secret material."
+
+[[code]]
+code = "SUS-COMPAT-SEC-PARENT-PATH"
+severity = "error"
+domain = "compatibility-security"
+owner = "susun-compat"
+status = "stable"
+summary = "A compatibility corpus path contains parent-directory traversal."
+
+[[code]]
+code = "SUS-COMPAT-SEC-SYNTHETIC"
+severity = "info"
+domain = "compatibility-security"
+owner = "susun-compat"
+status = "stable"
+summary = "A compatibility fixture uses synthetic placeholder secret material only."
+
+[[code]]
+code = "SUS-DIFF-001"
+severity = "note"
+domain = "convergence"
+owner = "susun-convergence"
+status = "stable"
+summary = "A desired service instance is missing from the observed runtime state."
+
+[[code]]
+code = "SUS-DIFF-002"
+severity = "warning"
+domain = "convergence"
+owner = "susun-convergence"
+status = "stable"
+summary = "A service instance has configuration drift from the desired model."
+
+[[code]]
+code = "SUS-DIFF-003"
+severity = "error"
+domain = "convergence"
+owner = "susun-convergence"
+status = "stable"
+summary = "An observed service instance state cannot be safely interpreted."
+
+[[code]]
+code = "SUS-DIFF-004"
+severity = "error"
+domain = "convergence"
+owner = "susun-convergence"
+status = "stable"
+summary = "An observed convergence fingerprint version is unsupported."
+
+[[code]]
+code = "SUS-ENV-001"
+severity = "error"
+domain = "environment"
+owner = "susun-loader"
+status = "stable"
+summary = "Required environment interpolation failed because a variable is missing or empty."
+
+[[code]]
+code = "SUS-ENV-002"
+severity = "error"
+domain = "environment"
+owner = "susun-loader"
+status = "stable"
+summary = "A dotenv key is invalid and cannot be loaded."
+
+[[code]]
+code = "SUS-ENV-003"
+severity = "warning"
+domain = "environment"
+owner = "susun-loader"
+status = "stable"
+summary = "A dotenv key is duplicated in the same file."
+
+[[code]]
+code = "SUS-EXT-001"
+severity = "error"
+domain = "compose-extends"
+owner = "susun"
+status = "stable"
+summary = "An extends target file or service cannot be resolved."
+
+[[code]]
+code = "SUS-EXT-002"
+severity = "error"
+domain = "compose-extends"
+owner = "susun"
+status = "stable"
+summary = "Compose extends processing detected a cycle."
+
+[[code]]
+code = "SUS-FP-001"
+severity = "error"
+domain = "fingerprint"
+owner = "susun-convergence"
+status = "stable"
+summary = "An observed resource fingerprint version is unsupported."
+
+[[code]]
+code = "SUS-GRAPH-001"
+severity = "error"
+domain = "graph"
+owner = "susun-graph"
+status = "stable"
+summary = "Dependency graph analysis detected a cycle."
+
+[[code]]
+code = "SUS-INC-001"
+severity = "error"
+domain = "compose-include"
+owner = "susun"
+status = "stable"
+summary = "Compose include processing detected a cycle."
+
+[[code]]
+code = "SUS-INC-002"
+severity = "error"
+domain = "compose-include"
+owner = "susun"
+status = "stable"
+summary = "Compose include processing exceeded the supported include depth."
+
+[[code]]
+code = "SUS-INC-003"
+severity = "error"
+domain = "compose-include"
+owner = "susun"
+status = "stable"
+summary = "Compose include processing exceeded the supported include count."
+
+[[code]]
+code = "SUS-OWN-001"
+severity = "error"
+domain = "ownership"
+owner = "susun-convergence"
+status = "stable"
+summary = "Multiple observed resources claim the same Susun-owned service instance."
+
+[[code]]
+code = "SUS-OWN-002"
+severity = "error"
+domain = "ownership"
+owner = "susun-convergence"
+status = "stable"
+summary = "A foreign resource collides with a desired Susun runtime name."
+
+[[code]]
+code = "SUS-PARSE-001"
+severity = "error"
+domain = "parser"
+owner = "susun-loader"
+status = "stable"
+summary = "The Compose YAML cannot be parsed."
+
+[[code]]
+code = "SUS-PARSE-003"
+severity = "error"
+domain = "parser"
+owner = "susun-loader"
+status = "stable"
+summary = "A Compose file contains more than one YAML document."
+
+[[code]]
+code = "SUS-PARSE-010"
+severity = "error"
+domain = "parser"
+owner = "susun-loader"
+status = "stable"
+summary = "The Compose file root is not a YAML mapping."
+
+[[code]]
+code = "SUS-PARSE-011"
+severity = "warning"
+domain = "parser"
+owner = "susun-loader"
+status = "stable"
+summary = "A Compose field is unknown or deferred and will be ignored."
+
+[[code]]
+code = "SUS-PLAN-001"
+severity = "error"
+domain = "planning"
+owner = "susun-planner"
+status = "stable"
+summary = "A foreign runtime resource conflicts with planned Susun resource creation."
+
+[[code]]
+code = "SUS-PLAN-002"
+severity = "error"
+domain = "planning"
+owner = "susun-planner"
+status = "stable"
+summary = "A planned service container would duplicate an existing runtime container."
+
+[[code]]
+code = "SUS-PLAN-003"
+severity = "error"
+domain = "planning"
+owner = "susun-planner"
+status = "stable"
+summary = "A required image is missing before service planning can proceed."
+
+[[code]]
+code = "SUS-PLAN-010"
+severity = "error"
+domain = "planning"
+owner = "susun-planner"
+status = "stable"
+summary = "Duplicate ownership data prevents safe planning."
+
+[[code]]
+code = "SUS-PLAN-020"
+severity = "error"
+domain = "planning"
+owner = "susun-planner"
+status = "stable"
+summary = "A down-plan snapshot is incomplete."
+
+[[code]]
+code = "SUS-PLAN-100"
+severity = "error"
+domain = "planning"
+owner = "susun"
+status = "stable"
+summary = "A Phase 1 analysis result blocks planning."
+
+[[code]]
+code = "SUS-SEM-001"
+severity = "error"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A service dependency references an unknown service."
+
+[[code]]
+code = "SUS-SEM-002"
+severity = "warning"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A service publishes a duplicate host port."
+
+[[code]]
+code = "SUS-SEM-003"
+severity = "error"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A service references an unknown volume."
+
+[[code]]
+code = "SUS-SEM-004"
+severity = "error"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A service references an unknown network."
+
+[[code]]
+code = "SUS-SEM-005"
+severity = "error"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A service references an unknown config or secret."
+
+[[code]]
+code = "SUS-SEM-006"
+severity = "error"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A service dependency requires health but the dependency has no healthcheck."
+
+[[code]]
+code = "SUS-SEM-007"
+severity = "error"
+domain = "semantic-validation"
+owner = "susun-validation"
+status = "stable"
+summary = "A config or secret definition is invalid for the current support subset."
