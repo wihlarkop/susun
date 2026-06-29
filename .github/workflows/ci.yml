@@ -85,6 +85,8 @@ jobs:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - run: bash scripts/run-compatibility-matrix.sh
+      - run: bash scripts/generate-release-docs.sh
+      - run: git diff --exit-code -- docs/generated/capability-and-compatibility.md
       - uses: actions/upload-artifact@v4
         with:
           name: compatibility-report
