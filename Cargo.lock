@@ -1316,6 +1316,7 @@ dependencies = [
  "susun-graph",
  "susun-model",
  "susun-normalize",
+ "susun-secret",
  "thiserror",
 ]
 

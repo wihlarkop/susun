@@ -25,6 +25,7 @@ susun-engine = { workspace = true }
 susun-graph = { workspace = true }
 susun-model = { workspace = true }
 susun-normalize = { workspace = true }
+susun-secret = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
