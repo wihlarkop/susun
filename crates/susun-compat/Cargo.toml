@@ -13,6 +13,11 @@ workspace = true
 default = []
 serde = ["dep:serde", "dep:serde_json", "indexmap/serde"]
 
+[[bench]]
+name = "phase5_budgets"
+harness = false
+required-features = ["serde"]
+
 [dependencies]
 indexmap = { workspace = true }
 serde = { workspace = true, optional = true }

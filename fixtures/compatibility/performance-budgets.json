@@ -1,0 +1,25 @@
+{
+  "schema_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "scope": "phase5-compatibility",
+  "budgets": [
+    {
+      "name": "capability_matrix_generation",
+      "budget": "1000 iterations should remain sub-second on a GitHub ubuntu-latest runner"
+    },
+    {
+      "name": "corpus_manifest_parse",
+      "budget": "200 parses should remain sub-second on a GitHub ubuntu-latest runner"
+    },
+    {
+      "name": "oracle_plan_generation",
+      "budget": "1000 run-plan generations should remain sub-second on a GitHub ubuntu-latest runner"
+    }
+  ],
+  "notes": [
+    "These are guardrail budgets for compatibility artifact generation, not micro-benchmark guarantees.",
+    "Build context enumeration, parser-scale, and fingerprint budgets should move into dedicated benches when those workstreams are merged into this stack."
+  ]
+}
