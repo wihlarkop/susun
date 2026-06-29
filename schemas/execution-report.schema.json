@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.susun.dev/execution-report/1.0/schema.json",
+  "title": "Susun execution report",
+  "description": "Runtime execution result for a Susun plan.",
+  "type": "object",
+  "x-susun-artifact": "execution-report",
+  "x-susun-version": {
+    "major": 1,
+    "minor": 0
+  },
+  "x-susun-secret-policy": "Errors and progress messages in execution reports must be redacted before serialization.",
+  "required": ["plan_id", "actions", "summary"],
+  "properties": {
+    "schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^plan-[a-f0-9]+$"
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/action_result"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/execution_summary"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "schema_version": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "action_result": {
+      "type": "object",
+      "required": ["action_id", "status", "started_at", "finished_at", "attempts", "output", "error"],
+      "properties": {
+        "action_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": ["pending", "ready", "running", "succeeded", "failed", "skipped_dependency_failed", "cancelled"]
+        },
+        "started_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "finished_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output": {
+          "type": ["object", "null"],
+          "additionalProperties": true
+        },
+        "error": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "execution_summary": {
+      "type": "object",
+      "required": ["total_actions", "succeeded", "failed", "skipped", "cancelled"],
+      "properties": {
+        "total_actions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "succeeded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cancelled": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

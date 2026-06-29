@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.susun.dev/compatibility-report/1.0/schema.json",
+  "title": "Susun compatibility report",
+  "description": "Compatibility corpus, oracle run plan, and security audit report artifacts.",
+  "type": "object",
+  "x-susun-artifact": "compatibility-report",
+  "x-susun-version": {
+    "major": 1,
+    "minor": 0
+  },
+  "x-susun-secret-policy": "Compatibility reports may include fixture metadata and redacted audit text, but must not include real secret material.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/corpus_manifest"
+    },
+    {
+      "$ref": "#/$defs/oracle_config"
+    },
+    {
+      "$ref": "#/$defs/security_audit_report"
+    },
+    {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/fixture_run_plan"
+      }
+    }
+  ],
+  "$defs": {
+    "schema_version": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "corpus_manifest": {
+      "type": "object",
+      "required": ["schema_version", "name", "fixtures"],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "name": {
+          "type": "string"
+        },
+        "fixtures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/corpus_fixture"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "corpus_fixture": {
+      "type": "object",
+      "required": ["id", "description", "project_dir", "compose_files", "operations", "coverage", "license", "secret_hygiene"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "project_dir": {
+          "type": "string"
+        },
+        "compose_files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "enum": ["config", "analyze", "plan"]
+          }
+        },
+        "coverage": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "license": {
+          "type": "string"
+        },
+        "secret_hygiene": {
+          "enum": ["no_secrets", "synthetic_only"]
+        },
+        "deferred": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "oracle_config": {
+      "type": "object",
+      "required": ["schema_version", "compose_reference", "command", "fixtures"],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "compose_reference": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "command": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "fixtures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "security_audit_report": {
+      "type": "object",
+      "required": ["corpus", "fixture_count", "findings"],
+      "properties": {
+        "schema_version": {
+          "$ref": "#/$defs/schema_version"
+        },
+        "corpus": {
+          "type": "string"
+        },
+        "fixture_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "code", "message"],
+            "properties": {
+              "severity": {
+                "enum": ["info", "deferred", "error"]
+              },
+              "code": {
+                "type": "string",
+                "pattern": "^SUS-[A-Z0-9]+(-[A-Z0-9]+)+$"
+              },
+              "fixture_id": {
+                "type": ["string", "null"]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "fixture_run_plan": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
