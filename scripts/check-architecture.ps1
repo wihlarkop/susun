@@ -78,6 +78,39 @@ foreach ($manifest in Get-ChildItem -Path crates -Directory | ForEach-Object { J
     }
 }
 
+foreach ($sourceDir in Get-ChildItem -Path crates -Directory | ForEach-Object { Join-Path $_.FullName "src" }) {
+    if (-not (Test-Path -LiteralPath $sourceDir)) {
+        continue
+    }
+    foreach ($source in Get-ChildItem -Path $sourceDir -Recurse -Filter *.rs) {
+    $relative = Resolve-Path -LiteralPath $source.FullName -Relative
+    if ($relative -like ".\crates\susun-engine-bollard\src\*") {
+        continue
+    }
+
+    $publicLines = Select-String -Path $source.FullName -Pattern '^\s*pub([({\s]|$)' -ErrorAction SilentlyContinue
+    if (-not $publicLines) {
+        continue
+    }
+
+    foreach ($line in $publicLines) {
+        $text = $line.Line
+        if ($text -match 'bollard::|Bollard[A-Za-z0-9_]*') {
+            $failures.Add("$relative public API must not mention Bollard adapter/backend types")
+        }
+        if ($text -match 'tokio::sync|tokio::task|JoinHandle') {
+            $failures.Add("$relative public API must not mention Tokio channel/task handle types")
+        }
+        if ($text -match '(?i)buildkit.*(client|proto|transport)|buildx.*(client|proto)|tonic::') {
+            $failures.Add("$relative public API must not mention raw BuildKit transport types")
+        }
+        if ($text -match '(?i)registry.*(client|token|credential)|oci_distribution|reqwest::') {
+            $failures.Add("$relative public API must not mention raw registry client types")
+        }
+    }
+    }
+}
+
 if ($failures.Count -gt 0) {
     foreach ($failure in $failures) {
         Write-Error "architecture violation: $failure"

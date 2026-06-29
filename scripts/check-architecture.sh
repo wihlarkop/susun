@@ -39,6 +39,36 @@ production_deps() {
   dependency_names "$1" "[dependencies]"
 }
 
+check_public_api_leaks() {
+  for source in crates/*/src/*.rs crates/*/src/**/*.rs; do
+    [ -f "$source" ] || continue
+    case "$source" in
+      crates/susun-engine-bollard/src/*)
+        continue
+        ;;
+    esac
+
+    public_lines="$(grep -nE '^[[:space:]]*pub([({[:space:]]|$)' "$source" || true)"
+    [ -n "$public_lines" ] || continue
+
+    if printf '%s\n' "$public_lines" | grep -Eq 'bollard::|Bollard[A-Za-z0-9_]*'; then
+      fail "$source public API must not mention Bollard adapter/backend types"
+    fi
+
+    if printf '%s\n' "$public_lines" | grep -Eq 'tokio::sync|tokio::task|JoinHandle'; then
+      fail "$source public API must not mention Tokio channel/task handle types"
+    fi
+
+    if printf '%s\n' "$public_lines" | grep -Eiq 'buildkit.*(client|proto|transport)|buildx.*(client|proto)|tonic::'; then
+      fail "$source public API must not mention raw BuildKit transport types"
+    fi
+
+    if printf '%s\n' "$public_lines" | grep -Eiq 'registry.*(client|token|credential)|oci_distribution|reqwest::'; then
+      fail "$source public API must not mention raw registry client types"
+    fi
+  done
+}
+
 for manifest in crates/*/Cargo.toml; do
   crate="$(crate_name "$manifest")"
   deps="$(production_deps "$manifest")"
@@ -67,6 +97,8 @@ for manifest in crates/*/Cargo.toml; do
     fail "$crate must not use susun-testkit as a production dependency"
   fi
 done
+
+check_public_api_leaks
 
 if [ "$failures" -ne 0 ]; then
   exit 1
