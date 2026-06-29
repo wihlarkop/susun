@@ -1076,6 +1076,7 @@ dependencies = [
  "serde_json",
  "susun",
  "susun-build",
+ "susun-compat",
  "susun-diagnostics",
  "susun-engine",
  "susun-engine-bollard",

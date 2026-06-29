@@ -99,6 +99,8 @@ pub enum Command {
     },
     /// Build service images.
     Build,
+    /// Emit Susun's machine-readable capability matrix.
+    Compatibility,
     /// Run a one-off service container.
     Run {
         /// Keep the one-off container after it exits.

@@ -17,6 +17,7 @@ workspace = true
 [dependencies]
 susun         = { workspace = true }
 susun-build   = { workspace = true }
+susun-compat  = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
 susun-engine  = { workspace = true }
 susun-engine-bollard = { workspace = true }

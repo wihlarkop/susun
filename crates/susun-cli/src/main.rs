@@ -14,6 +14,7 @@ use susun_build::{
     BuildSecret, BuildSshForward, BuildxProcessBuildEngine, CacheEntry, Dockerignore,
     InsecureEntitlements, resolve_build_inputs, validate_dockerfile_source,
 };
+use susun_compat::matrix_for_current_phase;
 use susun_engine::{
     ContainerEngine, ContainerRef, CreateContainerRequest, EngineCapabilities, EngineSnapshot,
     LabelKey, LabelValue, LogsRequest, ProjectIdentity, ProjectInstanceId, RemoveContainerOptions,
@@ -58,6 +59,7 @@ async fn main() {
             .await
         }
         Command::Build => build_images(&cli.ctx).await,
+        Command::Compatibility => compatibility_matrix(),
         Command::Run {
             no_rm,
             service,
@@ -85,6 +87,20 @@ async fn main() {
         Command::Restart { service } => runtime_restart(&cli.ctx, service).await,
     };
     process::exit(code);
+}
+
+fn compatibility_matrix() -> i32 {
+    let matrix = matrix_for_current_phase(env!("CARGO_PKG_VERSION"), "Docker Compose documented");
+    match serde_json::to_string_pretty(&matrix) {
+        Ok(json) => {
+            println!("{json}");
+            0
+        }
+        Err(error) => {
+            eprintln!("susun: failed to serialize capability matrix: {error}");
+            2
+        }
+    }
 }
 
 fn build_analyzer(ctx: &ContextArgs) -> Analyzer {

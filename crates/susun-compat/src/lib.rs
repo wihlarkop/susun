@@ -7,10 +7,15 @@
 
 pub mod error;
 pub mod harness;
+pub mod matrix;
 pub mod oracle;
 
 pub use error::CompatibilityError;
 pub use harness::{CompatibilityHarness, FixtureRunPlan, OracleInvocation};
+pub use matrix::{
+    CapabilityMatrix, CapabilityMatrixSchemaVersion, FeatureCapability, FeatureSupport,
+    matrix_for_current_phase,
+};
 pub use oracle::{
     ComposeReference, FixtureConfig, OracleCommand, OracleConfig, OracleOperation,
     OracleSchemaVersion,
