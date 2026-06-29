@@ -2,6 +2,8 @@
 
 use std::path::{Component, Path};
 
+pub use susun_secret::redact_sensitive_text;
+
 use crate::{CorpusManifest, SecretHygiene};
 
 /// Severity for a compatibility security audit finding.
@@ -103,27 +105,6 @@ pub fn audit_corpus_security(manifest: &CorpusManifest) -> SecurityAuditReport {
         fixture_count: manifest.fixtures.len(),
         findings,
     }
-}
-
-/// Redacts common credential-bearing fragments from report text.
-#[must_use]
-pub fn redact_sensitive_text(input: &str) -> String {
-    input
-        .split_whitespace()
-        .map(|part| {
-            let lower = part.to_ascii_lowercase();
-            if lower.contains("password")
-                || lower.contains("secret")
-                || lower.contains("token")
-                || lower.contains("credential")
-            {
-                "<redacted>"
-            } else {
-                part
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 fn audit_path(

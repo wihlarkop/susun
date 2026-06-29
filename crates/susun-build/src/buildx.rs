@@ -5,6 +5,8 @@ use std::{
     process::{Command, Stdio},
 };
 
+use susun_secret::redact_sensitive_text;
+
 use crate::{
     BoxBuildFuture, BuildCancellationToken, BuildCapabilities, BuildEngine, BuildError, BuildEvent,
     BuildEventSink, BuildId, BuildImageIdentity, BuildLogStream, BuildRequest, BuildResult,
@@ -186,14 +188,5 @@ async fn emit_process_output(events: &BuildEventSink, bytes: &[u8], stream: Buil
 }
 
 fn redact_line(line: &str) -> String {
-    let lower = line.to_ascii_lowercase();
-    if lower.contains("password")
-        || lower.contains("secret")
-        || lower.contains("token")
-        || lower.contains("authorization")
-    {
-        "<redacted>".to_owned()
-    } else {
-        line.to_owned()
-    }
+    redact_sensitive_text(line)
 }
