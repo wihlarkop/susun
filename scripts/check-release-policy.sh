@@ -33,8 +33,8 @@ grep -Eq '^## Unreleased[[:space:]]*$' CHANGELOG.md \
 grep -q "$version" CHANGELOG.md \
   || fail "CHANGELOG.md must mention workspace version $version before release"
 
-grep -q 'cargo-semver-checks --version 0\.42\.0 --locked' .github/workflows/ci.yml \
-  || fail "CI must install pinned cargo-semver-checks 0.42.0"
+grep -q 'cargo-semver-checks --version 0\.48\.0 --locked' .github/workflows/ci.yml \
+  || fail "CI must install pinned cargo-semver-checks 0.48.0"
 grep -q 'cargo semver-checks check-release --workspace --baseline-rev origin/main' .github/workflows/ci.yml \
   || fail "CI must run cargo semver-checks check-release --workspace --baseline-rev origin/main"
 

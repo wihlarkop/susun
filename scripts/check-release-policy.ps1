@@ -45,8 +45,8 @@ if ($version -and $changelog -notmatch [regex]::Escape($version)) {
     $failures.Add("CHANGELOG.md must mention workspace version $version before release")
 }
 
-if ($ci -notmatch 'cargo-semver-checks --version 0\.42\.0 --locked') {
-    $failures.Add("CI must install pinned cargo-semver-checks 0.42.0")
+if ($ci -notmatch 'cargo-semver-checks --version 0\.48\.0 --locked') {
+    $failures.Add("CI must install pinned cargo-semver-checks 0.48.0")
 }
 if ($ci -notmatch 'cargo semver-checks check-release --workspace --baseline-rev origin/main') {
     $failures.Add("CI must run cargo semver-checks check-release --workspace --baseline-rev origin/main")

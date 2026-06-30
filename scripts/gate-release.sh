@@ -20,6 +20,6 @@ if command -v cargo-semver-checks >/dev/null 2>&1; then
   cargo semver-checks check-release --workspace --baseline-rev "${SUSUN_SEMVER_BASELINE:-origin/main}"
 else
   printf '%s\n' "cargo-semver-checks is required for a full release gate" >&2
-  printf '%s\n' "install with: cargo install cargo-semver-checks --version 0.42.0 --locked" >&2
+  printf '%s\n' "install with: cargo install cargo-semver-checks --version 0.48.0 --locked" >&2
   exit 1
 fi
