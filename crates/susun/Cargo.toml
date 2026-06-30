@@ -22,3 +22,9 @@ susun-diagnostics = { workspace = true }
 susun-source      = { workspace = true }
 thiserror         = { workspace = true }
 serde_json        = { workspace = true }
+
+[dev-dependencies]
+susun-build          = { workspace = true }
+susun-engine-bollard = { workspace = true }
+susun-testkit        = { workspace = true }
+tokio                = { workspace = true }
