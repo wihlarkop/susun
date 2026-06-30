@@ -1182,8 +1182,10 @@ name = "susun"
 version = "0.2.0"
 dependencies = [
  "serde_json",
+ "susun-build",
  "susun-diagnostics",
  "susun-engine",
+ "susun-engine-bollard",
  "susun-graph",
  "susun-loader",
  "susun-model",
@@ -1191,8 +1193,10 @@ dependencies = [
  "susun-planner",
  "susun-runtime",
  "susun-source",
+ "susun-testkit",
  "susun-validation",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
