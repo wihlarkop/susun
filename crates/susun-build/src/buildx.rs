@@ -6,6 +6,7 @@ use std::{
 };
 
 use susun_secret::redact_sensitive_text;
+use tracing::{Instrument, debug, info, info_span};
 
 use crate::{
     BoxBuildFuture, BuildCancellationToken, BuildCapabilities, BuildEngine, BuildError, BuildEvent,
@@ -55,106 +56,112 @@ impl BuildEngine for BuildxProcessBuildEngine {
         events: BuildEventSink,
         cancellation: BuildCancellationToken,
     ) -> BoxBuildFuture<'_, BuildResult> {
-        Box::pin(async move {
-            if cancellation.is_cancelled() {
-                return Err(BuildError::Cancelled);
-            }
+        let build_id = request
+            .image_tag
+            .clone()
+            .unwrap_or_else(|| "susun-build".to_owned());
+        let span = info_span!("susun.build", build_id = %build_id);
+        Box::pin(
+            async move {
+                if cancellation.is_cancelled() {
+                    return Err(BuildError::Cancelled);
+                }
 
-            let build_id = request
-                .image_tag
-                .clone()
-                .unwrap_or_else(|| "susun-build".to_owned());
-            events
-                .emit(BuildEvent::Started {
-                    build_id: BuildId(build_id),
-                })
-                .await;
+                info!("build started");
+                events
+                    .emit(BuildEvent::Started {
+                        build_id: BuildId(build_id),
+                    })
+                    .await;
 
-            let mut command = Command::new(&self.options.docker_cli);
-            command
-                .arg("buildx")
-                .arg("build")
-                .arg("--progress=plain")
-                .arg("--file")
-                .arg(&request.dockerfile);
+                let mut command = Command::new(&self.options.docker_cli);
+                command
+                    .arg("buildx")
+                    .arg("build")
+                    .arg("--progress=plain")
+                    .arg("--file")
+                    .arg(&request.dockerfile);
 
-            if self.options.load {
-                command.arg("--load");
-            }
-            if let Some(target) = &request.definition.target {
-                command.arg("--target").arg(target);
-            }
-            if let Some(tag) = &request.image_tag {
-                command.arg("--tag").arg(tag);
-            }
-            for platform in &request.definition.platforms {
-                command.arg("--platform").arg(platform);
-            }
-            for (key, value) in &request.definition.args {
-                match value {
-                    Some(value) => {
-                        command.arg("--build-arg").arg(format!("{key}={value}"));
-                    }
-                    None => {
-                        command.arg("--build-arg").arg(key);
+                if self.options.load {
+                    command.arg("--load");
+                }
+                if let Some(target) = &request.definition.target {
+                    command.arg("--target").arg(target);
+                }
+                if let Some(tag) = &request.image_tag {
+                    command.arg("--tag").arg(tag);
+                }
+                for platform in &request.definition.platforms {
+                    command.arg("--platform").arg(platform);
+                }
+                for (key, value) in &request.definition.args {
+                    match value {
+                        Some(value) => {
+                            command.arg("--build-arg").arg(format!("{key}={value}"));
+                        }
+                        None => {
+                            command.arg("--build-arg").arg(key);
+                        }
                     }
                 }
-            }
-            for secret in &request.secrets {
-                command.arg("--secret").arg(match &secret.source {
-                    Some(source) => format!("id={},src={}", secret.id, source.display()),
-                    None => format!("id={}", secret.id),
-                });
-            }
-            for ssh in &request.ssh {
-                command.arg("--ssh").arg(&ssh.id);
-            }
-            for cache in &request.cache_from {
-                command.arg("--cache-from").arg(&cache.spec);
-            }
-            for cache in &request.cache_to {
-                command.arg("--cache-to").arg(&cache.spec);
-            }
-            for (key, value) in &request.labels {
-                command.arg("--label").arg(format!("{key}={value}"));
-            }
-            if request.insecure_entitlements.network_host {
-                command.arg("--allow").arg("network.host");
-            }
-            if request.insecure_entitlements.security_insecure {
-                command.arg("--allow").arg("security.insecure");
-            }
-            command
-                .arg(&request.context_dir)
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped());
+                for secret in &request.secrets {
+                    command.arg("--secret").arg(match &secret.source {
+                        Some(source) => format!("id={},src={}", secret.id, source.display()),
+                        None => format!("id={}", secret.id),
+                    });
+                }
+                for ssh in &request.ssh {
+                    command.arg("--ssh").arg(&ssh.id);
+                }
+                for cache in &request.cache_from {
+                    command.arg("--cache-from").arg(&cache.spec);
+                }
+                for cache in &request.cache_to {
+                    command.arg("--cache-to").arg(&cache.spec);
+                }
+                for (key, value) in &request.labels {
+                    command.arg("--label").arg(format!("{key}={value}"));
+                }
+                if request.insecure_entitlements.network_host {
+                    command.arg("--allow").arg("network.host");
+                }
+                if request.insecure_entitlements.security_insecure {
+                    command.arg("--allow").arg("security.insecure");
+                }
+                command
+                    .arg(&request.context_dir)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped());
 
-            let output = command.output().map_err(|source| BuildError::Launch {
-                program: self.options.docker_cli.clone(),
-                source,
-            })?;
+                let output = command.output().map_err(|source| BuildError::Launch {
+                    program: self.options.docker_cli.clone(),
+                    source,
+                })?;
 
-            emit_process_output(&events, &output.stdout, BuildLogStream::Stdout).await;
-            emit_process_output(&events, &output.stderr, BuildLogStream::Stderr).await;
+                emit_process_output(&events, &output.stdout, BuildLogStream::Stdout).await;
+                emit_process_output(&events, &output.stderr, BuildLogStream::Stderr).await;
 
-            if cancellation.is_cancelled() {
-                return Err(BuildError::Cancelled);
+                if cancellation.is_cancelled() {
+                    return Err(BuildError::Cancelled);
+                }
+                if !output.status.success() {
+                    return Err(BuildError::ProcessFailed {
+                        status: output.status.to_string(),
+                    });
+                }
+
+                events.emit(BuildEvent::Finished).await;
+                info!("build finished");
+                let reference = request.image_tag.ok_or(BuildError::MissingImageIdentity)?;
+                Ok(BuildResult {
+                    image: BuildImageIdentity {
+                        reference,
+                        digest: None,
+                    },
+                })
             }
-            if !output.status.success() {
-                return Err(BuildError::ProcessFailed {
-                    status: output.status.to_string(),
-                });
-            }
-
-            events.emit(BuildEvent::Finished).await;
-            let reference = request.image_tag.ok_or(BuildError::MissingImageIdentity)?;
-            Ok(BuildResult {
-                image: BuildImageIdentity {
-                    reference,
-                    digest: None,
-                },
-            })
-        })
+            .instrument(span),
+        )
     }
 }
 
@@ -169,6 +176,7 @@ async fn emit_process_output(events: &BuildEventSink, bytes: &[u8], stream: Buil
             name: "buildx".to_owned(),
         })
         .await;
+    debug!(vertex = %vertex.0, "build vertex started");
     let text = String::from_utf8_lossy(bytes);
     for line in text.lines() {
         events
@@ -185,6 +193,7 @@ async fn emit_process_output(events: &BuildEventSink, bytes: &[u8], stream: Buil
             status: BuildVertexStatus::Succeeded,
         })
         .await;
+    debug!(vertex = "buildx", status = ?BuildVertexStatus::Succeeded, "build vertex finished");
 }
 
 fn redact_line(line: &str) -> String {

@@ -45,6 +45,7 @@ use args::{Cli, Command, ContextArgs, OutputFormat, PlanCommand, WatchAction};
 
 #[tokio::main]
 async fn main() {
+    init_tracing();
     let cli = Cli::parse();
     let code = match cli.command {
         Command::Check => check(&cli.ctx),
@@ -117,6 +118,24 @@ async fn main() {
         Command::Restart { service } => runtime_restart(&cli.ctx, service).await,
     };
     process::exit(code);
+}
+
+fn init_tracing() {
+    let filter = match std::env::var("SUSUN_LOG").or_else(|_| std::env::var("RUST_LOG")) {
+        Ok(filter) => filter,
+        Err(_) => return,
+    };
+    let env_filter = match tracing_subscriber::EnvFilter::try_new(filter) {
+        Ok(filter) => filter,
+        Err(error) => {
+            eprintln!("susun: invalid tracing filter: {error}");
+            return;
+        }
+    };
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(env_filter)
+        .with_writer(std::io::stderr)
+        .try_init();
 }
 
 fn compatibility(corpus: Option<&Path>, security_audit: Option<&Path>) -> i32 {

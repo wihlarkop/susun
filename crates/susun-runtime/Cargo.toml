@@ -26,3 +26,4 @@ indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
