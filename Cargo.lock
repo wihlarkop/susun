@@ -1183,6 +1183,7 @@ version = "0.2.0"
 dependencies = [
  "serde_json",
  "susun-build",
+ "susun-convergence",
  "susun-diagnostics",
  "susun-engine",
  "susun-engine-bollard",
@@ -1372,7 +1373,9 @@ dependencies = [
  "indexmap",
  "serde",
  "susun-engine",
+ "susun-model",
  "susun-planner",
+ "susun-testkit",
  "thiserror",
  "tokio",
  "tracing",

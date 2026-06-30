@@ -25,6 +25,7 @@ serde_json        = { workspace = true }
 
 [dev-dependencies]
 susun-build          = { workspace = true }
+susun-convergence    = { workspace = true }
 susun-engine-bollard = { workspace = true }
 susun-testkit        = { workspace = true }
 tokio                = { workspace = true }

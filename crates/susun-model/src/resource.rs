@@ -63,6 +63,7 @@ pub type Configs = IndexMap<ConfigName, ResourceDefinition>;
 /// Project secrets.
 pub type Secrets = IndexMap<SecretName, ResourceDefinition>;
 
+#[cfg(feature = "serde")]
 fn is_false(value: &bool) -> bool {
     !*value
 }

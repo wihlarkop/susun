@@ -5,12 +5,14 @@
 
 pub mod assertions;
 pub mod build;
+pub mod engine;
 pub mod engine_contract;
 pub mod project;
 pub mod snapshot;
 
 pub use assertions::PlanAssert;
 pub use build::FakeBuildEngine;
+pub use engine::FakeContainerEngine;
 pub use engine_contract::{
     ContractProject, assert_basic_engine_contract, assert_resource_lifecycle_contract,
 };

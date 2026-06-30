@@ -30,3 +30,13 @@ indexmap = { workspace = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }
+
+[[test]]
+name = "artifact_compatibility"
+path = "tests/artifact_compatibility.rs"
+required-features = ["serde"]
+
+[[test]]
+name = "secret_leakage"
+path = "tests/secret_leakage.rs"
+required-features = ["serde"]

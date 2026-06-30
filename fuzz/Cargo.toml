@@ -1,0 +1,30 @@
+[package]
+name = "susun-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+serde_json = "1"
+susun-build = { path = "../crates/susun-build" }
+susun-planner = { path = "../crates/susun-planner", features = ["serde"] }
+
+[[bin]]
+name = "dockerignore_parse"
+path = "fuzz_targets/dockerignore_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "plan_deserialize"
+path = "fuzz_targets/plan_deserialize.rs"
+test = false
+doc = false
+bench = false
