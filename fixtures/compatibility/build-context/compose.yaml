@@ -1,0 +1,23 @@
+name: compat-build-context
+services:
+  app:
+    image: compat-build-context:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        APP_MODE: compatibility
+      platforms:
+        - linux/amd64
+      secrets:
+        - app_token
+      ssh:
+        - default
+      cache_from:
+        - type=local,src=.build-cache
+      cache_to:
+        - type=local,dest=.build-cache,mode=max
+secrets:
+  app_token:
+    file: ./token.txt

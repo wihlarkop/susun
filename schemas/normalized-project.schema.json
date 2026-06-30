@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.susun.dev/normalized-project/1.0/schema.json",
+  "title": "Susun normalized project",
+  "description": "Canonical Compose project emitted by Susun config JSON output.",
+  "type": "object",
+  "x-susun-artifact": "normalized-project",
+  "x-susun-version": {
+    "major": 1,
+    "minor": 0
+  },
+  "x-susun-secret-policy": "Secret resource definitions and mounts may be present, but cleartext secret material is not modeled by this schema.",
+  "required": ["name", "services"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/service"
+      }
+    },
+    "networks": {
+      "$ref": "#/$defs/resource_map"
+    },
+    "volumes": {
+      "$ref": "#/$defs/resource_map"
+    },
+    "configs": {
+      "$ref": "#/$defs/resource_map"
+    },
+    "secrets": {
+      "$ref": "#/$defs/resource_map"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "command": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "resource_definition": {
+      "type": "object",
+      "properties": {
+        "external": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "file": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resource_map": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/resource_definition"
+      }
+    },
+    "resource_mount": {
+      "type": "object",
+      "required": ["source"],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "uid": {
+          "type": "string"
+        },
+        "gid": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "service": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string"
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "command": {
+          "$ref": "#/$defs/command"
+        },
+        "entrypoint": {
+          "$ref": "#/$defs/command"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "null"]
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "ports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "depends_on": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "networks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "aliases": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "configs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resource_mount"
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/resource_mount"
+          }
+        },
+        "healthcheck": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "restart": {
+          "type": "string"
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

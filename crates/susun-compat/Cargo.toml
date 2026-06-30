@@ -1,0 +1,33 @@
+[package]
+name = "susun-compat"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json", "indexmap/serde"]
+
+[[bench]]
+name = "phase5_budgets"
+harness = false
+required-features = ["serde"]
+
+[dependencies]
+indexmap = { workspace = true }
+susun-secret = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+susun = { workspace = true }
+susun-build = { workspace = true }
+susun-convergence = { workspace = true }
+susun-engine = { workspace = true }
+susun-planner = { workspace = true }

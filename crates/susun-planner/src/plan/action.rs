@@ -11,6 +11,8 @@ use susun_engine::{
 use susun_model::{
     Command, Healthcheck, ImageRef, NetworkAttachment, port::CanonicalPort, volume::CanonicalVolume,
 };
+#[cfg(feature = "serde")]
+use susun_secret::{REDACTED, contains_sensitive_marker};
 
 use crate::{
     ActionExplanation, ActionId, ActionSafety, PlanId, PlanSchemaVersion, StableIdBuilder,
@@ -289,6 +291,10 @@ pub struct CreateContainerAction {
     /// Entrypoint override.
     pub entrypoint: Option<Command>,
     /// Container environment values.
+    #[cfg_attr(
+        feature = "serde",
+        serde(serialize_with = "serialize_redacted_environment")
+    )]
     pub environment: IndexMap<String, Option<String>>,
     /// User-defined container labels.
     pub labels: IndexMap<String, String>,
@@ -485,4 +491,25 @@ fn stable_plan_id(
         builder.part(id.as_str());
     }
     PlanId::from_parts(&[&format!("{:016x}", builder.finish())])
+}
+
+#[cfg(feature = "serde")]
+fn serialize_redacted_environment<S>(
+    environment: &IndexMap<String, Option<String>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    use serde::ser::SerializeMap;
+
+    let mut map = serializer.serialize_map(Some(environment.len()))?;
+    for (key, value) in environment {
+        if contains_sensitive_marker(key) {
+            map.serialize_entry(key, &Some(REDACTED))?;
+        } else {
+            map.serialize_entry(key, value)?;
+        }
+    }
+    map.end()
 }

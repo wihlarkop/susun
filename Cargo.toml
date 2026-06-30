@@ -3,7 +3,7 @@ members = ["crates/*", "spikes/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 authors = ["wihlarkop"]
@@ -23,7 +23,10 @@ susun-planner = { path = "crates/susun-planner" }
 susun-runtime = { path = "crates/susun-runtime" }
 susun-convergence = { path = "crates/susun-convergence" }
 susun-build = { path = "crates/susun-build" }
+susun-compat = { path = "crates/susun-compat" }
+susun-secret = { path = "crates/susun-secret" }
 susun-engine-bollard = { path = "crates/susun-engine-bollard" }
+susun-watch = { path = "crates/susun-watch" }
 susun-testkit = { path = "crates/susun-testkit" }
 susun = { path = "crates/susun" }
 
@@ -32,6 +35,7 @@ bollard = "0.21"
 futures-core = "0.3"
 futures-util = "0.3"
 indexmap = "2.14.0"
+notify = "=9.0.0-rc.2"
 serde = { version = "1.0", features = ["derive"] }
 saphyr = "0.0.6"
 saphyr-parser = "0.0.6"
@@ -39,7 +43,10 @@ thiserror = "2.0"
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+tar = "0.4"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

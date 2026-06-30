@@ -1,0 +1,19 @@
+name: compat-resources
+services:
+  worker:
+    image: alpine:3.20
+    command: ["sh", "-c", "cat /etc/app/config.txt >/dev/null"]
+    configs:
+      - source: app_config
+        target: /etc/app/config.txt
+        mode: "0444"
+    secrets:
+      - source: app_secret
+        target: /run/secrets/app_secret
+        mode: "0400"
+configs:
+  app_config:
+    file: ./config.txt
+secrets:
+  app_secret:
+    file: ./secret.txt

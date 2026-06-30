@@ -99,6 +99,15 @@ pub enum Command {
     },
     /// Build service images.
     Build,
+    /// Emit Susun's compatibility artifacts.
+    Compatibility {
+        /// Optional corpus manifest to convert into an oracle run plan.
+        #[arg(long, conflicts_with = "security_audit")]
+        corpus: Option<PathBuf>,
+        /// Optional corpus manifest to audit for compatibility security hygiene.
+        #[arg(long = "security-audit", conflicts_with = "corpus")]
+        security_audit: Option<PathBuf>,
+    },
     /// Run a one-off service container.
     Run {
         /// Keep the one-off container after it exits.
@@ -123,6 +132,48 @@ pub enum Command {
         /// Command and arguments to execute.
         #[arg(required = true, trailing_var_arg = true, allow_hyphen_values = true)]
         command: Vec<String>,
+    },
+    /// Stream project engine events.
+    Events {
+        /// Selected service names.
+        service: Vec<String>,
+    },
+    /// Wait for selected project service containers to exit.
+    Wait {
+        /// Selected service names.
+        service: Vec<String>,
+    },
+    /// Copy files between the host and a service container.
+    Cp {
+        /// Source path. Use SERVICE:PATH for container paths.
+        source: String,
+        /// Target path. Use SERVICE:PATH for container paths.
+        target: String,
+    },
+    /// Print published host ports for a service.
+    Port {
+        /// Service name.
+        service: String,
+        /// Optional container-side port filter, for example `80` or `80/tcp`.
+        private_port: Option<String>,
+    },
+    /// Watch project files and run rebuild/restart/sync actions.
+    Watch {
+        /// Watch action to run when a file event is observed.
+        #[arg(long = "action", value_enum, default_value_t = WatchAction::Restart)]
+        action: WatchAction,
+        /// Service selection for rebuild and restart actions.
+        #[arg(long = "service")]
+        service: Vec<String>,
+        /// Sync mapping as SERVICE:HOST_PATH:CONTAINER_DIR. Repeatable.
+        #[arg(long = "sync")]
+        sync: Vec<String>,
+        /// Additional host paths to watch. Defaults to the project root.
+        #[arg(long = "watch")]
+        watch: Vec<PathBuf>,
+        /// Debounce window in milliseconds.
+        #[arg(long = "debounce-ms", default_value_t = 150)]
+        debounce_ms: u64,
     },
     /// Tear the project down using Docker Engine.
     Down {
@@ -201,4 +252,17 @@ pub enum ColorChoice {
     Always,
     /// Never colorize.
     Never,
+}
+
+/// Watch action subset.
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum WatchAction {
+    /// Build declared service images after file changes.
+    Rebuild,
+    /// Restart selected running services after file changes.
+    Restart,
+    /// Sync changed files into selected running service containers.
+    Sync,
+    /// Sync changed files and then restart selected running services.
+    SyncRestart,
 }

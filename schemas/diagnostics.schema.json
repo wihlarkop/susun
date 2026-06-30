@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.susun.dev/diagnostics/1.0/schema.json",
+  "title": "Susun diagnostics",
+  "description": "Structured diagnostics emitted by Susun analysis, validation, and planning.",
+  "type": "object",
+  "x-susun-artifact": "diagnostics",
+  "x-susun-version": {
+    "major": 1,
+    "minor": 0
+  },
+  "x-susun-secret-policy": "Diagnostic messages, labels, and help text must be redacted before serialization.",
+  "required": ["diagnostics"],
+  "properties": {
+    "schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "schema_version": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["code", "severity", "message", "labels", "help"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^SUS-[A-Z0-9]+(-[A-Z0-9]+)+$"
+        },
+        "severity": {
+          "enum": ["note", "warning", "error"]
+        },
+        "message": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/label"
+          }
+        },
+        "help": {
+          "type": ["string", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "label": {
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

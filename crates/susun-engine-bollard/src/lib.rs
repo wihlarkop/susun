@@ -3,33 +3,36 @@
 use std::{collections::HashMap, time::SystemTime};
 
 use bollard::{
-    Docker,
+    Docker, body_full,
     container::LogOutput,
     exec::{CreateExecOptions, StartExecOptions, StartExecResults},
     models::{
-        ContainerCreateBody, EndpointSettings, HealthConfig, HostConfig, Mount,
-        MountType as DockerMountType, NetworkCreateRequest, NetworkingConfig, PortBinding, PortMap,
-        RestartPolicy, RestartPolicyNameEnum, VolumeCreateRequest,
+        ContainerCreateBody, EndpointSettings, EventActor, EventMessage, HealthConfig, HostConfig,
+        Mount, MountType as DockerMountType, NetworkCreateRequest, NetworkingConfig, PortBinding,
+        PortMap, RestartPolicy, RestartPolicyNameEnum, VolumeCreateRequest,
     },
     query_parameters::{
-        CreateContainerOptionsBuilder, CreateImageOptionsBuilder, ListContainersOptionsBuilder,
-        ListImagesOptionsBuilder, ListNetworksOptionsBuilder, ListVolumesOptionsBuilder,
-        LogsOptionsBuilder, RemoveContainerOptionsBuilder, RemoveVolumeOptionsBuilder,
-        StopContainerOptionsBuilder, WaitContainerOptions,
+        CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
+        DownloadFromContainerOptionsBuilder, EventsOptionsBuilder, InspectContainerOptionsBuilder,
+        ListContainersOptionsBuilder, ListImagesOptionsBuilder, ListNetworksOptionsBuilder,
+        ListVolumesOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder,
+        RemoveVolumeOptionsBuilder, StopContainerOptionsBuilder, UploadToContainerOptionsBuilder,
+        WaitContainerOptions,
     },
 };
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun_engine::{
-    BoxEngineFuture, BoxExecStream, BoxLogStream, ContainerEngine, ContainerId, ContainerRef,
+    BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine,
+    ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
-    EngineCapabilities, EngineEndpoint, EngineError, EngineImageRef, EngineOperation,
-    EngineSnapshot, ExecRequest, HealthState, LabelKey, LabelValue, LogEvent, LogSource,
-    LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
-    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, ProgressSink,
-    ProjectIdentity, PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName,
-    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    EngineCapabilities, EngineEndpoint, EngineError, EngineEvent, EngineImageRef, EngineOperation,
+    EngineSnapshot, EventsRequest, ExecRequest, HealthState, LabelKey, LabelValue, LogEvent,
+    LogSource, LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
+    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink,
+    ProjectIdentity, PublishedPortBinding, PullImageRequest, ReplicaIndex, ResourceIdentity,
+    ResourceName, ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel,
+    VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -469,6 +472,22 @@ impl ContainerEngine for BollardEngine {
         })
     }
 
+    fn events(&self, request: EventsRequest) -> BoxEngineFuture<'_, BoxEventStream> {
+        Box::pin(async move {
+            let filters = label_filters(&request.project);
+            let stream = self
+                .docker
+                .events(Some(
+                    EventsOptionsBuilder::default().filters(&filters).build(),
+                ))
+                .map(|item| match item {
+                    Ok(event) => Ok(engine_event(event)),
+                    Err(error) => Err(EngineError::api(EngineOperation::Events, error)),
+                });
+            Ok(Box::pin(stream) as BoxEventStream)
+        })
+    }
+
     fn exec(&self, request: ExecRequest) -> BoxEngineFuture<'_, BoxExecStream> {
         Box::pin(async move {
             let created = self
@@ -511,6 +530,113 @@ impl ContainerEngine for BollardEngine {
                     capability: "detached exec output",
                 }),
             }
+        })
+    }
+
+    fn copy_from_container(
+        &self,
+        request: CopyFromContainerRequest,
+    ) -> BoxEngineFuture<'_, BoxByteStream> {
+        Box::pin(async move {
+            let stream = self
+                .docker
+                .download_from_container(
+                    request.container.id.as_str(),
+                    Some(
+                        DownloadFromContainerOptionsBuilder::default()
+                            .path(&request.path)
+                            .build(),
+                    ),
+                )
+                .map(|item| match item {
+                    Ok(bytes) => Ok(bytes.to_vec()),
+                    Err(error) => Err(EngineError::api(EngineOperation::Copy, error)),
+                });
+            Ok(Box::pin(stream) as BoxByteStream)
+        })
+    }
+
+    fn copy_to_container(&self, request: CopyToContainerRequest) -> BoxEngineFuture<'_, ()> {
+        Box::pin(async move {
+            self.docker
+                .upload_to_container(
+                    request.container.id.as_str(),
+                    Some(
+                        UploadToContainerOptionsBuilder::default()
+                            .path(&request.path)
+                            .no_overwrite_dir_non_dir("true")
+                            .build(),
+                    ),
+                    body_full(request.archive.into()),
+                )
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::Copy, error))
+        })
+    }
+
+    fn port(&self, request: PortRequest) -> BoxEngineFuture<'_, Vec<PublishedPortBinding>> {
+        Box::pin(async move {
+            let inspected = self
+                .docker
+                .inspect_container(
+                    request.container.id.as_str(),
+                    Some(
+                        InspectContainerOptionsBuilder::default()
+                            .size(false)
+                            .build(),
+                    ),
+                )
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::Port, error))?;
+            let ports = inspected
+                .network_settings
+                .and_then(|settings| settings.ports)
+                .unwrap_or_default();
+            let mut bindings = Vec::new();
+            for (key, values) in ports {
+                let Some((private_port, protocol)) = parse_port_key(&key) else {
+                    continue;
+                };
+                if request
+                    .private_port
+                    .is_some_and(|requested| requested != private_port)
+                {
+                    continue;
+                }
+                if request
+                    .protocol
+                    .as_ref()
+                    .is_some_and(|requested| !requested.eq_ignore_ascii_case(protocol))
+                {
+                    continue;
+                }
+                for value in values.unwrap_or_default() {
+                    let Some(host_port) = value.host_port else {
+                        continue;
+                    };
+                    bindings.push(PublishedPortBinding {
+                        private_port,
+                        protocol: protocol.to_owned(),
+                        host_ip: value.host_ip,
+                        host_port,
+                    });
+                }
+            }
+            bindings.sort_by(|left, right| {
+                (
+                    left.private_port,
+                    left.protocol.as_str(),
+                    left.host_ip.as_deref(),
+                    left.host_port.as_str(),
+                )
+                    .cmp(&(
+                        right.private_port,
+                        right.protocol.as_str(),
+                        right.host_ip.as_deref(),
+                        right.host_port.as_str(),
+                    ))
+            });
+            Ok(bindings)
         })
     }
 }
@@ -815,4 +941,44 @@ fn log_event(output: LogOutput) -> LogEvent {
             line: String::from_utf8_lossy(&message).into_owned(),
         },
     }
+}
+
+fn engine_event(event: EventMessage) -> EngineEvent {
+    let EventMessage {
+        typ,
+        action,
+        actor,
+        time,
+        time_nano,
+        ..
+    } = event;
+    let EventActor { id, attributes } = actor.unwrap_or_default();
+    EngineEvent {
+        kind: typ
+            .map(|kind| kind.as_ref().to_owned())
+            .unwrap_or_else(|| "unknown".to_owned()),
+        action: action.unwrap_or_else(|| "unknown".to_owned()),
+        resource_id: id,
+        attributes: safe_event_attributes(attributes.unwrap_or_default()),
+        time,
+        time_nano,
+    }
+}
+
+fn safe_event_attributes(attributes: HashMap<String, String>) -> IndexMap<String, String> {
+    attributes
+        .into_iter()
+        .filter(|(key, _)| {
+            key.starts_with("io.susun.")
+                || matches!(
+                    key.as_str(),
+                    "container" | "exitCode" | "health_status" | "image" | "name" | "signal"
+                )
+        })
+        .collect()
+}
+
+fn parse_port_key(value: &str) -> Option<(u16, &str)> {
+    let (port, protocol) = value.split_once('/')?;
+    Some((port.parse().ok()?, protocol))
 }

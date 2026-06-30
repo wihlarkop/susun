@@ -17,18 +17,22 @@ workspace = true
 [dependencies]
 susun         = { workspace = true }
 susun-build   = { workspace = true }
+susun-compat  = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
 susun-engine  = { workspace = true }
 susun-engine-bollard = { workspace = true }
 susun-planner = { workspace = true, features = ["serde"] }
 susun-runtime = { workspace = true, features = ["serde"] }
 susun-source  = { workspace = true }
+susun-watch   = { workspace = true }
 clap          = { workspace = true }
 futures-util  = { workspace = true }
 indexmap      = { workspace = true }
 serde_json    = { workspace = true }
 susun-model   = { workspace = true }
+tar           = { workspace = true }
 tokio         = { workspace = true }
+tracing-subscriber = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = "2"

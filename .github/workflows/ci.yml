@@ -13,8 +13,19 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy
+      - run: bash scripts/check-architecture.sh
+      - run: bash scripts/check-diagnostics.sh
+      - run: bash scripts/check-schemas.sh
+      - run: bash scripts/check-release-policy.sh
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
       - run: RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
 
   test-stable:
@@ -27,13 +38,12 @@ jobs:
       - run: cargo test --doc --workspace
 
   test-msrv:
-    name: Test (MSRV 1.85)
+    name: MSRV (1.85)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.85
       - run: cargo check --workspace --all-targets
-      - run: cargo test --workspace
 
   features:
     name: Feature combinations
@@ -44,6 +54,51 @@ jobs:
       - run: cargo check -p susun-model --no-default-features
       - run: cargo check -p susun-model --features serde
       - run: cargo test  -p susun-model --features serde
+
+  supply-chain:
+    name: Supply chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check bans licenses sources
+      - run: cargo install cargo-audit --version 0.22.1 --locked
+      - run: cargo audit
+
+  semver:
+    name: Semver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo install cargo-semver-checks --version 0.48.0 --locked
+      - run: bash scripts/check-semver.sh
+
+  compatibility:
+    name: Compatibility artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: bash scripts/run-compatibility-matrix.sh
+      - run: bash scripts/generate-release-docs.sh
+      - run: git diff --exit-code -- docs/generated/capability-and-compatibility.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: compatibility-report
+          path: target/compatibility
+
+  benchmarks:
+    name: Benchmark compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo bench --workspace --no-run
 
   docker-integration:
     name: Docker integration
@@ -70,4 +125,4 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo test --workspace
+      - run: cargo check --workspace --all-targets

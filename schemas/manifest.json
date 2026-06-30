@@ -1,0 +1,56 @@
+{
+  "schema_package_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "artifacts": [
+    {
+      "name": "normalized-project",
+      "path": "schemas/normalized-project.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    {
+      "name": "diagnostics",
+      "path": "schemas/diagnostics.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    {
+      "name": "plan",
+      "path": "schemas/plan.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    {
+      "name": "execution-report",
+      "path": "schemas/execution-report.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    {
+      "name": "capabilities",
+      "path": "schemas/capabilities.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
+    },
+    {
+      "name": "compatibility-report",
+      "path": "schemas/compatibility-report.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
+    }
+  ]
+}

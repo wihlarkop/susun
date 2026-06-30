@@ -18,6 +18,7 @@ use susun_engine::{
 use susun_planner::{
     ActionId, ExecutionPlan, PlanAction, PlanActionNode, topological_action_order,
 };
+use tracing::{Instrument, debug, info, info_span};
 
 use crate::{
     ActionExecutionResult, ActionOutput, ActionStatus, CancellationToken, EventSink,
@@ -98,6 +99,23 @@ where
         plan: &ExecutionPlan,
         cancellation: CancellationToken,
     ) -> Result<ExecutionReport, RuntimeError> {
+        let span = info_span!(
+            "susun.runtime.plan",
+            project = %plan.project.name.as_str(),
+            working_set = %plan.project.working_set.as_str(),
+            plan_id = %plan.plan_id.as_str(),
+            operation = %plan.operation.as_str(),
+        );
+        self.apply_cancellable_inner(plan, cancellation)
+            .instrument(span)
+            .await
+    }
+
+    async fn apply_cancellable_inner(
+        &self,
+        plan: &ExecutionPlan,
+        cancellation: CancellationToken,
+    ) -> Result<ExecutionReport, RuntimeError> {
         validate_plan_for_execution(plan)?;
         self.engine
             .capabilities()
@@ -126,6 +144,7 @@ where
                 plan_id: plan.plan_id.clone(),
             })
             .await;
+        info!("runtime plan started");
 
         loop {
             while !cancellation.is_cancelled() && running.len() < self.options.max_concurrency.get()
@@ -161,11 +180,13 @@ where
                         action_id: action_id.clone(),
                     })
                     .await;
+                debug!(action_id = %action_id.as_str(), action_kind = %node.action.kind(), "runtime action queued");
                 self.events
                     .emit(RuntimeEvent::ActionStarted {
                         action_id: action_id.clone(),
                     })
                     .await;
+                info!(action_id = %action_id.as_str(), action_kind = %node.action.kind(), "runtime action started");
 
                 running.push(self.spawn_action(plan, action_id, node, outputs.clone()));
             }
@@ -185,6 +206,13 @@ where
                     status: result.status,
                 })
                 .await;
+            info!(
+                action_id = %action_id.as_str(),
+                action_kind = %action.kind(),
+                status = ?result.status,
+                attempts = result.attempts,
+                "runtime action finished"
+            );
 
             if result.status != ActionStatus::Succeeded {
                 failed.insert(action_id.clone());
@@ -202,6 +230,14 @@ where
                 summary: report.summary.clone(),
             })
             .await;
+        info!(
+            total_actions = report.summary.total_actions,
+            succeeded = report.summary.succeeded,
+            failed = report.summary.failed,
+            skipped = report.summary.skipped,
+            cancelled = report.summary.cancelled,
+            "runtime plan finished"
+        );
         Ok(report)
     }
 
@@ -223,6 +259,26 @@ where
     }
 
     async fn execute_action(
+        &self,
+        plan: &ExecutionPlan,
+        action_id: &ActionId,
+        action: &PlanAction,
+        outputs: &RuntimeOutputs,
+    ) -> ActionExecutionResult {
+        let span = info_span!(
+            "susun.runtime.action",
+            project = %plan.project.name.as_str(),
+            working_set = %plan.project.working_set.as_str(),
+            plan_id = %plan.plan_id.as_str(),
+            action_id = %action_id.as_str(),
+            action_kind = %action.kind(),
+        );
+        self.execute_action_traced(plan, action_id, action, outputs)
+            .instrument(span)
+            .await
+    }
+
+    async fn execute_action_traced(
         &self,
         plan: &ExecutionPlan,
         action_id: &ActionId,

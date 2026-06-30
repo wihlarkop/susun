@@ -265,6 +265,35 @@ pub struct WaitContainerResult {
     pub exit_code: i64,
 }
 
+/// Project-scoped event stream request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EventsRequest {
+    /// Project identity.
+    pub project: ProjectIdentity,
+}
+
+/// Neutral project event.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EngineEvent {
+    /// Resource kind that emitted the event.
+    pub kind: String,
+    /// Event action.
+    pub action: String,
+    /// Adapter resource identifier.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub resource_id: Option<String>,
+    /// Safe, redacted event attributes.
+    pub attributes: IndexMap<String, String>,
+    /// Event timestamp in seconds when supplied by the engine.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub time: Option<i64>,
+    /// Event timestamp in nanoseconds when supplied by the engine.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub time_nano: Option<i64>,
+}
+
 /// Remove-container options.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -312,6 +341,65 @@ pub struct ExecRequest {
 /// Exec output stream.
 pub type BoxExecStream =
     Pin<Box<dyn Stream<Item = Result<LogEvent, crate::EngineError>> + Send + 'static>>;
+
+/// Boxed neutral engine event stream.
+pub type BoxEventStream =
+    Pin<Box<dyn Stream<Item = Result<EngineEvent, crate::EngineError>> + Send + 'static>>;
+
+/// Copy archive request from a container path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CopyFromContainerRequest {
+    /// Container reference.
+    pub container: ContainerRef,
+    /// Container-side source path.
+    pub path: String,
+}
+
+/// Copy archive request to a container directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct CopyToContainerRequest {
+    /// Container reference.
+    pub container: ContainerRef,
+    /// Container-side destination directory.
+    pub path: String,
+    /// Tar archive bytes to extract into `path`.
+    pub archive: Vec<u8>,
+}
+
+/// Port query request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PortRequest {
+    /// Container reference.
+    pub container: ContainerRef,
+    /// Optional container-side port filter.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub private_port: Option<u16>,
+    /// Optional protocol filter.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub protocol: Option<String>,
+}
+
+/// Published port binding returned by an engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PublishedPortBinding {
+    /// Container-side port.
+    pub private_port: u16,
+    /// Transport protocol.
+    pub protocol: String,
+    /// Host IP when supplied by the engine.
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
+    pub host_ip: Option<String>,
+    /// Host-side published port.
+    pub host_port: String,
+}
+
+/// Boxed neutral byte stream.
+pub type BoxByteStream =
+    Pin<Box<dyn Stream<Item = Result<Vec<u8>, crate::EngineError>> + Send + 'static>>;
 
 /// Log event source stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
