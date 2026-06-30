@@ -100,3 +100,95 @@ impl OwnershipIndex {
         index
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{error::Error, time::SystemTime};
+
+    use indexmap::{IndexMap, IndexSet};
+    use susun_engine::{
+        ContainerId, ContainerState, ImageId, ObservedContainer, ObservedImageRef,
+        ProjectInstanceId, ReplicaIndex, ResourceName, ServiceInstanceId, SnapshotCompleteness,
+    };
+
+    use super::*;
+
+    #[test]
+    fn duplicate_owned_container_claims_are_not_indexed_as_safe_owners()
+    -> Result<(), Box<dyn Error>> {
+        let service = ServiceName::new("web");
+        let project = ProjectInstanceId::new("project-a")?;
+        let instance =
+            ServiceInstanceId::new(project.clone(), service.clone(), ReplicaIndex::FIRST);
+        let snapshot = EngineSnapshot {
+            observed_at: SystemTime::UNIX_EPOCH,
+            containers: IndexMap::from_iter([
+                (
+                    ContainerId::new("one")?,
+                    observed_container("one", "web-1", Some(instance.clone()))?,
+                ),
+                (
+                    ContainerId::new("two")?,
+                    observed_container("two", "web-2", Some(instance.clone()))?,
+                ),
+            ]),
+            networks: IndexMap::new(),
+            volumes: IndexMap::new(),
+            images: IndexMap::new(),
+        };
+
+        let index = OwnershipIndex::from_snapshot(&snapshot, &IndexSet::from_iter([service]));
+
+        assert!(!index.containers.contains_key(&instance));
+        assert_eq!(index.duplicate_claims.len(), 1);
+        assert_eq!(index.duplicate_claims[0].containers.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn foreign_name_conflicts_are_tracked_separately_from_owned_resources()
+    -> Result<(), Box<dyn Error>> {
+        let desired_name = ResourceName::new("web-1")?;
+        let snapshot = EngineSnapshot {
+            observed_at: SystemTime::UNIX_EPOCH,
+            containers: IndexMap::from_iter([(
+                ContainerId::new("foreign")?,
+                observed_container("foreign", desired_name.as_str(), None)?,
+            )]),
+            networks: IndexMap::new(),
+            volumes: IndexMap::new(),
+            images: IndexMap::new(),
+        };
+
+        let index = OwnershipIndex::from_snapshot_with_names(
+            &snapshot,
+            &IndexSet::new(),
+            &IndexSet::from_iter([desired_name.clone()]),
+        );
+
+        assert!(index.containers.is_empty());
+        assert_eq!(index.foreign_name_conflicts, vec![desired_name]);
+        Ok(())
+    }
+
+    fn observed_container(
+        id: &str,
+        name: &str,
+        service_identity: Option<ServiceInstanceId>,
+    ) -> Result<ObservedContainer, Box<dyn Error>> {
+        Ok(ObservedContainer {
+            id: ContainerId::new(id)?,
+            name: ResourceName::new(name)?,
+            state: ContainerState::Running,
+            health: None,
+            image: ObservedImageRef::Id(ImageId::new("image")?),
+            labels: IndexMap::new(),
+            project_identity: service_identity
+                .as_ref()
+                .map(|identity| identity.project.clone()),
+            service_identity,
+            configuration_fingerprint: None,
+            completeness: SnapshotCompleteness::Complete,
+        })
+    }
+}

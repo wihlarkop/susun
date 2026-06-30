@@ -27,3 +27,7 @@ serde = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+
+[dev-dependencies]
+susun-model = { workspace = true }
+susun-testkit = { workspace = true }
