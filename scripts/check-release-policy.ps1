@@ -48,8 +48,13 @@ if ($version -and $changelog -notmatch [regex]::Escape($version)) {
 if ($ci -notmatch 'cargo-semver-checks --version 0\.48\.0 --locked') {
     $failures.Add("CI must install pinned cargo-semver-checks 0.48.0")
 }
-if ($ci -notmatch 'cargo semver-checks check-release --workspace --baseline-rev origin/main') {
-    $failures.Add("CI must run cargo semver-checks check-release --workspace --baseline-rev origin/main")
+if ($ci -notmatch 'bash scripts/check-semver\.sh') {
+    $failures.Add("CI must run scripts/check-semver.sh")
+}
+
+$semverScript = Get-Content -LiteralPath "scripts/check-semver.sh" -Raw
+if ($semverScript -notmatch 'cargo semver-checks check-release --package "\$package" --baseline-rev "\$baseline"') {
+    $failures.Add("scripts/check-semver.sh must run package-scoped semver checks against the baseline")
 }
 
 if ($failures.Count -gt 0) {

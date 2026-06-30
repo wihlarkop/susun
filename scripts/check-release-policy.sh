@@ -35,8 +35,10 @@ grep -q "$version" CHANGELOG.md \
 
 grep -q 'cargo-semver-checks --version 0\.48\.0 --locked' .github/workflows/ci.yml \
   || fail "CI must install pinned cargo-semver-checks 0.48.0"
-grep -q 'cargo semver-checks check-release --workspace --baseline-rev origin/main' .github/workflows/ci.yml \
-  || fail "CI must run cargo semver-checks check-release --workspace --baseline-rev origin/main"
+grep -q 'bash scripts/check-semver\.sh' .github/workflows/ci.yml \
+  || fail "CI must run scripts/check-semver.sh"
+grep -q 'cargo semver-checks check-release --package "$package" --baseline-rev "$baseline"' scripts/check-semver.sh \
+  || fail "scripts/check-semver.sh must run package-scoped semver checks against the baseline"
 
 if [ "$failures" -ne 0 ]; then
   exit 1
