@@ -104,12 +104,14 @@ lines.extend([
     f"- Schema: {budgets['schema_version']['major']}.{budgets['schema_version']['minor']}",
     f"- Scope: {budgets['scope']}",
     "",
-    "| Budget | Target |",
-    "| --- | --- |",
+    "| Benchmark | Unit | Max | Description |",
+    "| --- | --- | --- | --- |",
 ])
 
 for budget in budgets["budgets"]:
-    lines.append(f"| {budget['name']} | {budget['budget']} |")
+    lines.append(
+        f"| {budget['name']} | {budget['unit']} | {budget['max']} | {budget['description']} |"
+    )
 
 if budgets.get("notes"):
     lines.extend(["", "Notes:"])

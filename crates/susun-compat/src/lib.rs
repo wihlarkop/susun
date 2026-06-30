@@ -10,6 +10,7 @@ pub mod error;
 pub mod harness;
 pub mod matrix;
 pub mod oracle;
+pub mod performance;
 pub mod security;
 
 pub use corpus::{
@@ -24,6 +25,10 @@ pub use matrix::{
 pub use oracle::{
     ComposeReference, FixtureConfig, OracleCommand, OracleConfig, OracleOperation,
     OracleSchemaVersion,
+};
+pub use performance::{
+    BenchmarkSample, BenchmarkUnit, PerformanceBudget, PerformanceBudgetManifest,
+    PerformanceReport, PerformanceReportResult, PerformanceSchemaVersion, PerformanceStatus,
 };
 pub use security::{
     SecurityAuditReport, SecurityFinding, SecurityFindingSeverity, audit_corpus_security,

@@ -35,6 +35,17 @@ pub enum CompatibilityError {
     #[error("compatibility corpus must include at least one fixture")]
     EmptyCorpus,
 
+    /// A performance budget manifest has no benchmark budgets.
+    #[error("performance budget manifest must include at least one budget")]
+    EmptyPerformanceBudgets,
+
+    /// A required benchmark sample was missing from a performance report.
+    #[error("missing performance sample for {name}")]
+    MissingPerformanceSample {
+        /// Required benchmark name.
+        name: String,
+    },
+
     /// A corpus manifest could not be parsed from JSON.
     #[cfg(feature = "serde")]
     #[error("failed to parse compatibility corpus manifest: {0}")]

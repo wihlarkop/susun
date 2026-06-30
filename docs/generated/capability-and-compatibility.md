@@ -78,15 +78,18 @@ Deferred coverage:
 ## Performance Budgets
 
 - Schema: 1.0
-- Scope: phase5-compatibility
+- Scope: cross-phase-performance
 
-| Budget | Target |
-| --- | --- |
-| capability_matrix_generation | 1000 iterations should remain sub-second on a GitHub ubuntu-latest runner |
-| corpus_manifest_parse | 200 parses should remain sub-second on a GitHub ubuntu-latest runner |
-| oracle_plan_generation | 1000 run-plan generations should remain sub-second on a GitHub ubuntu-latest runner |
+| Benchmark | Unit | Max | Description |
+| --- | --- | --- | --- |
+| analysis | microseconds | 10000 | Analyze a small Compose project through the public facade. |
+| planning | microseconds | 10000 | Create an execution plan from a small normalized project and empty snapshot. |
+| snapshot_indexing | microseconds | 5000 | Build project-scoped lookup structures from observed resources. |
+| convergence | microseconds | 5000 | Classify desired versus observed deployment state and emit decisions. |
+| build_context_enumeration | microseconds | 10000 | Resolve a bounded build context and produce its deterministic manifest. |
+| cli_startup | microseconds | 250000 | Start the CLI and render top-level help on a GitHub ubuntu-latest runner. |
 
 Notes:
-- These are guardrail budgets for compatibility artifact generation, not micro-benchmark guarantees.
-- Build context enumeration, parser-scale, and fingerprint budgets should move into dedicated benches when those workstreams are merged into this stack.
+- Budgets are directional before 1.0 and intended to catch unexplained regressions.
+- Runner-to-runner timing noise is expected; regressions require review rather than automatic release rejection before the baseline stabilizes.
 

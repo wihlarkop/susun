@@ -81,10 +81,10 @@ $lines.Add("")
 $lines.Add("- Schema: $($budgets.schema_version.major).$($budgets.schema_version.minor)")
 $lines.Add("- Scope: $($budgets.scope)")
 $lines.Add("")
-$lines.Add("| Budget | Target |")
-$lines.Add("| --- | --- |")
+$lines.Add("| Benchmark | Unit | Max | Description |")
+$lines.Add("| --- | --- | --- | --- |")
 foreach ($budget in $budgets.budgets) {
-    $lines.Add(("| {0} | {1} |" -f $budget.name, $budget.budget))
+    $lines.Add(("| {0} | {1} | {2} | {3} |" -f $budget.name, $budget.unit, $budget.max, $budget.description))
 }
 if ($budgets.notes.Count -gt 0) {
     $lines.Add("")

@@ -1240,6 +1240,11 @@ dependencies = [
  "indexmap",
  "serde",
  "serde_json",
+ "susun",
+ "susun-build",
+ "susun-convergence",
+ "susun-engine",
+ "susun-planner",
  "susun-secret",
  "thiserror",
 ]
