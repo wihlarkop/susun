@@ -17,7 +17,8 @@ import sys
 
 metadata = json.load(sys.stdin)
 for package in metadata["packages"]:
-    if package.get("source") is None:
+    has_lib = any("lib" in target.get("kind", []) for target in package["targets"])
+    if package.get("source") is None and has_lib:
         print(package["name"])
 ')"
 
@@ -27,7 +28,8 @@ import sys
 
 metadata = json.load(sys.stdin)
 for package in metadata["packages"]:
-    if package.get("source") is None:
+    has_lib = any("lib" in target.get("kind", []) for target in package["targets"])
+    if package.get("source") is None and has_lib:
         print(package["name"])
 ')"
 
