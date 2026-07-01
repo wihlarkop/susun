@@ -4,7 +4,8 @@ use std::{error::Error, path::PathBuf};
 
 use susun::{
     Analyzer, BuildPolicy, EngineCapabilities, EngineSnapshot, Error as SusunError, Project,
-    ProjectIdentity, ProjectInstanceId, ProjectName, SusunWorkspace, UpPlanOptions,
+    ProjectIdentity, ProjectInstanceId, ProjectName, ProjectSummarySchemaVersion, SusunWorkspace,
+    UpPlanOptions,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -15,6 +16,11 @@ fn valid_path() -> PathBuf {
 
 fn malformed_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cli/malformed/compose.yaml")
+}
+
+fn resources_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/compatibility/resources-configs-secrets/compose.yaml")
 }
 
 #[test]
@@ -65,6 +71,7 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let summary = project.summary();
 
+    assert_eq!(summary.schema_version, ProjectSummarySchemaVersion::CURRENT);
     assert_eq!(summary.project_name.as_deref(), Some("valid-minimal"));
     assert_eq!(summary.service_count, 1);
     assert_eq!(summary.active_service_count, 1);
@@ -76,7 +83,33 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     assert!(summary.project_instance.is_some());
 
     let json = serde_json::to_value(&summary)?;
+    assert_eq!(json["schema_version"]["major"], 1);
+    assert_eq!(json["schema_version"]["minor"], 0);
     assert_eq!(json["services"][0]["name"], "web");
+    Ok(())
+}
+
+#[test]
+fn workspace_summary_exposes_resource_references_without_secret_values() -> TestResult {
+    let project = SusunWorkspace::from_file(resources_path()).analyze()?;
+    let summary = project.summary();
+
+    assert_eq!(summary.project_name.as_deref(), Some("compat-resources"));
+    assert_eq!(summary.config_count, 1);
+    assert_eq!(summary.secret_count, 1);
+    assert_eq!(summary.configs[0].name, "app_config");
+    assert_eq!(summary.secrets[0].name, "app_secret");
+
+    let service = &summary.services[0];
+    assert_eq!(service.name, "worker");
+    assert_eq!(service.config_count, 1);
+    assert_eq!(service.secret_count, 1);
+    assert_eq!(service.configs, vec!["app_config"]);
+    assert_eq!(service.secrets, vec!["app_secret"]);
+
+    let json = serde_json::to_string(&summary)?;
+    assert!(!json.contains("super-secret"));
+    assert!(!json.contains("secret file contents"));
     Ok(())
 }
 

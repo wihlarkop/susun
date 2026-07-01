@@ -100,10 +100,31 @@ fn summary_json_prints_sdk_project_summary() -> TestResult {
         .arg("summary")
         .assert()
         .success()
+        .stdout(predicate::str::contains("\"schema_version\""))
+        .stdout(predicate::str::contains("\"major\": 1"))
         .stdout(predicate::str::contains("\"project_name\""))
         .stdout(predicate::str::contains("valid-minimal"))
         .stdout(predicate::str::contains("\"service_count\": 1"))
         .stdout(predicate::str::contains("\"name\": \"web\""));
+    Ok(())
+}
+
+#[test]
+fn summary_json_prints_resource_details_without_secret_values() -> TestResult {
+    susun()?
+        .args([
+            "-f",
+            &fixture("compatibility/resources-configs-secrets/compose.yaml"),
+        ])
+        .args(["--format", "json"])
+        .arg("summary")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"configs\""))
+        .stdout(predicate::str::contains("app_config"))
+        .stdout(predicate::str::contains("\"secrets\""))
+        .stdout(predicate::str::contains("app_secret"))
+        .stdout(predicate::str::contains("super-secret").not());
     Ok(())
 }
 
