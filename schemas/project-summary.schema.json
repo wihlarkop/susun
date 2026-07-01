@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.susun.dev/project-summary/1.0/schema.json",
+  "title": "Susun project summary",
+  "description": "Versioned SDK and CLI summary for desktop integrations and automation.",
+  "type": "object",
+  "x-susun-artifact": "project-summary",
+  "x-susun-version": {
+    "major": 1,
+    "minor": 0
+  },
+  "x-susun-secret-policy": "Project summaries expose resource counts, service names, image references, profile names, and dependency names, but must not serialize secret values.",
+  "required": [
+    "schema_version",
+    "project_name",
+    "project_instance",
+    "service_count",
+    "active_service_count",
+    "network_count",
+    "volume_count",
+    "config_count",
+    "secret_count",
+    "has_errors",
+    "diagnostic_count",
+    "services"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "#/$defs/schema_version"
+    },
+    "project_name": {
+      "type": ["string", "null"]
+    },
+    "project_instance": {
+      "type": ["string", "null"]
+    },
+    "service_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "active_service_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "network_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "volume_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "config_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "secret_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "has_errors": {
+      "type": "boolean"
+    },
+    "diagnostic_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/service_summary"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "schema_version": {
+      "type": "object",
+      "required": ["major", "minor"],
+      "properties": {
+        "major": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minor": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "service_summary": {
+      "type": "object",
+      "required": [
+        "name",
+        "active",
+        "image",
+        "has_build",
+        "profile_count",
+        "profiles",
+        "port_count",
+        "volume_count",
+        "dependency_count",
+        "dependencies"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "image": {
+          "type": ["string", "null"]
+        },
+        "has_build": {
+          "type": "boolean"
+        },
+        "profile_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "port_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "volume_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dependency_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

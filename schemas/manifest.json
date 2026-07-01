@@ -51,6 +51,14 @@
         "major": 1,
         "minor": 0
       }
+    },
+    {
+      "name": "project-summary",
+      "path": "schemas/project-summary.schema.json",
+      "version": {
+        "major": 1,
+        "minor": 0
+      }
     }
   ]
 }

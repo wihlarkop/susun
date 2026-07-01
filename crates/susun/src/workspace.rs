@@ -230,6 +230,8 @@ impl SdkProject {
 /// Serializable project summary for SDK consumers.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct ProjectSummary {
+    /// Serialized project summary schema version.
+    pub schema_version: ProjectSummarySchemaVersion,
     /// Project name, when analysis produced a canonical project.
     pub project_name: Option<String>,
     /// Opaque project instance ID, when analysis produced a canonical project.
@@ -258,6 +260,7 @@ impl ProjectSummary {
     fn from_sdk_project(project: &SdkProject) -> Self {
         let Some(canonical) = project.analysis.project.as_ref() else {
             return Self {
+                schema_version: ProjectSummarySchemaVersion::CURRENT,
                 project_name: None,
                 project_instance: None,
                 service_count: 0,
@@ -303,6 +306,7 @@ impl ProjectSummary {
             .collect();
 
         Self {
+            schema_version: ProjectSummarySchemaVersion::CURRENT,
             project_name: Some(canonical.name.as_str().to_owned()),
             project_instance: project
                 .identity
@@ -319,6 +323,20 @@ impl ProjectSummary {
             services,
         }
     }
+}
+
+/// Serialized project summary schema version.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+pub struct ProjectSummarySchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl ProjectSummarySchemaVersion {
+    /// Current project summary schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
 }
 
 /// Serializable service summary for SDK consumers.

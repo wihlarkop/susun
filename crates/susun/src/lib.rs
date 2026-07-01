@@ -28,8 +28,8 @@ pub use susun_planner::{
 };
 pub use susun_runtime::{ExecutionReport, RuntimeError};
 pub use workspace::{
-    ProjectSummary, SdkProject, ServiceSummary, SusunWorkspace, project_identity,
-    project_identity_from_name,
+    ProjectSummary, ProjectSummarySchemaVersion, SdkProject, ServiceSummary, SusunWorkspace,
+    project_identity, project_identity_from_name,
 };
 
 use thiserror::Error;

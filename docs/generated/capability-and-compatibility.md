@@ -117,9 +117,9 @@ Real-world compatibility gaps:
 ## Release Readiness
 
 - Version: 0.2.0
-- Phase: 8
-- Status: ready_for_sdk_consumer_iteration
-- Summary: Phase 8 makes the unpublished v0.2.0 SDK easier to consume through a high-level workspace facade, structured summaries, curated re-exports, CLI summary output, and release gates.
+- Phase: 9
+- Status: ready_for_cli_and_sdk_consumer_iteration
+- Summary: Phase 9 makes the unpublished v0.2.0 CLI and SDK easier to consume through versioned project summary output, schema evidence, high-level facade types, and release gates.
 
 | Gate | Command | Purpose |
 | --- | --- | --- |
@@ -131,9 +131,10 @@ Real-world compatibility gaps:
 | sdk-readiness | scripts/check-sdk-readiness.sh | Verify the high-level SDK facade, examples, and CLI summary surface. |
 | phase7 | scripts/gate-phase7.sh | Compose the Phase 7 release-hardening evidence gate. |
 | phase8 | scripts/gate-phase8.sh | Compose the Phase 8 SDK-readiness evidence gate. |
+| phase9 | scripts/gate-phase9.sh | Compose the Phase 9 CLI and SDK consumer-readiness evidence gate. |
 
 Release readiness deferred work:
 - Full Docker Compose bug compatibility is not claimed.
 - Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.
 - Susun Studio integration feedback may still drive v0.3.0 API polish before a public 1.0 contract.
-- CLI end-user polish beyond the SDK-backed summary command remains a later usability track.
+- CLI end-user polish beyond stable summary and plan surfaces remains a later usability track.

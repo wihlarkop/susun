@@ -25,8 +25,11 @@ elif f'version = "{version}"' not in workspace:
 elif f"## {version}" not in changelog:
     errors.append(f"CHANGELOG.md must contain section for {version}")
 
-if manifest.get("phase") != 8:
-    errors.append("phase must be 8")
+if manifest.get("phase") != 9:
+    errors.append("phase must be 9")
+
+if manifest.get("status") != "ready_for_cli_and_sdk_consumer_iteration":
+    errors.append("status must be ready_for_cli_and_sdk_consumer_iteration")
 
 gates = manifest.get("required_gates", [])
 if not gates:
