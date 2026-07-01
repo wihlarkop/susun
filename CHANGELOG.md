@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Phase 7 release-hardening evidence: real-world compatibility catalog,
+  release-readiness manifest, generated compatibility docs, and a Phase 7 gate.
+
 ## 0.2.0
 
 - Completed the Phase 2 through Phase 5 public surface: neutral planning,
