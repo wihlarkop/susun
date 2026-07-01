@@ -11,6 +11,7 @@ cargo run -p susun-cli -- compatibility --security-audit fixtures/compatibility/
 Copy-Item -LiteralPath "fixtures/compatibility/version-matrix.json" -Destination "$outDir/version-matrix.json" -Force
 Copy-Item -LiteralPath "fixtures/compatibility/performance-budgets.json" -Destination "$outDir/performance-budgets.json" -Force
 Copy-Item -LiteralPath "fixtures/compatibility/real-world-catalog.json" -Destination "$outDir/real-world-catalog.json" -Force
+Copy-Item -LiteralPath "fixtures/compatibility/release-readiness.json" -Destination "$outDir/release-readiness.json" -Force
 
 $matrix = Get-Content -LiteralPath "$outDir/capability-matrix.json" -Raw | ConvertFrom-Json
 $oracle = Get-Content -LiteralPath "$outDir/oracle-plan.json" -Raw | ConvertFrom-Json
@@ -18,6 +19,7 @@ $audit = Get-Content -LiteralPath "$outDir/security-audit.json" -Raw | ConvertFr
 $versions = Get-Content -LiteralPath "$outDir/version-matrix.json" -Raw | ConvertFrom-Json
 $budgets = Get-Content -LiteralPath "$outDir/performance-budgets.json" -Raw | ConvertFrom-Json
 $realWorld = Get-Content -LiteralPath "$outDir/real-world-catalog.json" -Raw | ConvertFrom-Json
+$readiness = Get-Content -LiteralPath "$outDir/release-readiness.json" -Raw | ConvertFrom-Json
 
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add("# Susun Capability and Compatibility Report")
@@ -121,6 +123,28 @@ if ($deferred.Count -gt 0) {
     $lines.Add("Real-world compatibility gaps:")
     foreach ($entry in $deferred) {
         $lines.Add("- $($entry.Title): $($entry.Item)")
+    }
+}
+
+$lines.Add("")
+$lines.Add("## Release Readiness")
+$lines.Add("")
+$lines.Add("- Version: $($readiness.release_version)")
+$lines.Add("- Phase: $($readiness.phase)")
+$lines.Add("- Status: $($readiness.status)")
+$lines.Add("- Summary: $($readiness.summary)")
+$lines.Add("")
+$lines.Add("| Gate | Command | Purpose |")
+$lines.Add("| --- | --- | --- |")
+foreach ($gate in @($readiness.required_gates)) {
+    $lines.Add(("| {0} | `{1}` | {2} |" -f $gate.id, $gate.command, $gate.purpose))
+}
+
+if (@($readiness.deferred).Count -gt 0) {
+    $lines.Add("")
+    $lines.Add("Release readiness deferred work:")
+    foreach ($item in @($readiness.deferred)) {
+        $lines.Add("- $item")
     }
 }
 

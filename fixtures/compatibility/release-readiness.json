@@ -1,0 +1,47 @@
+{
+  "schema_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "release_version": "0.2.0",
+  "phase": 7,
+  "status": "ready_for_unpublished_sdk_iteration",
+  "summary": "Phase 7 hardens the unpublished v0.2.0 SDK surface with release gates, compatibility evidence, and explicit deferred gaps.",
+  "required_gates": [
+    {
+      "id": "architecture",
+      "command": "scripts/check-architecture.sh",
+      "purpose": "Prevent backend-specific types and dependency boundary regressions."
+    },
+    {
+      "id": "diagnostics",
+      "command": "scripts/check-diagnostics.sh",
+      "purpose": "Keep diagnostic catalog codes governed and deterministic."
+    },
+    {
+      "id": "schemas",
+      "command": "scripts/check-schemas.sh",
+      "purpose": "Keep public JSON schemas versioned and valid."
+    },
+    {
+      "id": "release-policy",
+      "command": "scripts/check-release-policy.sh",
+      "purpose": "Enforce workspace version, MSRV, changelog, and semver policy wiring."
+    },
+    {
+      "id": "real-world-catalog",
+      "command": "scripts/check-real-world-catalog.sh",
+      "purpose": "Validate the release-facing real-world compatibility catalog."
+    },
+    {
+      "id": "phase7",
+      "command": "scripts/gate-phase7.sh",
+      "purpose": "Compose the Phase 7 release-hardening evidence gate."
+    }
+  ],
+  "deferred": [
+    "Full Docker Compose bug compatibility is not claimed.",
+    "Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.",
+    "Susun Studio integration feedback may drive v0.3.0 API polish before a public 1.0 contract."
+  ]
+}

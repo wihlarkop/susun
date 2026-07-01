@@ -12,6 +12,7 @@ cargo run -p susun-cli -- compatibility --security-audit fixtures/compatibility/
 cp fixtures/compatibility/version-matrix.json "$out_dir/version-matrix.json"
 cp fixtures/compatibility/performance-budgets.json "$out_dir/performance-budgets.json"
 cp fixtures/compatibility/real-world-catalog.json "$out_dir/real-world-catalog.json"
+cp fixtures/compatibility/release-readiness.json "$out_dir/release-readiness.json"
 
 python - "$out_dir" "$doc_path" <<'PY'
 import json
@@ -27,6 +28,7 @@ audit = json.loads((out_dir / "security-audit.json").read_text())
 versions = json.loads((out_dir / "version-matrix.json").read_text())
 budgets = json.loads((out_dir / "performance-budgets.json").read_text())
 real_world = json.loads((out_dir / "real-world-catalog.json").read_text())
+readiness = json.loads((out_dir / "release-readiness.json").read_text())
 
 lines = [
     "# Susun Capability and Compatibility Report",
@@ -146,6 +148,26 @@ if deferred:
     lines.extend(["", "Real-world compatibility gaps:"])
     for title, item in deferred:
         lines.append(f"- {title}: {item}")
+
+lines.extend([
+    "",
+    "## Release Readiness",
+    "",
+    f"- Version: {readiness['release_version']}",
+    f"- Phase: {readiness['phase']}",
+    f"- Status: {readiness['status']}",
+    f"- Summary: {readiness['summary']}",
+    "",
+    "| Gate | Command | Purpose |",
+    "| --- | --- | --- |",
+])
+
+for gate in readiness["required_gates"]:
+    lines.append(f"| {gate['id']} | `{gate['command']}` | {gate['purpose']} |")
+
+if readiness.get("deferred"):
+    lines.extend(["", "Release readiness deferred work:"])
+    lines.extend(f"- {item}" for item in readiness["deferred"])
 
 lines.append("")
 doc_path.write_text("\n".join(lines))

@@ -113,3 +113,24 @@ Real-world compatibility gaps:
 - Multi-file projects with runtime and convergence planning: Runtime parity still depends on Docker integration checks and is not claimed for every Compose edge case.
 - Develop/watch restart and sync workflows: Bidirectional sync, conflict handling, and platform-specific file event parity remain future work.
 - Include, extends, and YAML merge-tag loading: Remote includes and undocumented Docker Compose loader quirks remain explicitly deferred.
+
+## Release Readiness
+
+- Version: 0.2.0
+- Phase: 7
+- Status: ready_for_unpublished_sdk_iteration
+- Summary: Phase 7 hardens the unpublished v0.2.0 SDK surface with release gates, compatibility evidence, and explicit deferred gaps.
+
+| Gate | Command | Purpose |
+| --- | --- | --- |
+| architecture | scripts/check-architecture.sh | Prevent backend-specific types and dependency boundary regressions. |
+| diagnostics | scripts/check-diagnostics.sh | Keep diagnostic catalog codes governed and deterministic. |
+| schemas | scripts/check-schemas.sh | Keep public JSON schemas versioned and valid. |
+| release-policy | scripts/check-release-policy.sh | Enforce workspace version, MSRV, changelog, and semver policy wiring. |
+| real-world-catalog | scripts/check-real-world-catalog.sh | Validate the release-facing real-world compatibility catalog. |
+| phase7 | scripts/gate-phase7.sh | Compose the Phase 7 release-hardening evidence gate. |
+
+Release readiness deferred work:
+- Full Docker Compose bug compatibility is not claimed.
+- Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.
+- Susun Studio integration feedback may drive v0.3.0 API polish before a public 1.0 contract.
