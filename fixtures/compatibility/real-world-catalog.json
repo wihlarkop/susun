@@ -37,7 +37,7 @@
       "consumer_relevance": ["sdk", "susun-studio"],
       "evidence": "Covers config and secret resource modeling without exposing secret file contents in compatibility artifacts.",
       "deferred": [
-        "External secret providers are intentionally outside the v0.2.0 supported subset."
+        "External secret providers are intentionally outside the v0.1.0 supported subset."
       ]
     },
     {

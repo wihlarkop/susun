@@ -19,12 +19,12 @@ if (-not $version) {
     $errors.Add("CHANGELOG.md must contain section for $version")
 }
 
-if ($manifest.phase -ne 9) {
-    $errors.Add("phase must be 9")
+if ($manifest.phase -ne 10) {
+    $errors.Add("phase must be 10")
 }
 
-if ($manifest.status -ne "ready_for_cli_and_sdk_consumer_iteration") {
-    $errors.Add("status must be ready_for_cli_and_sdk_consumer_iteration")
+if ($manifest.status -ne "ready_for_0_1_0_release_candidate") {
+    $errors.Add("status must be ready_for_0_1_0_release_candidate")
 }
 
 $gates = @($manifest.required_gates)

@@ -5,7 +5,7 @@
 ## Capability Matrix
 
 - Schema: 1.0
-- Susun version: 0.2.0
+- Susun version: 0.1.0
 - Compose reference: Docker Compose documented
 
 | Feature | Support | Scope |
@@ -109,17 +109,17 @@ Notes:
 
 Real-world compatibility gaps:
 - Image build context with Dockerfile, args, cache hints, SSH, and secret identities: Full remote BuildKit parity and registry credential flows remain release-gated future work.
-- File-backed Compose configs and secrets: External secret providers are intentionally outside the v0.2.0 supported subset.
+- File-backed Compose configs and secrets: External secret providers are intentionally outside the v0.1.0 supported subset.
 - Multi-file projects with runtime and convergence planning: Runtime parity still depends on Docker integration checks and is not claimed for every Compose edge case.
 - Develop/watch restart and sync workflows: Bidirectional sync, conflict handling, and platform-specific file event parity remain future work.
 - Include, extends, and YAML merge-tag loading: Remote includes and undocumented Docker Compose loader quirks remain explicitly deferred.
 
 ## Release Readiness
 
-- Version: 0.2.0
-- Phase: 9
-- Status: ready_for_cli_and_sdk_consumer_iteration
-- Summary: Phase 9 makes the unpublished v0.2.0 CLI and SDK easier to consume through versioned project summary output, schema evidence, high-level facade types, and release gates.
+- Version: 0.1.0
+- Phase: 10
+- Status: ready_for_0_1_0_release_candidate
+- Summary: Phase 10 marks the current Susun roadmap complete for the first unpublished 0.1.0 release candidate, with SDK, CLI, compatibility, schema, and release gates in place.
 
 | Gate | Command | Purpose |
 | --- | --- | --- |
@@ -132,6 +132,7 @@ Real-world compatibility gaps:
 | phase7 | scripts/gate-phase7.sh | Compose the Phase 7 release-hardening evidence gate. |
 | phase8 | scripts/gate-phase8.sh | Compose the Phase 8 SDK-readiness evidence gate. |
 | phase9 | scripts/gate-phase9.sh | Compose the Phase 9 CLI and SDK consumer-readiness evidence gate. |
+| phase10 | scripts/gate-phase10.sh | Compose the Phase 10 first-release readiness gate for 0.1.0. |
 
 Release readiness deferred work:
 - Full Docker Compose bug compatibility is not claimed.

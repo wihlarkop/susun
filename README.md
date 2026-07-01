@@ -3,10 +3,10 @@
 Susun is a Rust SDK and CLI for loading, normalizing, validating, planning, and
 running Docker Compose projects through structured Rust APIs.
 
-The current unpublished `0.2.0` line covers the documented v0.2 supported
-subset: Compose analysis, daemon-free planning, Docker runtime execution,
-convergence decisions, BuildKit-oriented build inputs, compatibility evidence,
-and release-readiness gates.
+The current unpublished `0.1.0` line is the first public release candidate. It
+covers Compose analysis, daemon-free planning, Docker runtime execution,
+convergence decisions, BuildKit-oriented build inputs, SDK/CLI consumer
+contracts, compatibility evidence, and release-readiness gates.
 
 ## SDK
 

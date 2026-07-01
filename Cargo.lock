@@ -1040,7 +1040,7 @@ dependencies = [
 
 [[package]]
 name = "saphyr-spike"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "hashlink",
  "saphyr",
@@ -1179,7 +1179,7 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "susun"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1203,7 +1203,7 @@ dependencies = [
 
 [[package]]
 name = "susun-build"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "sha2",
@@ -1215,7 +1215,7 @@ dependencies = [
 
 [[package]]
 name = "susun-cli"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -1241,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "susun-compat"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "serde",
@@ -1257,7 +1257,7 @@ dependencies = [
 
 [[package]]
 name = "susun-convergence"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "serde",
@@ -1274,7 +1274,7 @@ dependencies = [
 
 [[package]]
 name = "susun-diagnostics"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "susun-source",
  "thiserror",
@@ -1282,7 +1282,7 @@ dependencies = [
 
 [[package]]
 name = "susun-engine"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "futures-core",
  "indexmap",
@@ -1293,7 +1293,7 @@ dependencies = [
 
 [[package]]
 name = "susun-engine-bollard"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "bollard",
  "futures-util",
@@ -1307,7 +1307,7 @@ dependencies = [
 
 [[package]]
 name = "susun-graph"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "susun-diagnostics",
@@ -1317,7 +1317,7 @@ dependencies = [
 
 [[package]]
 name = "susun-loader"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "saphyr",
@@ -1331,7 +1331,7 @@ dependencies = [
 
 [[package]]
 name = "susun-model"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "serde",
@@ -1340,7 +1340,7 @@ dependencies = [
 
 [[package]]
 name = "susun-normalize"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "susun-diagnostics",
@@ -1352,7 +1352,7 @@ dependencies = [
 
 [[package]]
 name = "susun-planner"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "serde",
@@ -1368,7 +1368,7 @@ dependencies = [
 
 [[package]]
 name = "susun-runtime"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "futures-util",
  "indexmap",
@@ -1384,14 +1384,14 @@ dependencies = [
 
 [[package]]
 name = "susun-secret"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "susun-source"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "tempfile",
  "thiserror",
@@ -1399,7 +1399,7 @@ dependencies = [
 
 [[package]]
 name = "susun-testkit"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "indexmap",
  "susun-build",
@@ -1413,7 +1413,7 @@ dependencies = [
 
 [[package]]
 name = "susun-validation"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "susun-diagnostics",
  "susun-model",
@@ -1422,7 +1422,7 @@ dependencies = [
 
 [[package]]
 name = "susun-watch"
-version = "0.2.0"
+version = "0.1.0"
 dependencies = [
  "notify",
  "susun-build",

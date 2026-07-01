@@ -2,27 +2,27 @@
 
 ## Unreleased
 
-- Added Phase 8 SDK readiness surface: `SusunWorkspace`, `SdkProject`,
-  serializable project/service summaries, daemon-free dry-run helpers, and the
-  `susun summary` CLI command, plus curated facade re-exports for common SDK
-  model, planner, engine, and runtime types.
-- Added Phase 7 release-hardening evidence: real-world compatibility catalog,
-  release-readiness manifest, generated compatibility docs, and a Phase 7 gate.
-
-## 0.2.0
-
-- Completed the Phase 2 through Phase 5 public surface: neutral planning,
-  Docker runtime operations, convergence, build compatibility, advanced Compose
-  loading, watch support, and compatibility reporting.
-- Added new public engine operation variants for events, copy, and port
-  operations. This is a pre-1.0 breaking API expansion from `0.1.x`.
+- No released changes yet.
 
 ## 0.1.0
 
+- First public release candidate for Susun.
 - Expanded the Phase 1 canonical model with Compose resources, service
   references, dependencies, healthchecks, restart policies, and profiles.
 - Added active profile selection, semantic validation, and deterministic
   dependency graph construction.
 - Added JSON diagnostic rendering behind the `susun` facade and completed the
   basic CLI flags for diagnostic format, quiet mode, and color policy.
+- Completed the Phase 2 through Phase 5 public surface: neutral planning,
+  Docker runtime operations, convergence, build compatibility, advanced Compose
+  loading, watch support, and compatibility reporting.
+- Added Phase 7 release-hardening evidence: real-world compatibility catalog,
+  release-readiness manifest, generated compatibility docs, and release gates.
+- Added Phase 8 SDK readiness surface: `SusunWorkspace`, `SdkProject`,
+  serializable project/service summaries, daemon-free dry-run helpers, and the
+  `susun summary` CLI command, plus curated facade re-exports for common SDK
+  model, planner, engine, and runtime types.
+- Added Phase 9 CLI and SDK consumer readiness: versioned project summary JSON,
+  project-summary schema, richer resource summaries, SDK example, and
+  consumer-readiness gates.
 - Replaced the placeholder README with Phase 1 usage and scope documentation.

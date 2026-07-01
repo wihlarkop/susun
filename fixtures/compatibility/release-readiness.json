@@ -3,10 +3,10 @@
     "major": 1,
     "minor": 0
   },
-  "release_version": "0.2.0",
-  "phase": 9,
-  "status": "ready_for_cli_and_sdk_consumer_iteration",
-  "summary": "Phase 9 makes the unpublished v0.2.0 CLI and SDK easier to consume through versioned project summary output, schema evidence, high-level facade types, and release gates.",
+  "release_version": "0.1.0",
+  "phase": 10,
+  "status": "ready_for_0_1_0_release_candidate",
+  "summary": "Phase 10 marks the current Susun roadmap complete for the first unpublished 0.1.0 release candidate, with SDK, CLI, compatibility, schema, and release gates in place.",
   "required_gates": [
     {
       "id": "architecture",
@@ -52,6 +52,11 @@
       "id": "phase9",
       "command": "scripts/gate-phase9.sh",
       "purpose": "Compose the Phase 9 CLI and SDK consumer-readiness evidence gate."
+    },
+    {
+      "id": "phase10",
+      "command": "scripts/gate-phase10.sh",
+      "purpose": "Compose the Phase 10 first-release readiness gate for 0.1.0."
     }
   ],
   "deferred": [
