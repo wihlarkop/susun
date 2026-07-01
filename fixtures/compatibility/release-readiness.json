@@ -4,9 +4,9 @@
     "minor": 0
   },
   "release_version": "0.2.0",
-  "phase": 7,
-  "status": "ready_for_unpublished_sdk_iteration",
-  "summary": "Phase 7 hardens the unpublished v0.2.0 SDK surface with release gates, compatibility evidence, and explicit deferred gaps.",
+  "phase": 8,
+  "status": "ready_for_sdk_consumer_iteration",
+  "summary": "Phase 8 makes the unpublished v0.2.0 SDK easier to consume through a high-level workspace facade, structured summaries, curated re-exports, CLI summary output, and release gates.",
   "required_gates": [
     {
       "id": "architecture",
@@ -34,14 +34,25 @@
       "purpose": "Validate the release-facing real-world compatibility catalog."
     },
     {
+      "id": "sdk-readiness",
+      "command": "scripts/check-sdk-readiness.sh",
+      "purpose": "Verify the high-level SDK facade, examples, and CLI summary surface."
+    },
+    {
       "id": "phase7",
       "command": "scripts/gate-phase7.sh",
       "purpose": "Compose the Phase 7 release-hardening evidence gate."
+    },
+    {
+      "id": "phase8",
+      "command": "scripts/gate-phase8.sh",
+      "purpose": "Compose the Phase 8 SDK-readiness evidence gate."
     }
   ],
   "deferred": [
     "Full Docker Compose bug compatibility is not claimed.",
     "Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.",
-    "Susun Studio integration feedback may drive v0.3.0 API polish before a public 1.0 contract."
+    "Susun Studio integration feedback may still drive v0.3.0 API polish before a public 1.0 contract.",
+    "CLI end-user polish beyond the SDK-backed summary command remains a later usability track."
   ]
 }

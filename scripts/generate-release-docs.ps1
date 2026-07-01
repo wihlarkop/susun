@@ -137,7 +137,7 @@ $lines.Add("")
 $lines.Add("| Gate | Command | Purpose |")
 $lines.Add("| --- | --- | --- |")
 foreach ($gate in @($readiness.required_gates)) {
-    $lines.Add(("| {0} | `{1}` | {2} |" -f $gate.id, $gate.command, $gate.purpose))
+    $lines.Add(("| {0} | {1} | {2} |" -f $gate.id, $gate.command, $gate.purpose))
 }
 
 if (@($readiness.deferred).Count -gt 0) {

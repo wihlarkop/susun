@@ -27,6 +27,7 @@ jobs:
       - run: bash scripts/check-release-policy.sh
       - run: bash scripts/check-real-world-catalog.sh
       - run: bash scripts/check-release-readiness.sh
+      - run: bash scripts/check-sdk-readiness.sh
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
 

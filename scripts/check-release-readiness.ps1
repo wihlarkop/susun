@@ -19,8 +19,8 @@ if (-not $version) {
     $errors.Add("CHANGELOG.md must contain section for $version")
 }
 
-if ($manifest.phase -ne 7) {
-    $errors.Add("phase must be 7")
+if ($manifest.phase -ne 8) {
+    $errors.Add("phase must be 8")
 }
 
 $gates = @($manifest.required_gates)
