@@ -1,0 +1,80 @@
+{
+  "schema_version": {
+    "major": 1,
+    "minor": 0
+  },
+  "name": "phase7-real-world-compatibility",
+  "description": "Release-facing index of real-world Docker Compose patterns covered by the current Susun compatibility corpus.",
+  "patterns": [
+    {
+      "id": "single-service-config-plan",
+      "title": "Single service config, analysis, and dry-run planning",
+      "support": "supported",
+      "fixtures": ["analysis-minimal"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["sdk", "susun-studio"],
+      "evidence": "Covers the smallest useful application shape for SDK consumers and Studio project import.",
+      "deferred": []
+    },
+    {
+      "id": "build-context-with-secrets",
+      "title": "Image build context with Dockerfile, args, cache hints, SSH, and secret identities",
+      "support": "supported_subset",
+      "fixtures": ["build-context"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["sdk", "susun-studio"],
+      "evidence": "Covers neutral build input modeling, dockerignore handling, and redacted build secret identities.",
+      "deferred": [
+        "Full remote BuildKit parity and registry credential flows remain release-gated future work."
+      ]
+    },
+    {
+      "id": "configs-and-secrets",
+      "title": "File-backed Compose configs and secrets",
+      "support": "supported_subset",
+      "fixtures": ["resources-configs-secrets"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["sdk", "susun-studio"],
+      "evidence": "Covers config and secret resource modeling without exposing secret file contents in compatibility artifacts.",
+      "deferred": [
+        "External secret providers are intentionally outside the v0.2.0 supported subset."
+      ]
+    },
+    {
+      "id": "multi-file-runtime-convergence",
+      "title": "Multi-file projects with runtime and convergence planning",
+      "support": "supported_subset",
+      "fixtures": ["override-runtime-convergence"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["sdk", "susun-studio"],
+      "evidence": "Covers override files, ports, volumes, dependencies, runtime command inputs, and convergence planning evidence.",
+      "deferred": [
+        "Runtime parity still depends on Docker integration checks and is not claimed for every Compose edge case."
+      ]
+    },
+    {
+      "id": "watch-develop-workflows",
+      "title": "Develop/watch restart and sync workflows",
+      "support": "experimental",
+      "fixtures": ["watch-develop"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["susun-studio"],
+      "evidence": "Covers the initial watch/develop model used by desktop tooling experiments.",
+      "deferred": [
+        "Bidirectional sync, conflict handling, and platform-specific file event parity remain future work."
+      ]
+    },
+    {
+      "id": "advanced-loading",
+      "title": "Include, extends, and YAML merge-tag loading",
+      "support": "experimental",
+      "fixtures": ["advanced-loading"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["sdk", "susun-studio"],
+      "evidence": "Covers advanced loading metadata and parser behavior without treating every Compose extension as stable.",
+      "deferred": [
+        "Remote includes and undocumented Docker Compose loader quirks remain explicitly deferred."
+      ]
+    }
+  ]
+}

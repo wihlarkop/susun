@@ -92,3 +92,24 @@ Deferred coverage:
 Notes:
 - Budgets are directional before 1.0 and intended to catch unexplained regressions.
 - Runner-to-runner timing noise is expected; regressions require review rather than automatic release rejection before the baseline stabilizes.
+
+## Real-World Compatibility
+
+- Catalog: phase7-real-world-compatibility
+- Patterns: 6
+
+| Pattern | Support | Fixtures | Operations | Evidence |
+| --- | --- | --- | --- | --- |
+| Include, extends, and YAML merge-tag loading | experimental | advanced-loading | config, analyze, plan | Covers advanced loading metadata and parser behavior without treating every Compose extension as stable. |
+| Image build context with Dockerfile, args, cache hints, SSH, and secret identities | supported_subset | build-context | config, analyze, plan | Covers neutral build input modeling, dockerignore handling, and redacted build secret identities. |
+| File-backed Compose configs and secrets | supported_subset | resources-configs-secrets | config, analyze, plan | Covers config and secret resource modeling without exposing secret file contents in compatibility artifacts. |
+| Multi-file projects with runtime and convergence planning | supported_subset | override-runtime-convergence | config, analyze, plan | Covers override files, ports, volumes, dependencies, runtime command inputs, and convergence planning evidence. |
+| Single service config, analysis, and dry-run planning | supported | analysis-minimal | config, analyze, plan | Covers the smallest useful application shape for SDK consumers and Studio project import. |
+| Develop/watch restart and sync workflows | experimental | watch-develop | config, analyze, plan | Covers the initial watch/develop model used by desktop tooling experiments. |
+
+Real-world compatibility gaps:
+- Image build context with Dockerfile, args, cache hints, SSH, and secret identities: Full remote BuildKit parity and registry credential flows remain release-gated future work.
+- File-backed Compose configs and secrets: External secret providers are intentionally outside the v0.2.0 supported subset.
+- Multi-file projects with runtime and convergence planning: Runtime parity still depends on Docker integration checks and is not claimed for every Compose edge case.
+- Develop/watch restart and sync workflows: Bidirectional sync, conflict handling, and platform-specific file event parity remain future work.
+- Include, extends, and YAML merge-tag loading: Remote includes and undocumented Docker Compose loader quirks remain explicitly deferred.

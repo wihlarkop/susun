@@ -10,12 +10,14 @@ cargo run -p susun-cli -- compatibility --corpus fixtures/compatibility/corpus.j
 cargo run -p susun-cli -- compatibility --security-audit fixtures/compatibility/corpus.json | Set-Content -LiteralPath "$outDir/security-audit.json"
 Copy-Item -LiteralPath "fixtures/compatibility/version-matrix.json" -Destination "$outDir/version-matrix.json" -Force
 Copy-Item -LiteralPath "fixtures/compatibility/performance-budgets.json" -Destination "$outDir/performance-budgets.json" -Force
+Copy-Item -LiteralPath "fixtures/compatibility/real-world-catalog.json" -Destination "$outDir/real-world-catalog.json" -Force
 
 $matrix = Get-Content -LiteralPath "$outDir/capability-matrix.json" -Raw | ConvertFrom-Json
 $oracle = Get-Content -LiteralPath "$outDir/oracle-plan.json" -Raw | ConvertFrom-Json
 $audit = Get-Content -LiteralPath "$outDir/security-audit.json" -Raw | ConvertFrom-Json
 $versions = Get-Content -LiteralPath "$outDir/version-matrix.json" -Raw | ConvertFrom-Json
 $budgets = Get-Content -LiteralPath "$outDir/performance-budgets.json" -Raw | ConvertFrom-Json
+$realWorld = Get-Content -LiteralPath "$outDir/real-world-catalog.json" -Raw | ConvertFrom-Json
 
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add("# Susun Capability and Compatibility Report")
@@ -91,6 +93,34 @@ if ($budgets.notes.Count -gt 0) {
     $lines.Add("Notes:")
     foreach ($note in $budgets.notes) {
         $lines.Add("- $note")
+    }
+}
+
+$lines.Add("")
+$lines.Add("## Real-World Compatibility")
+$lines.Add("")
+$lines.Add("- Catalog: $($realWorld.name)")
+$lines.Add("- Patterns: $(@($realWorld.patterns).Count)")
+$lines.Add("")
+$lines.Add("| Pattern | Support | Fixtures | Operations | Evidence |")
+$lines.Add("| --- | --- | --- | --- | --- |")
+foreach ($pattern in @($realWorld.patterns) | Sort-Object id) {
+    $fixtures = (@($pattern.fixtures) -join ", ")
+    $operations = (@($pattern.operations) -join ", ")
+    $lines.Add(("| {0} | {1} | {2} | {3} | {4} |" -f $pattern.title, $pattern.support, $fixtures, $operations, $pattern.evidence))
+}
+
+$deferred = New-Object System.Collections.Generic.List[object]
+foreach ($pattern in @($realWorld.patterns)) {
+    foreach ($item in @($pattern.deferred)) {
+        $deferred.Add([PSCustomObject]@{ Title = $pattern.title; Item = $item })
+    }
+}
+if ($deferred.Count -gt 0) {
+    $lines.Add("")
+    $lines.Add("Real-world compatibility gaps:")
+    foreach ($entry in $deferred) {
+        $lines.Add("- $($entry.Title): $($entry.Item)")
     }
 }
 

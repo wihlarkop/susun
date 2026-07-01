@@ -11,6 +11,7 @@ cargo run -p susun-cli -- compatibility --corpus fixtures/compatibility/corpus.j
 cargo run -p susun-cli -- compatibility --security-audit fixtures/compatibility/corpus.json > "$out_dir/security-audit.json"
 cp fixtures/compatibility/version-matrix.json "$out_dir/version-matrix.json"
 cp fixtures/compatibility/performance-budgets.json "$out_dir/performance-budgets.json"
+cp fixtures/compatibility/real-world-catalog.json "$out_dir/real-world-catalog.json"
 
 python - "$out_dir" "$doc_path" <<'PY'
 import json
@@ -25,6 +26,7 @@ oracle = json.loads((out_dir / "oracle-plan.json").read_text())
 audit = json.loads((out_dir / "security-audit.json").read_text())
 versions = json.loads((out_dir / "version-matrix.json").read_text())
 budgets = json.loads((out_dir / "performance-budgets.json").read_text())
+real_world = json.loads((out_dir / "real-world-catalog.json").read_text())
 
 lines = [
     "# Susun Capability and Compatibility Report",
@@ -116,6 +118,34 @@ for budget in budgets["budgets"]:
 if budgets.get("notes"):
     lines.extend(["", "Notes:"])
     lines.extend(f"- {note}" for note in budgets["notes"])
+
+lines.extend([
+    "",
+    "## Real-World Compatibility",
+    "",
+    f"- Catalog: {real_world['name']}",
+    f"- Patterns: {len(real_world['patterns'])}",
+    "",
+    "| Pattern | Support | Fixtures | Operations | Evidence |",
+    "| --- | --- | --- | --- | --- |",
+])
+
+for pattern in sorted(real_world["patterns"], key=lambda item: item["id"]):
+    fixtures = ", ".join(pattern["fixtures"])
+    operations = ", ".join(pattern["operations"])
+    lines.append(
+        f"| {pattern['title']} | {pattern['support']} | {fixtures} | {operations} | {pattern['evidence']} |"
+    )
+
+deferred = [
+    (pattern["title"], item)
+    for pattern in real_world["patterns"]
+    for item in pattern.get("deferred", [])
+]
+if deferred:
+    lines.extend(["", "Real-world compatibility gaps:"])
+    for title, item in deferred:
+        lines.append(f"- {title}: {item}")
 
 lines.append("")
 doc_path.write_text("\n".join(lines))
