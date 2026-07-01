@@ -131,6 +131,26 @@
       ],
       "license": "project-owned",
       "secret_hygiene": "no_secrets"
+    },
+    {
+      "id": "profiled-web-stack",
+      "description": "Profiled web application stack with dependencies, healthchecks, named volumes, custom networks, ports, labels, restart policy, and interpolation.",
+      "project_dir": "fixtures/compatibility/profiled-web-stack",
+      "compose_files": [
+        "compose.yaml"
+      ],
+      "operations": [
+        "config",
+        "analyze",
+        "plan"
+      ],
+      "coverage": [
+        "analysis",
+        "config",
+        "plan"
+      ],
+      "license": "project-owned",
+      "secret_hygiene": "synthetic_only"
     }
   ]
 }

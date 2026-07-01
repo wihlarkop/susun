@@ -75,6 +75,18 @@
       "deferred": [
         "Remote includes and undocumented Docker Compose loader quirks remain explicitly deferred."
       ]
+    },
+    {
+      "id": "profiled-web-app-stack",
+      "title": "Profiled web application stack with database dependency",
+      "support": "supported_subset",
+      "fixtures": ["profiled-web-stack"],
+      "operations": ["config", "analyze", "plan"],
+      "consumer_relevance": ["sdk", "susun-studio"],
+      "evidence": "Covers a more realistic Studio import target with active/default services, profiled dev service, service_healthy dependency, healthchecks, restart policy, labels, named volumes, custom networks, host-bound port, and environment interpolation.",
+      "deferred": [
+        "Runtime health behavior and database readiness are modeled for planning evidence but are not executed as part of this fixture."
+      ]
     }
   ]
 }

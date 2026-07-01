@@ -36,7 +36,7 @@
 
 ## Compatibility Corpus
 
-- Fixtures: 6
+- Fixtures: 7
 
 | Fixture | Operations |
 | --- | --- |
@@ -44,14 +44,15 @@
 | analysis-minimal | analyze, config, plan |
 | build-context | analyze, config, plan |
 | override-runtime-convergence | analyze, config, plan |
+| profiled-web-stack | analyze, config, plan |
 | resources-configs-secrets | analyze, config, plan |
 | watch-develop | analyze, config, plan |
 
 ## Security Audit
 
 - Corpus: phase5-core
-- Fixture count: 6
-- Findings: 6
+- Fixture count: 7
+- Findings: 7
 
 | Severity | Code | Fixture | Message |
 | --- | --- | --- | --- |
@@ -61,6 +62,7 @@
 | info | SUS-COMPAT-SEC-NO-SECRETS | override-runtime-convergence | fixture declares no secret material |
 | info | SUS-COMPAT-SEC-NO-SECRETS | watch-develop | fixture declares no secret material |
 | info | SUS-COMPAT-SEC-NO-SECRETS | advanced-loading | fixture declares no secret material |
+| info | SUS-COMPAT-SEC-SYNTHETIC | profiled-web-stack | fixture uses synthetic placeholder secret material only |
 
 ## Version Matrix
 
@@ -96,7 +98,7 @@ Notes:
 ## Real-World Compatibility
 
 - Catalog: phase7-real-world-compatibility
-- Patterns: 6
+- Patterns: 7
 
 | Pattern | Support | Fixtures | Operations | Evidence |
 | --- | --- | --- | --- | --- |
@@ -104,6 +106,7 @@ Notes:
 | Image build context with Dockerfile, args, cache hints, SSH, and secret identities | supported_subset | build-context | config, analyze, plan | Covers neutral build input modeling, dockerignore handling, and redacted build secret identities. |
 | File-backed Compose configs and secrets | supported_subset | resources-configs-secrets | config, analyze, plan | Covers config and secret resource modeling without exposing secret file contents in compatibility artifacts. |
 | Multi-file projects with runtime and convergence planning | supported_subset | override-runtime-convergence | config, analyze, plan | Covers override files, ports, volumes, dependencies, runtime command inputs, and convergence planning evidence. |
+| Profiled web application stack with database dependency | supported_subset | profiled-web-stack | config, analyze, plan | Covers a more realistic Studio import target with active/default services, profiled dev service, service_healthy dependency, healthchecks, restart policy, labels, named volumes, custom networks, host-bound port, and environment interpolation. |
 | Single service config, analysis, and dry-run planning | supported | analysis-minimal | config, analyze, plan | Covers the smallest useful application shape for SDK consumers and Studio project import. |
 | Develop/watch restart and sync workflows | experimental | watch-develop | config, analyze, plan | Covers the initial watch/develop model used by desktop tooling experiments. |
 
@@ -113,13 +116,14 @@ Real-world compatibility gaps:
 - Multi-file projects with runtime and convergence planning: Runtime parity still depends on Docker integration checks and is not claimed for every Compose edge case.
 - Develop/watch restart and sync workflows: Bidirectional sync, conflict handling, and platform-specific file event parity remain future work.
 - Include, extends, and YAML merge-tag loading: Remote includes and undocumented Docker Compose loader quirks remain explicitly deferred.
+- Profiled web application stack with database dependency: Runtime health behavior and database readiness are modeled for planning evidence but are not executed as part of this fixture.
 
 ## Release Readiness
 
 - Version: 0.1.0
-- Phase: 10
-- Status: ready_for_0_1_0_release_candidate
-- Summary: Phase 10 marks the current Susun roadmap complete for the first unpublished 0.1.0 release candidate, with SDK, CLI, compatibility, schema, and release gates in place.
+- Phase: 11
+- Status: ready_for_phase11_sdk_and_compatibility_iteration
+- Summary: Phase 11 extends the unpublished 0.1.0 line with Studio-driven SDK persistence helpers and deeper real-world compatibility evidence while keeping release publication deferred.
 
 | Gate | Command | Purpose |
 | --- | --- | --- |
@@ -133,9 +137,10 @@ Real-world compatibility gaps:
 | phase8 | scripts/gate-phase8.sh | Compose the Phase 8 SDK-readiness evidence gate. |
 | phase9 | scripts/gate-phase9.sh | Compose the Phase 9 CLI and SDK consumer-readiness evidence gate. |
 | phase10 | scripts/gate-phase10.sh | Compose the Phase 10 first-release readiness gate for 0.1.0. |
+| phase11 | scripts/gate-phase11.sh | Compose the Phase 11 SDK polish and compatibility-depth evidence gate. |
 
 Release readiness deferred work:
 - Full Docker Compose bug compatibility is not claimed.
 - Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.
-- Susun Studio integration feedback may still drive v0.3.0 API polish before a public 1.0 contract.
+- Susun Studio integration feedback may still drive additional 0.1.0 API polish before publishing.
 - CLI end-user polish beyond stable summary and plan surfaces remains a later usability track.
