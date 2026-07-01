@@ -2,7 +2,10 @@
 
 use std::{error::Error, path::PathBuf};
 
-use susun::{Analyzer, Error as SusunError, SusunWorkspace};
+use susun::{
+    Analyzer, BuildPolicy, EngineCapabilities, EngineSnapshot, Error as SusunError, Project,
+    ProjectIdentity, ProjectInstanceId, ProjectName, SusunWorkspace, UpPlanOptions,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -84,5 +87,25 @@ fn workspace_dry_run_plan_uses_facade_defaults() -> TestResult {
 
     assert!(!outcome.diagnostics.has_errors());
     assert!(outcome.plan.is_some(), "expected a daemon-free up plan");
+    Ok(())
+}
+
+#[test]
+fn facade_reexports_common_sdk_types() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let canonical: &Project = project.project().ok_or("expected project")?;
+    let name = ProjectName::new("sdk");
+    let identity = ProjectIdentity::new(name.clone(), ProjectInstanceId::derive(&name, "."));
+    let capabilities = EngineCapabilities::permissive_local();
+    let snapshot = EngineSnapshot::empty(std::time::SystemTime::UNIX_EPOCH);
+    let options = UpPlanOptions {
+        build_policy: BuildPolicy::NeverBuild,
+        ..UpPlanOptions::default()
+    };
+
+    assert_eq!(canonical.name.as_str(), "valid-minimal");
+    let outcome = project.plan_up(capabilities, snapshot, options)?;
+    assert!(outcome.plan.is_some());
+    assert_eq!(identity.name.as_str(), "sdk");
     Ok(())
 }

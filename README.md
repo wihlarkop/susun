@@ -41,6 +41,12 @@ Lower-level facades remain available when callers need explicit control:
 - `up_with_engine` and `down_with_engine` for runtime execution with a supplied
   engine adapter.
 
+The facade crate also re-exports common SDK types such as `Project`,
+`ProjectName`, `EngineCapabilities`, `EngineSnapshot`, `ProjectIdentity`,
+`UpPlanOptions`, `DownPlanOptions`, `ExecutionPlan`, `PlanOutcome`, and
+`ExecutionReport`, so most applications can depend on `susun` first and reach
+for lower-level crates only when they need specialized extension points.
+
 ## CLI
 
 ```powershell

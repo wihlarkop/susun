@@ -16,7 +16,17 @@ pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{
     RuntimeOperationError, RuntimeOperationResult, down_with_engine, up_with_engine,
 };
+pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
+pub use susun_engine::{
+    EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId, SupportLevel,
+};
 pub use susun_loader::LoadContext;
+pub use susun_model::{Project, ProjectName, ServiceName};
+pub use susun_planner::{
+    BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,
+    UpPlanOptions,
+};
+pub use susun_runtime::{ExecutionReport, RuntimeError};
 pub use workspace::{
     ProjectSummary, SdkProject, ServiceSummary, SusunWorkspace, project_identity,
     project_identity_from_name,
