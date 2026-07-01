@@ -5,7 +5,7 @@ use std::{error::Error, path::PathBuf};
 use susun::{
     Analyzer, BuildPolicy, EngineCapabilities, EngineSnapshot, Error as SusunError, Project,
     ProjectIdentity, ProjectInstanceId, ProjectName, ProjectSummarySchemaVersion, SusunWorkspace,
-    UpPlanOptions,
+    UpPlanOptions, parse_project_summary_json, render_project_summary_json,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -89,6 +89,10 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
 
     let roundtrip: susun::ProjectSummary = serde_json::from_value(json)?;
     assert_eq!(roundtrip, summary);
+
+    let rendered = render_project_summary_json(&summary)?;
+    let parsed = parse_project_summary_json(&rendered)?;
+    assert_eq!(parsed, summary);
     Ok(())
 }
 

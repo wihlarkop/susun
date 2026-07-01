@@ -15,7 +15,7 @@ use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun::{
     Analyzer, Planner, SusunWorkspace, down_with_engine, render_diagnostics,
-    render_diagnostics_json, up_with_engine,
+    render_diagnostics_json, render_project_summary_json, up_with_engine,
 };
 use susun_build::{
     BuildCancellationToken, BuildEngine, BuildEventSink, BuildInputManifest, BuildRequest,
@@ -340,7 +340,7 @@ fn summary(ctx: &ContextArgs) -> i32 {
             }
 
             match ctx.format {
-                OutputFormat::Json => match serde_json::to_string_pretty(&summary) {
+                OutputFormat::Json => match render_project_summary_json(&summary) {
                     Ok(json) => {
                         println!("{json}");
                         0

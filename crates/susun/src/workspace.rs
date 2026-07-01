@@ -397,6 +397,16 @@ impl ProjectSummary {
     }
 }
 
+/// Renders a project summary as pretty JSON using the public SDK schema.
+pub fn render_project_summary_json(summary: &ProjectSummary) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(summary)
+}
+
+/// Parses a project summary from JSON using the public SDK schema.
+pub fn parse_project_summary_json(input: &str) -> Result<ProjectSummary, serde_json::Error> {
+    serde_json::from_str(input)
+}
+
 /// Serializable top-level project resource summary.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProjectResourceSummary {
