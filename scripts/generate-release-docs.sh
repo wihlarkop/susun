@@ -163,7 +163,7 @@ lines.extend([
 ])
 
 for gate in readiness["required_gates"]:
-    lines.append(f"| {gate['id']} | `{gate['command']}` | {gate['purpose']} |")
+    lines.append(f"| {gate['id']} | {gate['command']} | {gate['purpose']} |")
 
 if readiness.get("deferred"):
     lines.extend(["", "Release readiness deferred work:"])
