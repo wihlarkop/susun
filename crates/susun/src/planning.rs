@@ -66,6 +66,11 @@ impl Planner {
         plan_down(&input, options)
     }
 
+    /// Returns the standard blocked outcome for incomplete analysis.
+    pub fn blocked_by_analysis() -> PlanOutcome {
+        blocked_by_phase_one()
+    }
+
     fn input_from_analysis<'a>(
         &'a self,
         analysis: &'a AnalysisResult,

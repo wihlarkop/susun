@@ -1,11 +1,8 @@
 //! Create an execution report from a daemon-free plan.
 
-use std::{process::ExitCode, time::SystemTime};
+use std::process::ExitCode;
 
-use susun::{Analyzer, Planner};
-use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
-use susun_model::ProjectName;
-use susun_planner::UpPlanOptions;
+use susun::SusunWorkspace;
 use susun_runtime::ExecutionReport;
 
 fn main() -> ExitCode {
@@ -13,8 +10,8 @@ fn main() -> ExitCode {
         .nth(1)
         .unwrap_or_else(|| "compose.yaml".to_owned());
 
-    let analysis = match Analyzer::new(&path).analyze() {
-        Ok(analysis) if !analysis.report.has_errors() => analysis,
+    let project = match SusunWorkspace::from_file(&path).analyze() {
+        Ok(project) if !project.analysis().report.has_errors() => project,
         Ok(_) => return ExitCode::from(1),
         Err(error) => {
             eprintln!("susun: {error}");
@@ -22,18 +19,7 @@ fn main() -> ExitCode {
         }
     };
 
-    let project = ProjectName::new("report-example");
-    let identity = ProjectIdentity::new(
-        project.clone(),
-        ProjectInstanceId::derive(&project, std::env::current_dir().unwrap_or_default()),
-    );
-    let planner = Planner::new(
-        identity,
-        EngineCapabilities::permissive_local(),
-        EngineSnapshot::empty(SystemTime::UNIX_EPOCH),
-    );
-
-    match planner.plan_up(&analysis, UpPlanOptions::default()) {
+    match project.dry_run_up(false) {
         Ok(outcome) => match outcome.plan {
             Some(plan) => {
                 let report = ExecutionReport::pending(&plan);

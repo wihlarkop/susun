@@ -8,6 +8,7 @@ pub mod analyzer;
 pub mod planning;
 pub mod render;
 pub mod runtime;
+pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
 pub use planning::Planner;
@@ -16,6 +17,10 @@ pub use runtime::{
     RuntimeOperationError, RuntimeOperationResult, down_with_engine, up_with_engine,
 };
 pub use susun_loader::LoadContext;
+pub use workspace::{
+    ProjectSummary, SdkProject, ServiceSummary, SusunWorkspace, project_identity,
+    project_identity_from_name,
+};
 
 use thiserror::Error;
 

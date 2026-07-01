@@ -43,6 +43,7 @@ pub struct Analyzer {
 }
 
 /// The result of a successful analysis pipeline run.
+#[derive(Debug)]
 pub struct AnalysisResult {
     /// Canonical project, or `None` if the YAML was unrecoverable.
     pub project: Option<Project>,

@@ -2,7 +2,7 @@
 
 use std::{error::Error, path::PathBuf};
 
-use susun::{Analyzer, Error as SusunError};
+use susun::{Analyzer, Error as SusunError, SusunWorkspace};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -54,5 +54,35 @@ fn valid_file_report_is_clean() -> TestResult {
     let result = Analyzer::new(valid_path()).analyze()?;
     assert!(!result.report.has_errors());
     assert!(result.report.is_empty(), "expected no diagnostics at all");
+    Ok(())
+}
+
+#[test]
+fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let summary = project.summary();
+
+    assert_eq!(summary.project_name.as_deref(), Some("valid-minimal"));
+    assert_eq!(summary.service_count, 1);
+    assert_eq!(summary.active_service_count, 1);
+    assert!(!summary.has_errors);
+    assert_eq!(summary.diagnostic_count, 0);
+    assert_eq!(summary.services[0].name, "web");
+    assert_eq!(summary.services[0].image.as_deref(), Some("nginx:latest"));
+    assert!(summary.services[0].active);
+    assert!(summary.project_instance.is_some());
+
+    let json = serde_json::to_value(&summary)?;
+    assert_eq!(json["services"][0]["name"], "web");
+    Ok(())
+}
+
+#[test]
+fn workspace_dry_run_plan_uses_facade_defaults() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let outcome = project.dry_run_up(false)?;
+
+    assert!(!outcome.diagnostics.has_errors());
+    assert!(outcome.plan.is_some(), "expected a daemon-free up plan");
     Ok(())
 }

@@ -14,8 +14,8 @@ use clap::Parser;
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun::{
-    Analyzer, LoadContext, Planner, down_with_engine, render_diagnostics, render_diagnostics_json,
-    up_with_engine,
+    Analyzer, Planner, SusunWorkspace, down_with_engine, render_diagnostics,
+    render_diagnostics_json, up_with_engine,
 };
 use susun_build::{
     BuildCancellationToken, BuildEngine, BuildEventSink, BuildInputManifest, BuildRequest,
@@ -50,6 +50,7 @@ async fn main() {
     let code = match cli.command {
         Command::Check => check(&cli.ctx),
         Command::Config => config(&cli.ctx),
+        Command::Summary => summary(&cli.ctx),
         Command::Plan { command } => plan(&cli.ctx, command),
         Command::InspectPlan { path } => inspect_plan(&cli.ctx, &path),
         Command::Up {
@@ -225,27 +226,26 @@ fn read_corpus_manifest(path: &Path) -> Option<CorpusManifest> {
 }
 
 fn build_analyzer(ctx: &ContextArgs) -> Analyzer {
-    // Primary file: first -f argument, or "compose.yaml" if none given.
-    let (primary, rest) = match ctx.file.as_slice() {
-        [] => (std::path::PathBuf::from("compose.yaml"), &[][..]),
-        [first, tail @ ..] => (first.clone(), tail),
-    };
+    workspace_from_context(ctx).analyzer()
+}
 
-    let mut context = LoadContext::new(primary);
-    if !rest.is_empty() {
-        context = context.with_additional_files(rest.to_vec());
+fn workspace_from_context(ctx: &ContextArgs) -> SusunWorkspace {
+    let files = if ctx.file.is_empty() {
+        vec![std::path::PathBuf::from("compose.yaml")]
+    } else {
+        ctx.file.clone()
+    };
+    let mut workspace = SusunWorkspace::new().with_files(files);
+    if let Some(env_file) = &ctx.env_file {
+        workspace = workspace.with_env_file(env_file);
     }
     if let Some(name) = &ctx.project_name {
-        context = context.with_project_name(name);
+        workspace = workspace.with_project_name(name);
     }
     if !ctx.profile.is_empty() {
-        context = context.with_profiles(ctx.profile.clone());
+        workspace = workspace.with_profiles(ctx.profile.clone());
     }
-    let mut analyzer = Analyzer::with_context(context);
-    if let Some(env_file) = &ctx.env_file {
-        analyzer = analyzer.with_env_file(env_file);
-    }
-    analyzer
+    workspace
 }
 
 fn primary_file(ctx: &ContextArgs) -> std::path::PathBuf {
@@ -318,6 +318,51 @@ fn config(ctx: &ContextArgs) -> i32 {
                             0
                         }
                     },
+                }
+            }
+        }
+    }
+}
+
+fn summary(ctx: &ContextArgs) -> i32 {
+    match workspace_from_context(ctx).analyze() {
+        Err(e) => {
+            eprintln!("susun: {e}");
+            2
+        }
+        Ok(project) => {
+            let summary = project.summary();
+            if summary.has_errors {
+                if !ctx.quiet {
+                    render_analysis_diagnostics(ctx, project.analysis());
+                }
+                return 1;
+            }
+
+            match ctx.format {
+                OutputFormat::Json => match serde_json::to_string_pretty(&summary) {
+                    Ok(json) => {
+                        println!("{json}");
+                        0
+                    }
+                    Err(e) => {
+                        eprintln!("susun: failed to serialize project summary: {e}");
+                        2
+                    }
+                },
+                OutputFormat::Human => {
+                    println!(
+                        "{}: {} service(s), {} active",
+                        summary.project_name.as_deref().unwrap_or("<unknown>"),
+                        summary.service_count,
+                        summary.active_service_count
+                    );
+                    for service in summary.services {
+                        let marker = if service.active { "*" } else { "-" };
+                        let image = service.image.as_deref().unwrap_or("<no image>");
+                        println!("{marker} {} ({image})", service.name);
+                    }
+                    0
                 }
             }
         }

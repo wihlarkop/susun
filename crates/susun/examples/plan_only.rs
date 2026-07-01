@@ -1,24 +1,22 @@
 //! Plan an `up` operation without mutating a container engine.
 
-use std::{process::ExitCode, time::SystemTime};
+use std::process::ExitCode;
 
-use susun::{Analyzer, Planner, render_diagnostics};
-use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
-use susun_model::ProjectName;
-use susun_planner::UpPlanOptions;
+use susun::{SusunWorkspace, render_diagnostics};
 
 fn main() -> ExitCode {
     let path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "compose.yaml".to_owned());
 
-    let analysis = match Analyzer::new(&path).analyze() {
-        Ok(analysis) => analysis,
+    let project = match SusunWorkspace::from_file(&path).analyze() {
+        Ok(project) => project,
         Err(error) => {
             eprintln!("susun: {error}");
             return ExitCode::from(2);
         }
     };
+    let analysis = project.analysis();
 
     if analysis.report.has_errors() {
         eprint!(
@@ -28,17 +26,7 @@ fn main() -> ExitCode {
         return ExitCode::from(1);
     }
 
-    let identity = ProjectIdentity::new(
-        ProjectName::new("example"),
-        ProjectInstanceId::derive(&ProjectName::new("example"), "."),
-    );
-    let planner = Planner::new(
-        identity,
-        EngineCapabilities::permissive_local(),
-        EngineSnapshot::empty(SystemTime::UNIX_EPOCH),
-    );
-
-    match planner.plan_up(&analysis, UpPlanOptions::default()) {
+    match project.dry_run_up(false) {
         Ok(outcome) => {
             for diagnostic in outcome.diagnostics.sorted() {
                 eprintln!(

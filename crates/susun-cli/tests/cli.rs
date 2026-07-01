@@ -92,6 +92,21 @@ fn config_missing_file_exits_2() -> TestResult {
     Ok(())
 }
 
+#[test]
+fn summary_json_prints_sdk_project_summary() -> TestResult {
+    susun()?
+        .args(["-f", &fixture("cli/valid-minimal/compose.yaml")])
+        .args(["--format", "json"])
+        .arg("summary")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("\"project_name\""))
+        .stdout(predicate::str::contains("valid-minimal"))
+        .stdout(predicate::str::contains("\"service_count\": 1"))
+        .stdout(predicate::str::contains("\"name\": \"web\""));
+    Ok(())
+}
+
 // ── --project-name / -p ───────────────────────────────────────────────────────
 
 #[test]

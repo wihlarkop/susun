@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Added Phase 8 SDK readiness surface: `SusunWorkspace`, `SdkProject`,
+  serializable project/service summaries, daemon-free dry-run helpers, and the
+  `susun summary` CLI command.
 - Added Phase 7 release-hardening evidence: real-world compatibility catalog,
   release-readiness manifest, generated compatibility docs, and a Phase 7 gate.
 

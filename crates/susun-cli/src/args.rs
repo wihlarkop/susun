@@ -62,6 +62,10 @@ pub enum Command {
     /// Prints canonical JSON to stdout on success.
     /// Exits 1 if the file has errors, 2 on system errors.
     Config,
+    /// Emit a concise project summary.
+    ///
+    /// The JSON form is intended for tools and desktop integrations.
+    Summary,
     /// Produce a daemon-free execution plan.
     Plan {
         /// Plan operation.
