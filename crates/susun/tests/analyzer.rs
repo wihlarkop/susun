@@ -86,6 +86,9 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     assert_eq!(json["schema_version"]["major"], 1);
     assert_eq!(json["schema_version"]["minor"], 0);
     assert_eq!(json["services"][0]["name"], "web");
+
+    let roundtrip: susun::ProjectSummary = serde_json::from_value(json)?;
+    assert_eq!(roundtrip, summary);
     Ok(())
 }
 

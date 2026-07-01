@@ -5,7 +5,7 @@ use std::{
     time::SystemTime,
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
 use susun_model::{Project, ProjectName, port::PublishedPort, volume::VolumeKind};
 use susun_planner::{
@@ -228,7 +228,7 @@ impl SdkProject {
 }
 
 /// Serializable project summary for SDK consumers.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProjectSummary {
     /// Serialized project summary schema version.
     pub schema_version: ProjectSummarySchemaVersion,
@@ -398,7 +398,7 @@ impl ProjectSummary {
 }
 
 /// Serializable top-level project resource summary.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProjectResourceSummary {
     /// Resource name.
     pub name: String,
@@ -407,7 +407,7 @@ pub struct ProjectResourceSummary {
 }
 
 /// Serialized project summary schema version.
-#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProjectSummarySchemaVersion {
     /// Major schema version.
     pub major: u16,
@@ -421,7 +421,7 @@ impl ProjectSummarySchemaVersion {
 }
 
 /// Serializable service summary for SDK consumers.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServiceSummary {
     /// Service name.
     pub name: String,
@@ -462,7 +462,7 @@ pub struct ServiceSummary {
 }
 
 /// Serializable service port summary.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServicePortSummary {
     /// Host IP address to bind, if specified.
     pub host_ip: Option<String>,
@@ -491,7 +491,7 @@ impl ServicePortSummary {
 }
 
 /// Serializable service volume summary.
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServiceVolumeSummary {
     /// Mount kind: `volume`, `bind`, or `anonymous`.
     pub kind: String,
