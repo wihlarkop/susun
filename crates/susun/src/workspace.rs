@@ -7,7 +7,7 @@ use std::{
 
 use serde::Serialize;
 use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
-use susun_model::{Project, ProjectName};
+use susun_model::{Project, ProjectName, port::PublishedPort, volume::VolumeKind};
 use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, UpPlanOptions,
 };
@@ -248,6 +248,14 @@ pub struct ProjectSummary {
     pub config_count: usize,
     /// Number of declared secrets.
     pub secret_count: usize,
+    /// Declared networks in canonical project order.
+    pub networks: Vec<ProjectResourceSummary>,
+    /// Declared volumes in canonical project order.
+    pub volumes: Vec<ProjectResourceSummary>,
+    /// Declared configs in canonical project order.
+    pub configs: Vec<ProjectResourceSummary>,
+    /// Declared secrets in canonical project order.
+    pub secrets: Vec<ProjectResourceSummary>,
     /// Whether analysis emitted error diagnostics.
     pub has_errors: bool,
     /// Number of diagnostics at all severities.
@@ -269,6 +277,10 @@ impl ProjectSummary {
                 volume_count: 0,
                 config_count: 0,
                 secret_count: 0,
+                networks: Vec::new(),
+                volumes: Vec::new(),
+                configs: Vec::new(),
+                secrets: Vec::new(),
                 has_errors: project.analysis.report.has_errors(),
                 diagnostic_count: project.analysis.report.sorted().len(),
                 services: Vec::new(),
@@ -295,7 +307,35 @@ impl ProjectSummary {
                 profile_count: service.profiles.len(),
                 profiles: service.profiles.clone(),
                 port_count: service.ports.len(),
+                ports: service
+                    .ports
+                    .iter()
+                    .map(ServicePortSummary::from_canonical)
+                    .collect(),
                 volume_count: service.volumes.len(),
+                volumes: service
+                    .volumes
+                    .iter()
+                    .map(ServiceVolumeSummary::from_canonical)
+                    .collect(),
+                network_count: service.networks.len(),
+                networks: service
+                    .networks
+                    .keys()
+                    .map(|network| network.as_str().to_owned())
+                    .collect(),
+                config_count: service.configs.len(),
+                configs: service
+                    .configs
+                    .iter()
+                    .map(|mount| mount.source.as_str().to_owned())
+                    .collect(),
+                secret_count: service.secrets.len(),
+                secrets: service
+                    .secrets
+                    .iter()
+                    .map(|mount| mount.source.as_str().to_owned())
+                    .collect(),
                 dependency_count: service.depends_on.len(),
                 dependencies: service
                     .depends_on
@@ -318,11 +358,52 @@ impl ProjectSummary {
             volume_count: canonical.volumes.len(),
             config_count: canonical.configs.len(),
             secret_count: canonical.secrets.len(),
+            networks: canonical
+                .networks
+                .iter()
+                .map(|(name, definition)| ProjectResourceSummary {
+                    name: name.as_str().to_owned(),
+                    external: definition.external,
+                })
+                .collect(),
+            volumes: canonical
+                .volumes
+                .iter()
+                .map(|(name, definition)| ProjectResourceSummary {
+                    name: name.as_str().to_owned(),
+                    external: definition.external,
+                })
+                .collect(),
+            configs: canonical
+                .configs
+                .iter()
+                .map(|(name, definition)| ProjectResourceSummary {
+                    name: name.as_str().to_owned(),
+                    external: definition.external,
+                })
+                .collect(),
+            secrets: canonical
+                .secrets
+                .iter()
+                .map(|(name, definition)| ProjectResourceSummary {
+                    name: name.as_str().to_owned(),
+                    external: definition.external,
+                })
+                .collect(),
             has_errors: project.analysis.report.has_errors(),
             diagnostic_count: project.analysis.report.sorted().len(),
             services,
         }
     }
+}
+
+/// Serializable top-level project resource summary.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ProjectResourceSummary {
+    /// Resource name.
+    pub name: String,
+    /// Whether the resource is external.
+    pub external: bool,
 }
 
 /// Serialized project summary schema version.
@@ -356,12 +437,93 @@ pub struct ServiceSummary {
     pub profiles: Vec<String>,
     /// Number of published/container ports in the canonical model.
     pub port_count: usize,
+    /// Port mappings in canonical service order.
+    pub ports: Vec<ServicePortSummary>,
     /// Number of service volume mounts.
     pub volume_count: usize,
+    /// Volume mounts in canonical service order.
+    pub volumes: Vec<ServiceVolumeSummary>,
+    /// Number of attached networks.
+    pub network_count: usize,
+    /// Attached network names.
+    pub networks: Vec<String>,
+    /// Number of mounted configs.
+    pub config_count: usize,
+    /// Referenced config names.
+    pub configs: Vec<String>,
+    /// Number of mounted secrets.
+    pub secret_count: usize,
+    /// Referenced secret names. Secret values and file contents are never included.
+    pub secrets: Vec<String>,
     /// Number of service dependencies.
     pub dependency_count: usize,
     /// Dependency service names.
     pub dependencies: Vec<String>,
+}
+
+/// Serializable service port summary.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ServicePortSummary {
+    /// Host IP address to bind, if specified.
+    pub host_ip: Option<String>,
+    /// Host-side published port or range, if specified.
+    pub published: Option<String>,
+    /// Container-side target port.
+    pub target: u16,
+    /// Transport protocol.
+    pub protocol: String,
+}
+
+impl ServicePortSummary {
+    fn from_canonical(port: &susun_model::port::CanonicalPort) -> Self {
+        Self {
+            host_ip: port.host_ip.clone(),
+            published: port.published.map(published_port_summary),
+            target: port.target,
+            protocol: match port.protocol {
+                susun_model::port::Protocol::Tcp => "tcp",
+                susun_model::port::Protocol::Udp => "udp",
+                susun_model::port::Protocol::Sctp => "sctp",
+            }
+            .to_owned(),
+        }
+    }
+}
+
+/// Serializable service volume summary.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+pub struct ServiceVolumeSummary {
+    /// Mount kind: `volume`, `bind`, or `anonymous`.
+    pub kind: String,
+    /// Source path or volume name, when declared.
+    pub source: Option<String>,
+    /// Container target path.
+    pub target: String,
+    /// Whether the mount is read-only.
+    pub read_only: bool,
+}
+
+impl ServiceVolumeSummary {
+    fn from_canonical(volume: &susun_model::volume::CanonicalVolume) -> Self {
+        Self {
+            kind: match volume.kind {
+                VolumeKind::Volume => "volume",
+                VolumeKind::Bind => "bind",
+                VolumeKind::Anonymous => "anonymous",
+            }
+            .to_owned(),
+            source: volume.source.clone(),
+            target: volume.target.clone(),
+            read_only: volume.read_only,
+        }
+    }
+}
+
+fn published_port_summary(port: PublishedPort) -> String {
+    match port {
+        PublishedPort::Single(port) => port.to_string(),
+        PublishedPort::Range { start, end } => format!("{start}-{end}"),
+    }
 }
 
 /// Derives the standard project identity from a project and directory.

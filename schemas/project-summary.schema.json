@@ -20,6 +20,10 @@
     "volume_count",
     "config_count",
     "secret_count",
+    "networks",
+    "volumes",
+    "configs",
+    "secrets",
     "has_errors",
     "diagnostic_count",
     "services"
@@ -58,6 +62,30 @@
       "type": "integer",
       "minimum": 0
     },
+    "networks": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project_resource_summary"
+      }
+    },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project_resource_summary"
+      }
+    },
+    "configs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project_resource_summary"
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/project_resource_summary"
+      }
+    },
     "has_errors": {
       "type": "boolean"
     },
@@ -89,6 +117,19 @@
       },
       "additionalProperties": false
     },
+    "project_resource_summary": {
+      "type": "object",
+      "required": ["name", "external"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "external": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "service_summary": {
       "type": "object",
       "required": [
@@ -99,7 +140,15 @@
         "profile_count",
         "profiles",
         "port_count",
+        "ports",
         "volume_count",
+        "volumes",
+        "network_count",
+        "networks",
+        "config_count",
+        "configs",
+        "secret_count",
+        "secrets",
         "dependency_count",
         "dependencies"
       ],
@@ -130,9 +179,51 @@
           "type": "integer",
           "minimum": 0
         },
+        "ports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/service_port_summary"
+          }
+        },
         "volume_count": {
           "type": "integer",
           "minimum": 0
+        },
+        "volumes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/service_volume_summary"
+          }
+        },
+        "network_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "networks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "config_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "configs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secret_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "dependency_count": {
           "type": "integer",
@@ -143,6 +234,46 @@
           "items": {
             "type": "string"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "service_port_summary": {
+      "type": "object",
+      "required": ["host_ip", "published", "target", "protocol"],
+      "properties": {
+        "host_ip": {
+          "type": ["string", "null"]
+        },
+        "published": {
+          "type": ["string", "null"]
+        },
+        "target": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "protocol": {
+          "enum": ["tcp", "udp", "sctp"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "service_volume_summary": {
+      "type": "object",
+      "required": ["kind", "source", "target", "read_only"],
+      "properties": {
+        "kind": {
+          "enum": ["volume", "bind", "anonymous"]
+        },
+        "source": {
+          "type": ["string", "null"]
+        },
+        "target": {
+          "type": "string"
+        },
+        "read_only": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
