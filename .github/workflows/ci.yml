@@ -25,6 +25,7 @@ jobs:
       - run: bash scripts/check-diagnostics.sh
       - run: bash scripts/check-schemas.sh
       - run: bash scripts/check-release-policy.sh
+      - run: bash scripts/check-package-readiness.sh
       - run: bash scripts/check-real-world-catalog.sh
       - run: bash scripts/check-release-readiness.sh
       - run: bash scripts/check-sdk-readiness.sh

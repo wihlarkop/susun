@@ -8,27 +8,33 @@ edition = "2024"
 rust-version = "1.85"
 authors = ["wihlarkop"]
 license = "MIT OR Apache-2.0"
+description = "A Rust SDK and CLI for loading, validating, planning, and running Docker Compose projects."
+repository = "https://github.com/wihlarkop/susun"
+homepage = "https://github.com/wihlarkop/susun"
+readme = "README.md"
+keywords = ["compose", "docker", "sdk", "orchestration"]
+categories = ["command-line-utilities", "development-tools"]
 
 [workspace.dependencies]
 # internal crates
-susun-source = { path = "crates/susun-source" }
-susun-diagnostics = { path = "crates/susun-diagnostics" }
-susun-model = { path = "crates/susun-model" }
-susun-normalize = { path = "crates/susun-normalize" }
-susun-loader = { path = "crates/susun-loader" }
-susun-validation = { path = "crates/susun-validation" }
-susun-graph = { path = "crates/susun-graph" }
-susun-engine = { path = "crates/susun-engine" }
-susun-planner = { path = "crates/susun-planner" }
-susun-runtime = { path = "crates/susun-runtime" }
-susun-convergence = { path = "crates/susun-convergence" }
-susun-build = { path = "crates/susun-build" }
-susun-compat = { path = "crates/susun-compat" }
-susun-secret = { path = "crates/susun-secret" }
-susun-engine-bollard = { path = "crates/susun-engine-bollard" }
-susun-watch = { path = "crates/susun-watch" }
-susun-testkit = { path = "crates/susun-testkit" }
-susun = { path = "crates/susun" }
+susun-source = { version = "0.1.0", path = "crates/susun-source" }
+susun-diagnostics = { version = "0.1.0", path = "crates/susun-diagnostics" }
+susun-model = { version = "0.1.0", path = "crates/susun-model" }
+susun-normalize = { version = "0.1.0", path = "crates/susun-normalize" }
+susun-loader = { version = "0.1.0", path = "crates/susun-loader" }
+susun-validation = { version = "0.1.0", path = "crates/susun-validation" }
+susun-graph = { version = "0.1.0", path = "crates/susun-graph" }
+susun-engine = { version = "0.1.0", path = "crates/susun-engine" }
+susun-planner = { version = "0.1.0", path = "crates/susun-planner" }
+susun-runtime = { version = "0.1.0", path = "crates/susun-runtime" }
+susun-convergence = { version = "0.1.0", path = "crates/susun-convergence" }
+susun-build = { version = "0.1.0", path = "crates/susun-build" }
+susun-compat = { version = "0.1.0", path = "crates/susun-compat" }
+susun-secret = { version = "0.1.0", path = "crates/susun-secret" }
+susun-engine-bollard = { version = "0.1.0", path = "crates/susun-engine-bollard" }
+susun-watch = { version = "0.1.0", path = "crates/susun-watch" }
+susun-testkit = { version = "0.1.0", path = "crates/susun-testkit" }
+susun = { version = "0.1.0", path = "crates/susun" }
 
 # third-party
 bollard = "0.21"

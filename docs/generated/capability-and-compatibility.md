@@ -121,9 +121,9 @@ Real-world compatibility gaps:
 ## Release Readiness
 
 - Version: 0.1.0
-- Phase: 11
-- Status: ready_for_phase11_sdk_and_compatibility_iteration
-- Summary: Phase 11 extends the unpublished 0.1.0 line with Studio-driven SDK persistence helpers and deeper real-world compatibility evidence while keeping release publication deferred.
+- Phase: 12
+- Status: ready_for_0_1_0_release_candidate_audit
+- Summary: Phase 12 completes the unpublished 0.1.0 release-candidate audit with package metadata, license, package assembly checks, and final evidence gates while keeping actual publication as an explicit manual action.
 
 | Gate | Command | Purpose |
 | --- | --- | --- |
@@ -131,6 +131,7 @@ Real-world compatibility gaps:
 | diagnostics | scripts/check-diagnostics.sh | Keep diagnostic catalog codes governed and deterministic. |
 | schemas | scripts/check-schemas.sh | Keep public JSON schemas versioned and valid. |
 | release-policy | scripts/check-release-policy.sh | Enforce workspace version, MSRV, changelog, and semver policy wiring. |
+| package-readiness | scripts/check-package-readiness.sh | Enforce crates.io-facing metadata, license files, versioned internal dependencies, and package assembly checks. |
 | real-world-catalog | scripts/check-real-world-catalog.sh | Validate the release-facing real-world compatibility catalog. |
 | sdk-readiness | scripts/check-sdk-readiness.sh | Verify the high-level SDK facade, examples, and CLI summary surface. |
 | phase7 | scripts/gate-phase7.sh | Compose the Phase 7 release-hardening evidence gate. |
@@ -138,9 +139,10 @@ Real-world compatibility gaps:
 | phase9 | scripts/gate-phase9.sh | Compose the Phase 9 CLI and SDK consumer-readiness evidence gate. |
 | phase10 | scripts/gate-phase10.sh | Compose the Phase 10 first-release readiness gate for 0.1.0. |
 | phase11 | scripts/gate-phase11.sh | Compose the Phase 11 SDK polish and compatibility-depth evidence gate. |
+| phase12 | scripts/gate-phase12.sh | Compose the Phase 12 final release-candidate audit gate before any manual publication. |
 
 Release readiness deferred work:
 - Full Docker Compose bug compatibility is not claimed.
 - Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.
-- Susun Studio integration feedback may still drive additional 0.1.0 API polish before publishing.
+- Susun Studio integration feedback after 0.1.0 should target the next release line unless it blocks manual publication.
 - CLI end-user polish beyond stable summary and plan surfaces remains a later usability track.

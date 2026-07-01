@@ -4,9 +4,9 @@
     "minor": 0
   },
   "release_version": "0.1.0",
-  "phase": 11,
-  "status": "ready_for_phase11_sdk_and_compatibility_iteration",
-  "summary": "Phase 11 extends the unpublished 0.1.0 line with Studio-driven SDK persistence helpers and deeper real-world compatibility evidence while keeping release publication deferred.",
+  "phase": 12,
+  "status": "ready_for_0_1_0_release_candidate_audit",
+  "summary": "Phase 12 completes the unpublished 0.1.0 release-candidate audit with package metadata, license, package assembly checks, and final evidence gates while keeping actual publication as an explicit manual action.",
   "required_gates": [
     {
       "id": "architecture",
@@ -27,6 +27,11 @@
       "id": "release-policy",
       "command": "scripts/check-release-policy.sh",
       "purpose": "Enforce workspace version, MSRV, changelog, and semver policy wiring."
+    },
+    {
+      "id": "package-readiness",
+      "command": "scripts/check-package-readiness.sh",
+      "purpose": "Enforce crates.io-facing metadata, license files, versioned internal dependencies, and package assembly checks."
     },
     {
       "id": "real-world-catalog",
@@ -62,12 +67,17 @@
       "id": "phase11",
       "command": "scripts/gate-phase11.sh",
       "purpose": "Compose the Phase 11 SDK polish and compatibility-depth evidence gate."
+    },
+    {
+      "id": "phase12",
+      "command": "scripts/gate-phase12.sh",
+      "purpose": "Compose the Phase 12 final release-candidate audit gate before any manual publication."
     }
   ],
   "deferred": [
     "Full Docker Compose bug compatibility is not claimed.",
     "Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.",
-    "Susun Studio integration feedback may still drive additional 0.1.0 API polish before publishing.",
+    "Susun Studio integration feedback after 0.1.0 should target the next release line unless it blocks manual publication.",
     "CLI end-user polish beyond stable summary and plan surfaces remains a later usability track."
   ]
 }

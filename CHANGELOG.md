@@ -25,4 +25,7 @@
 - Added Phase 9 CLI and SDK consumer readiness: versioned project summary JSON,
   project-summary schema, richer resource summaries, SDK example, and
   consumer-readiness gates.
+- Added Phase 12 release-candidate audit checks: publish-facing package
+  metadata, dual-license files, versioned internal dependencies, package
+  assembly checks, and final release-candidate gates.
 - Replaced the placeholder README with Phase 1 usage and scope documentation.

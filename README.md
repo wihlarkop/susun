@@ -6,7 +6,8 @@ running Docker Compose projects through structured Rust APIs.
 The current unpublished `0.1.0` line is the first public release candidate. It
 covers Compose analysis, daemon-free planning, Docker runtime execution,
 convergence decisions, BuildKit-oriented build inputs, SDK/CLI consumer
-contracts, compatibility evidence, and release-readiness gates.
+contracts, compatibility evidence, package-readiness checks, and final
+release-candidate gates.
 
 ## SDK
 
@@ -84,6 +85,7 @@ cargo fmt --all --check
 cargo check --workspace
 cargo test -p susun --test analyzer
 cargo test -p susun-cli --test cli
+powershell -ExecutionPolicy Bypass -File scripts\gate-phase12.ps1
 ```
 
 The full release gate is wired through GitHub Actions and the shell scripts in
