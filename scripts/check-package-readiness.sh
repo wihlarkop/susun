@@ -36,6 +36,13 @@ for package in metadata["packages"]:
     if not publish_disabled:
         publishable.append(package["name"])
         for dependency in package["dependencies"]:
+            # Path-only dev-dependencies are exempt: cargo strips them from
+            # the packaged crate entirely, so they never need a registry
+            # version. Requiring one here would force circular internal
+            # dependencies (e.g. a crate's tests depending on a crate that
+            # depends on it normally) to be permanently unpublishable.
+            if dependency.get("kind") == "dev":
+                continue
             dep_path = dependency.get("path")
             if dependency.get("source") is None and dep_path and crates_root in Path(dep_path).resolve().parents:
                 if dependency.get("req") == "*":

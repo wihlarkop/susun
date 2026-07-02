@@ -38,6 +38,14 @@ foreach ($package in $metadata.packages) {
     if (-not $publishDisabled) {
         $publishable.Add($package.name)
         foreach ($dependency in $package.dependencies) {
+            # Path-only dev-dependencies are exempt: cargo strips them from
+            # the packaged crate entirely, so they never need a registry
+            # version. Requiring one here would force circular internal
+            # dependencies (e.g. a crate's tests depending on a crate that
+            # depends on it normally) to be permanently unpublishable.
+            if ($dependency.kind -eq "dev") {
+                continue
+            }
             if ($null -eq $dependency.source -and $dependency.path) {
                 $dependencyPath = [string]$dependency.path
                 if ($dependencyPath.StartsWith($cratesRoot, [System.StringComparison]::OrdinalIgnoreCase) -and $dependency.req -eq "*") {
