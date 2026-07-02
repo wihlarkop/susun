@@ -90,3 +90,17 @@ powershell -ExecutionPolicy Bypass -File scripts\gate-phase12.ps1
 
 The full release gate is wired through GitHub Actions and the shell scripts in
 `scripts/`.
+
+## Release
+
+Crates are published from a tag through `.github/workflows/release-crates.yml`.
+Before pushing `v0.1.0`, configure the repository environment `crates-io` with
+the secret `CARGO_REGISTRY_TOKEN`.
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow runs `scripts/gate-release.sh` and then publishes crates in the
+dependency order encoded by `scripts/publish-crates.sh`.
