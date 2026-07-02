@@ -60,7 +60,10 @@ already_published() {
   local ver="$2"
   local status
 
-  status="$(curl -s -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/${package}/${ver}")"
+  # crates.io rejects API requests with no User-Agent (403), which would
+  # otherwise make this always report "not published" and re-attempt an
+  # already-live crate.
+  status="$(curl -s -o /dev/null -w '%{http_code}' -A "susun-release-script (https://github.com/wihlarkop/susun)" "https://crates.io/api/v1/crates/${package}/${ver}")"
   [ "$status" = "200" ]
 }
 
