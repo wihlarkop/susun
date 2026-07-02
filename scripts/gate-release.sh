@@ -15,7 +15,10 @@ git diff --exit-code -- docs/generated/capability-and-compatibility.md
 # cargo audit
 
 if command -v cargo-deny >/dev/null 2>&1; then
-  cargo deny check
+  # `advisories` is scoped out for the same reason cargo audit is
+  # disabled above: cargo-deny bundles its own rustsec dependency and
+  # hits the identical CVSS:4.0 parse failure on unfiltered `check`.
+  cargo deny check bans licenses sources
 else
   printf '%s\n' "cargo-deny is required for a full release gate" >&2
   printf '%s\n' "install with: cargo install cargo-deny --version 0.18.3 --locked" >&2
