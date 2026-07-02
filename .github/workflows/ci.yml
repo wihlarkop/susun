@@ -76,7 +76,9 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check bans licenses sources
-      - uses: taiki-e/install-action@cargo-audit
+      - uses: taiki-e/install-action@5626e41434f03ab3022d9685405c0645c879f441 # cargo-audit, pinned 2026-07-02
+        with:
+          tool: cargo-audit
       - run: cargo audit
 
   semver:

@@ -6,7 +6,13 @@ bash scripts/check-release-policy.sh
 bash scripts/generate-release-docs.sh
 git diff --exit-code -- docs/generated/capability-and-compatibility.md
 
-cargo audit
+# TODO(cargo-audit): temporarily disabled. rustsec/cvss cannot parse
+# RUSTSEC-2026-0124's CVSS:4.0 vector ("unsupported CVSS version: 4.0"),
+# so cargo-audit fails to load the advisory database entirely regardless
+# of install method or version (confirmed on cargo-audit 0.22.1 and
+# 0.22.2, both via `cargo install` and the taiki-e/install-action
+# prebuilt binary). Re-enable once upstream ships a fix.
+# cargo audit
 
 if command -v cargo-deny >/dev/null 2>&1; then
   cargo deny check
