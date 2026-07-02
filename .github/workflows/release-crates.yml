@@ -24,7 +24,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt,clippy
-      - run: cargo install cargo-audit --version 0.22.2 --locked
+      - uses: taiki-e/install-action@cargo-audit
       - run: cargo install cargo-deny --version 0.18.3 --locked
       - run: cargo install cargo-semver-checks --version 0.48.0 --locked
       - run: bash scripts/gate-release.sh
