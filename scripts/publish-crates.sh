@@ -17,23 +17,28 @@ if [ -n "$tag" ] && [ "$tag" != "v$version" ]; then
   exit 1
 fi
 
+# Topological order over both [dependencies] and [dev-dependencies]:
+# `cargo publish --locked` requires every workspace dependency
+# (including dev-dependencies that carry a version) to already be
+# resolvable on crates.io, so a crate must not appear before anything
+# it depends on, directly or via dev-dependencies.
 packages=(
-  susun-source
-  susun-secret
   susun-model
-  susun-diagnostics
-  susun-normalize
-  susun-engine
+  susun-secret
+  susun-source
   susun-build
+  susun-diagnostics
+  susun-engine
+  susun-normalize
   susun-graph
-  susun-validation
   susun-loader
+  susun-validation
   susun-planner
-  susun-convergence
   susun-testkit
-  susun-runtime
   susun-watch
   susun-engine-bollard
+  susun-runtime
+  susun-convergence
   susun
   susun-compat
   susun-cli
@@ -49,6 +54,15 @@ if [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
   printf '%s\n' "CARGO_REGISTRY_TOKEN is required to publish crates" >&2
   exit 1
 fi
+
+already_published() {
+  local package="$1"
+  local ver="$2"
+  local status
+
+  status="$(curl -s -o /dev/null -w '%{http_code}' "https://crates.io/api/v1/crates/${package}/${ver}")"
+  [ "$status" = "200" ]
+}
 
 publish_package() {
   local package="$1"
@@ -70,6 +84,14 @@ publish_package() {
 }
 
 for package in "${packages[@]}"; do
+  # Idempotent: a prior run may have published some prefix of this list
+  # before failing partway through (crates.io has no delete, only yank),
+  # so skip anything already present at this exact version.
+  if already_published "$package" "$version"; then
+    printf 'skipping %s %s (already published)\n' "$package" "$version"
+    continue
+  fi
+
   printf 'publishing %s %s\n' "$package" "$version"
   publish_package "$package"
 done

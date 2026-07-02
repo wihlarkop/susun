@@ -23,4 +23,8 @@ indexmap          = { workspace = true }
 thiserror         = { workspace = true }
 
 [dev-dependencies]
-susun-loader = { workspace = true }
+# Path-only (no version): susun-loader depends on susun-normalize
+# normally, so a versioned dev-dependency here would make the two
+# crates unpublishable in either order. Cargo strips path-only
+# dev-dependencies from the packaged crate, so this is fine to publish.
+susun-loader = { path = "../susun-loader" }
