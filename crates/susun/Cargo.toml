@@ -20,12 +20,13 @@ susun-loader      = { workspace = true }
 susun-normalize   = { workspace = true }
 susun-validation  = { workspace = true }
 susun-graph       = { workspace = true }
-susun-engine      = { workspace = true }
+susun-engine      = { workspace = true, features = ["serde"] }
 susun-planner     = { workspace = true, features = ["serde"] }
-susun-runtime     = { workspace = true }
+susun-runtime     = { workspace = true, features = ["serde"] }
 susun-model       = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
 susun-source      = { workspace = true }
+susun-engine-bollard = { workspace = true, optional = true }
 thiserror         = { workspace = true }
 serde             = { workspace = true }
 serde_json        = { workspace = true }
@@ -36,3 +37,7 @@ susun-convergence    = { workspace = true }
 susun-engine-bollard = { workspace = true }
 susun-testkit        = { workspace = true }
 tokio                = { workspace = true }
+
+[features]
+# Expose the real-Docker engine (susun-engine-bollard, which pulls in bollard).
+bollard = ["dep:susun-engine-bollard"]

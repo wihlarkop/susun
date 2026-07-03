@@ -14,19 +14,26 @@ pub use analyzer::{AnalysisResult, Analyzer};
 pub use planning::Planner;
 pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{
-    RuntimeOperationError, RuntimeOperationResult, down_with_engine, up_with_engine,
+    RuntimeOperationError, RuntimeOperationResult, down_with_engine, down_with_engine_events,
+    up_with_engine, up_with_engine_events,
 };
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
-    EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId, SupportLevel,
+    ContainerEngine, EngineCapabilities, EngineEndpoint, EngineError, EngineSnapshot,
+    ProjectIdentity, ProjectInstanceId, SupportLevel,
 };
+#[cfg(feature = "bollard")]
+pub use susun_engine_bollard::BollardEngine;
 pub use susun_loader::LoadContext;
 pub use susun_model::{Project, ProjectName, ServiceName};
 pub use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,
     UpPlanOptions, render_plan_json,
 };
-pub use susun_runtime::{ExecutionReport, RuntimeError};
+pub use susun_runtime::{
+    ActionExecutionResult, ActionOutput, ActionStatus, CancellationToken, EventSink,
+    ExecutionReport, Runtime, RuntimeError, RuntimeEvent, RuntimeOptions,
+};
 pub use workspace::{
     ProjectResourceSummary, ProjectSummary, ProjectSummarySchemaVersion, SdkProject,
     ServicePortSummary, ServiceSummary, ServiceVolumeSummary, SusunWorkspace,

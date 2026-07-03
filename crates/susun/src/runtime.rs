@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use susun_engine::{ContainerEngine, ProjectIdentity};
 use susun_planner::{DownPlanOptions, ExecutionPlan, UpPlanOptions};
-use susun_runtime::{ExecutionReport, Runtime};
+use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime};
 use thiserror::Error;
 
 use crate::{AnalysisResult, Planner};
@@ -83,5 +83,59 @@ where
         return Err(RuntimeOperationError::Blocked);
     };
     let report = Runtime::new(engine).apply(&plan).await?;
+    Ok(RuntimeOperationResult { plan, report })
+}
+
+/// Plans and executes `up` with a supplied engine, streaming runtime events to
+/// `events` and honoring `cancellation`.
+pub async fn up_with_engine_events<E>(
+    analysis: &AnalysisResult,
+    identity: ProjectIdentity,
+    engine: Arc<E>,
+    options: UpPlanOptions,
+    events: EventSink,
+    cancellation: CancellationToken,
+) -> Result<RuntimeOperationResult, RuntimeOperationError>
+where
+    E: ContainerEngine + 'static,
+{
+    let capabilities = engine.capabilities().await?;
+    let snapshot = engine.snapshot(&identity).await?;
+    let planner = Planner::new(identity, capabilities, snapshot);
+    let outcome = planner.plan_up(analysis, options)?;
+    let Some(plan) = outcome.plan else {
+        return Err(RuntimeOperationError::Blocked);
+    };
+    let report = Runtime::new(engine)
+        .with_events(events)
+        .apply_cancellable(&plan, cancellation)
+        .await?;
+    Ok(RuntimeOperationResult { plan, report })
+}
+
+/// Plans and executes `down` with a supplied engine, streaming runtime events to
+/// `events` and honoring `cancellation`.
+pub async fn down_with_engine_events<E>(
+    analysis: &AnalysisResult,
+    identity: ProjectIdentity,
+    engine: Arc<E>,
+    options: DownPlanOptions,
+    events: EventSink,
+    cancellation: CancellationToken,
+) -> Result<RuntimeOperationResult, RuntimeOperationError>
+where
+    E: ContainerEngine + 'static,
+{
+    let capabilities = engine.capabilities().await?;
+    let snapshot = engine.snapshot(&identity).await?;
+    let planner = Planner::new(identity, capabilities, snapshot);
+    let outcome = planner.plan_down(analysis, options)?;
+    let Some(plan) = outcome.plan else {
+        return Err(RuntimeOperationError::Blocked);
+    };
+    let report = Runtime::new(engine)
+        .with_events(events)
+        .apply_cancellable(&plan, cancellation)
+        .await?;
     Ok(RuntimeOperationResult { plan, report })
 }
