@@ -24,7 +24,7 @@ pub use susun_loader::LoadContext;
 pub use susun_model::{Project, ProjectName, ServiceName};
 pub use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,
-    UpPlanOptions,
+    UpPlanOptions, render_plan_json,
 };
 pub use susun_runtime::{ExecutionReport, RuntimeError};
 pub use workspace::{
