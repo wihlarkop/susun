@@ -23,8 +23,9 @@ pub use operation::{
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
     CreateVolumeRequest, EngineEndpoint, EngineEvent, EngineImageRef, EventsRequest, ExecRequest,
     LogEvent, LogSource, LogsRequest, MaterializedResourceMount, NetworkRef, PortRequest,
-    ProgressSink, PublishedPortBinding, PullImageRequest, PullPolicy, RemoveContainerOptions,
-    StopContainerRequest, VolumeRef, WaitContainerRequest, WaitContainerResult,
+    ProgressSink, PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
+    PullPolicy, RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,

@@ -19,13 +19,18 @@ pub use runtime::{
 };
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
-    ContainerEngine, EngineCapabilities, EngineEndpoint, EngineError, EngineSnapshot,
-    ProjectIdentity, ProjectInstanceId, SupportLevel,
+    ContainerEngine, ContainerId, ContainerRef, ContainerState, CopyFromContainerRequest,
+    CopyToContainerRequest, CreateContainerRequest, EngineCapabilities, EngineEndpoint,
+    EngineError, EngineEvent, EngineSnapshot, EventsRequest, ExecRequest, HealthState, LogEvent,
+    LogSource, LogsRequest, ObservedContainer, ObservedImageRef, PortRequest, ProjectIdentity,
+    ProjectInstanceId, PruneReport, PruneRequest, PruneScope, PublishedPortBinding,
+    RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest,
+    SupportLevel, WaitContainerRequest, WaitContainerResult,
 };
 #[cfg(feature = "bollard")]
 pub use susun_engine_bollard::BollardEngine;
 pub use susun_loader::LoadContext;
-pub use susun_model::{Project, ProjectName, ServiceName};
+pub use susun_model::{Command, Project, ProjectName, ServiceName};
 pub use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,
     UpPlanOptions, render_plan_json,

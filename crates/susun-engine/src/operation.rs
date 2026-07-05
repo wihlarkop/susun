@@ -9,8 +9,8 @@ use susun_model::{
 };
 
 use crate::{
-    ContainerId, LabelKey, LabelValue, NetworkId, ProjectIdentity, ResourceName, ServiceInstanceId,
-    VolumeId,
+    ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ProjectIdentity, ResourceName,
+    ServiceInstanceId, VolumeId,
 };
 
 /// Boxed progress future.
@@ -427,3 +427,50 @@ pub struct LogEvent {
 /// Boxed neutral log stream.
 pub type BoxLogStream =
     Pin<Box<dyn Stream<Item = Result<LogEvent, crate::EngineError>> + Send + 'static>>;
+
+/// Resource kinds a prune operation can target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum PruneScope {
+    /// Stopped containers.
+    Containers,
+    /// Unused networks.
+    Networks,
+    /// Unused volumes.
+    Volumes,
+    /// Unused (dangling) images.
+    Images,
+}
+
+/// System-wide prune request. Unlike every other operation in this crate,
+/// this is NOT scoped to a single project — it can affect resources
+/// belonging to any project or tool on the host engine.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PruneRequest {
+    /// Which resource kinds to prune.
+    pub scopes: Vec<PruneScope>,
+    /// When `scopes` includes `Images`, also remove unused images that
+    /// still carry a tag, not just dangling/untagged ones. A plain prune
+    /// (the default, `false`) only removes dangling images — matching
+    /// `docker image prune` without `--all` — because Docker never removes
+    /// an image that's in use by any container regardless of this flag.
+    pub all_images: bool,
+}
+
+/// Result of a system-wide prune.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PruneReport {
+    /// Removed container IDs.
+    pub containers_removed: Vec<ContainerId>,
+    /// Removed network IDs.
+    pub networks_removed: Vec<NetworkId>,
+    /// Removed volume IDs.
+    pub volumes_removed: Vec<VolumeId>,
+    /// Removed image IDs.
+    pub images_removed: Vec<ImageId>,
+    /// Total disk space reclaimed, in bytes.
+    pub space_reclaimed_bytes: u64,
+}

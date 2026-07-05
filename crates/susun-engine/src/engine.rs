@@ -7,8 +7,9 @@ use crate::{
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
     CreateVolumeRequest, EngineCapabilities, EngineError, EngineImageRef, EngineSnapshot,
     EventsRequest, ExecRequest, LogsRequest, NetworkRef, PortRequest, ProgressSink,
-    ProjectIdentity, PublishedPortBinding, PullImageRequest, RemoveContainerOptions,
-    StopContainerRequest, VolumeRef, WaitContainerRequest, WaitContainerResult,
+    ProjectIdentity, PruneReport, PruneRequest, PublishedPortBinding, PullImageRequest,
+    RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 
 /// Boxed engine future.
@@ -86,4 +87,10 @@ pub trait ContainerEngine: Send + Sync {
 
     /// Queries published host ports for a container.
     fn port(&self, request: PortRequest) -> BoxEngineFuture<'_, Vec<PublishedPortBinding>>;
+
+    /// Runs a system-wide prune across the requested resource kinds. Unlike
+    /// every other method on this trait, this is NOT scoped to a single
+    /// project — it can remove containers, networks, volumes, and images
+    /// belonging to ANY project or tool on the host engine.
+    fn prune(&self, request: PruneRequest) -> BoxEngineFuture<'_, PruneReport>;
 }

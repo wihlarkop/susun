@@ -27,12 +27,13 @@ use susun_engine::{
     ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
     EngineCapabilities, EngineEndpoint, EngineError, EngineEvent, EngineImageRef, EngineOperation,
-    EngineSnapshot, EventsRequest, ExecRequest, HealthState, LabelKey, LabelValue, LogEvent,
-    LogSource, LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
-    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink,
-    ProjectIdentity, PublishedPortBinding, PullImageRequest, ReplicaIndex, ResourceIdentity,
-    ResourceName, ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel,
-    VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
+    EngineSnapshot, EventsRequest, ExecRequest, HealthState, ImageId, LabelKey, LabelValue,
+    LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef,
+    ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume,
+    PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest, PruneScope,
+    PublishedPortBinding, PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName,
+    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -637,6 +638,94 @@ impl ContainerEngine for BollardEngine {
                     ))
             });
             Ok(bindings)
+        })
+    }
+
+    fn prune(&self, request: PruneRequest) -> BoxEngineFuture<'_, PruneReport> {
+        Box::pin(async move {
+            let mut report = PruneReport::default();
+
+            for scope in &request.scopes {
+                match scope {
+                    PruneScope::Containers => {
+                        let response = self
+                            .docker
+                            .prune_containers(None)
+                            .await
+                            .map_err(|error| EngineError::api(EngineOperation::Prune, error))?;
+                        report.containers_removed.extend(
+                            response
+                                .containers_deleted
+                                .unwrap_or_default()
+                                .into_iter()
+                                .filter_map(|id| ContainerId::new(id).ok()),
+                        );
+                        report.space_reclaimed_bytes +=
+                            u64::try_from(response.space_reclaimed.unwrap_or(0)).unwrap_or(0);
+                    }
+                    PruneScope::Networks => {
+                        let response = self
+                            .docker
+                            .prune_networks(None)
+                            .await
+                            .map_err(|error| EngineError::api(EngineOperation::Prune, error))?;
+                        report.networks_removed.extend(
+                            response
+                                .networks_deleted
+                                .unwrap_or_default()
+                                .into_iter()
+                                .filter_map(|id| NetworkId::new(id).ok()),
+                        );
+                    }
+                    PruneScope::Volumes => {
+                        let response = self
+                            .docker
+                            .prune_volumes(None::<bollard::query_parameters::PruneVolumesOptions>)
+                            .await
+                            .map_err(|error| EngineError::api(EngineOperation::Prune, error))?;
+                        report.volumes_removed.extend(
+                            response
+                                .volumes_deleted
+                                .unwrap_or_default()
+                                .into_iter()
+                                .filter_map(|id| VolumeId::new(id).ok()),
+                        );
+                        report.space_reclaimed_bytes +=
+                            u64::try_from(response.space_reclaimed.unwrap_or(0)).unwrap_or(0);
+                    }
+                    PruneScope::Images => {
+                        let filter_options: Option<bollard::query_parameters::PruneImagesOptions> =
+                            if request.all_images {
+                                let mut filters = HashMap::new();
+                                filters.insert("dangling".to_owned(), vec!["false".to_owned()]);
+                                Some(
+                                    bollard::query_parameters::PruneImagesOptionsBuilder::default()
+                                        .filters(&filters)
+                                        .build(),
+                                )
+                            } else {
+                                None
+                            };
+                        let response = self
+                            .docker
+                            .prune_images(filter_options)
+                            .await
+                            .map_err(|error| EngineError::api(EngineOperation::Prune, error))?;
+                        report.images_removed.extend(
+                            response
+                                .images_deleted
+                                .unwrap_or_default()
+                                .into_iter()
+                                .filter_map(|item| item.deleted.or(item.untagged))
+                                .filter_map(|id| ImageId::new(id).ok()),
+                        );
+                        report.space_reclaimed_bytes +=
+                            u64::try_from(response.space_reclaimed.unwrap_or(0)).unwrap_or(0);
+                    }
+                }
+            }
+
+            Ok(report)
         })
     }
 }

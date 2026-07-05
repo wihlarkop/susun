@@ -46,6 +46,8 @@ pub enum EngineOperation {
     Port,
     /// Wait for a condition.
     Wait,
+    /// System-wide prune.
+    Prune,
 }
 
 impl fmt::Display for EngineOperation {
@@ -68,6 +70,7 @@ impl fmt::Display for EngineOperation {
             Self::Copy => "copy",
             Self::Port => "port",
             Self::Wait => "wait",
+            Self::Prune => "prune",
         })
     }
 }
