@@ -17,6 +17,8 @@ pub use runtime::{
     RuntimeOperationError, RuntimeOperationResult, down_with_engine, down_with_engine_events,
     up_with_engine, up_with_engine_events,
 };
+#[cfg(feature = "watch")]
+pub use susun_build::Dockerignore;
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
     ContainerEngine, ContainerId, ContainerRef, ContainerState, CopyFromContainerRequest,
@@ -38,6 +40,11 @@ pub use susun_planner::{
 pub use susun_runtime::{
     ActionExecutionResult, ActionOutput, ActionStatus, CancellationToken, EventSink,
     ExecutionReport, Runtime, RuntimeError, RuntimeEvent, RuntimeOptions,
+};
+#[cfg(feature = "watch")]
+pub use susun_watch::{
+    WatchCancellationToken, WatchError, WatchEvent, WatchEventKind, WatchOptions, WatchResult,
+    WatchSession,
 };
 pub use workspace::{
     ProjectResourceSummary, ProjectSummary, ProjectSummarySchemaVersion, SdkProject,

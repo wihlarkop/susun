@@ -1197,6 +1197,7 @@ dependencies = [
  "susun-source",
  "susun-testkit",
  "susun-validation",
+ "susun-watch",
  "thiserror",
  "tokio",
 ]

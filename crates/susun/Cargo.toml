@@ -27,6 +27,8 @@ susun-model       = { workspace = true, features = ["serde"] }
 susun-diagnostics = { workspace = true }
 susun-source      = { workspace = true }
 susun-engine-bollard = { workspace = true, optional = true }
+susun-watch       = { workspace = true, optional = true }
+susun-build       = { workspace = true, optional = true }
 thiserror         = { workspace = true }
 serde             = { workspace = true }
 serde_json        = { workspace = true }
@@ -41,3 +43,7 @@ tokio                = { workspace = true }
 [features]
 # Expose the real-Docker engine (susun-engine-bollard, which pulls in bollard).
 bollard = ["dep:susun-engine-bollard"]
+# Expose native filesystem watching (susun-watch, which pulls in notify's
+# platform-specific OS bindings) and the Dockerignore type it needs for
+# ignore-rule construction.
+watch = ["dep:susun-watch", "dep:susun-build"]
