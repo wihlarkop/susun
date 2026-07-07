@@ -10,6 +10,8 @@
 - Hardened runtime profile serde deserialization so invalid profile IDs,
   duplicate IDs, and multiple defaults are rejected at the typed boundary.
 - Added facade JSON helpers for parsing and rendering runtime profile sets.
+- Added runtime status summary DTOs and JSON helpers derived from neutral engine
+  snapshots.
 
 ## 0.1.0
 

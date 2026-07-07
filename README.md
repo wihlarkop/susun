@@ -62,6 +62,11 @@ validation runs before use. The `susun` facade provides
 `parse_engine_connection_profile_set_json` and
 `render_engine_connection_profile_set_json` for that boundary.
 
+For project dashboards, `runtime_status_from_snapshot` converts a neutral
+`EngineSnapshot` plus `ProjectIdentity` into a compact `RuntimeStatusSummary`
+with service/container counts and JSON helpers. This is the recommended DTO for
+desktop UI status panels; raw snapshots remain available for advanced tooling.
+
 ```powershell
 cargo run -p susun --example runtime_doctor
 ```

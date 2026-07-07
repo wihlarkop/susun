@@ -9,6 +9,7 @@ pub mod planning;
 pub mod profiles;
 pub mod render;
 pub mod runtime;
+pub mod status;
 pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
@@ -20,6 +21,11 @@ pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{
     RuntimeOperationError, RuntimeOperationResult, down_with_engine, down_with_engine_events,
     up_with_engine, up_with_engine_events,
+};
+pub use status::{
+    RuntimeContainerStatusSummary, RuntimeResourceCountSummary, RuntimeServiceStatusSummary,
+    RuntimeStatusSummary, parse_runtime_status_summary_json, render_runtime_status_summary_json,
+    runtime_status_from_snapshot,
 };
 #[cfg(feature = "watch")]
 pub use susun_build::Dockerignore;
@@ -34,8 +40,9 @@ pub use susun_engine::{
     HealthState, LogEvent, LogSource, LogsRequest, ObservedContainer, ObservedImageRef, Platform,
     PortRequest, ProjectIdentity, ProjectInstanceId, PruneReport, PruneRequest, PruneScope,
     PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions, ReplicaIndex, ResourceName,
-    RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId, StopContainerRequest,
-    SupportLevel, TcpEndpoint, TlsConfiguration, WaitContainerRequest, WaitContainerResult,
+    RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId, SnapshotCompleteness,
+    SnapshotField, StopContainerRequest, SupportLevel, TcpEndpoint, TlsConfiguration,
+    WaitContainerRequest, WaitContainerResult,
 };
 pub use susun_loader::LoadContext;
 pub use susun_model::{Command, Project, ProjectName, ServiceName};
