@@ -25,6 +25,8 @@
   current runtime state without executing a plan.
 - Updated the local Docker SDK example to use `SusunWorkspace` and `SdkProject`
   instead of manual analysis and identity wiring.
+- Added `SdkProject::dry_run_down` and `dry_run_down_plan` so daemon-free SDK
+  planning is symmetric for `up` and `down`.
 
 ## 0.1.0
 

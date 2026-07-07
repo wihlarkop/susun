@@ -32,6 +32,9 @@ let outcome = project.dry_run_up(false)?;
 if let Some(plan) = outcome.plan {
     println!("plan {} has {} action(s)", plan.plan_id, plan.actions.len());
 }
+
+let down = project.dry_run_down_plan()?;
+println!("down plan available: {}", down.is_some());
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 

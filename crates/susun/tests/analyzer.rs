@@ -132,6 +132,17 @@ fn workspace_dry_run_plan_uses_facade_defaults() -> TestResult {
 }
 
 #[test]
+fn workspace_dry_run_down_plan_uses_facade_defaults() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let outcome = project.dry_run_down()?;
+
+    assert!(!outcome.diagnostics.has_errors());
+    assert!(outcome.plan.is_some(), "expected a daemon-free down plan");
+    assert!(project.dry_run_down_plan()?.is_some());
+    Ok(())
+}
+
+#[test]
 fn facade_reexports_common_sdk_types() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let canonical: &Project = project.project().ok_or("expected project")?;

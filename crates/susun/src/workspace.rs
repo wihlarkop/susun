@@ -317,6 +317,20 @@ impl SdkProject {
         self.dry_run_up(build).map(|outcome| outcome.plan)
     }
 
+    /// Creates a daemon-free local `down` plan for inspection and approvals.
+    pub fn dry_run_down(&self) -> Result<PlanOutcome, PlanError> {
+        self.plan_down(
+            EngineCapabilities::permissive_local(),
+            EngineSnapshot::empty(SystemTime::UNIX_EPOCH),
+            DownPlanOptions::default(),
+        )
+    }
+
+    /// Returns the successful plan from [`Self::dry_run_down`] when available.
+    pub fn dry_run_down_plan(&self) -> Result<Option<ExecutionPlan>, PlanError> {
+        self.dry_run_down().map(|outcome| outcome.plan)
+    }
+
     /// Plans and executes `up` with a supplied engine.
     pub async fn up_with_engine<E>(
         &self,
