@@ -56,7 +56,9 @@ exposes `EngineConnectionProfile`, `EngineConnectionProfileId`,
 `susun-engine-bollard`.
 `EngineConnectionProfileSet` validates duplicate profile IDs and default
 selection, so applications such as Susun Studio can own storage while reusing
-Susun's neutral profile semantics.
+Susun's neutral profile semantics. When profile JSON is persisted or accepted
+through an API, deserialize it through these Susun types so constructor-backed
+validation runs before use.
 
 ```powershell
 cargo run -p susun --example runtime_doctor

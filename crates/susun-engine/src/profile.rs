@@ -6,7 +6,7 @@ use crate::EngineEndpoint;
 
 /// Stable identifier for a user-visible engine connection profile.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
 pub struct EngineConnectionProfileId(Arc<str>);
 
@@ -36,9 +36,20 @@ impl std::fmt::Display for EngineConnectionProfileId {
     }
 }
 
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for EngineConnectionProfileId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(value).map_err(serde::de::Error::custom)
+    }
+}
+
 /// Human-readable display name for an engine connection profile.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
 pub struct EngineConnectionDisplayName(Arc<str>);
 
@@ -62,6 +73,17 @@ impl EngineConnectionDisplayName {
 impl std::fmt::Display for EngineConnectionDisplayName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for EngineConnectionDisplayName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(value).map_err(serde::de::Error::custom)
     }
 }
 
@@ -137,7 +159,7 @@ impl std::fmt::Debug for EngineConnectionProfile {
 
 /// Ordered collection of engine connection profiles with validated defaults.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct EngineConnectionProfileSet {
     profiles: Vec<EngineConnectionProfile>,
 }
@@ -186,6 +208,22 @@ impl EngineConnectionProfileSet {
     /// Returns whether the set has no profiles.
     pub fn is_empty(&self) -> bool {
         self.profiles.is_empty()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for EngineConnectionProfileSet {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct ProfileSet {
+            profiles: Vec<EngineConnectionProfile>,
+        }
+
+        let value = <ProfileSet as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(value.profiles).map_err(serde::de::Error::custom)
     }
 }
 

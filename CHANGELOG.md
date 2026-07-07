@@ -7,6 +7,8 @@
 - Added `susun doctor` to emit a redacted local runtime readiness report.
 - Added runtime profile selection contracts for default-profile validation and
   duplicate ID detection.
+- Hardened runtime profile serde deserialization so invalid profile IDs,
+  duplicate IDs, and multiple defaults are rejected at the typed boundary.
 
 ## 0.1.0
 

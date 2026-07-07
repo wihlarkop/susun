@@ -101,3 +101,88 @@ fn profile_debug_redacts_endpoint() -> TestResult {
     assert!(!debug.contains("docker.sock"));
     Ok(())
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_rejects_invalid_profile_id() {
+    let json = r#"{
+        "profiles": [
+            {
+                "id": "bad id",
+                "display_name": "Bad",
+                "endpoint": "Local",
+                "default": false
+            }
+        ]
+    }"#;
+
+    let result = serde_json::from_str::<EngineConnectionProfileSet>(json);
+    assert!(result.is_err());
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_rejects_duplicate_profile_ids() {
+    let json = r#"{
+        "profiles": [
+            {
+                "id": "local",
+                "display_name": "Local A",
+                "endpoint": "Local",
+                "default": false
+            },
+            {
+                "id": "local",
+                "display_name": "Local B",
+                "endpoint": "Local",
+                "default": false
+            }
+        ]
+    }"#;
+
+    let result = serde_json::from_str::<EngineConnectionProfileSet>(json);
+    assert!(result.is_err());
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_rejects_multiple_default_profiles() {
+    let json = r#"{
+        "profiles": [
+            {
+                "id": "one",
+                "display_name": "One",
+                "endpoint": "Local",
+                "default": true
+            },
+            {
+                "id": "two",
+                "display_name": "Two",
+                "endpoint": "Local",
+                "default": true
+            }
+        ]
+    }"#;
+
+    let result = serde_json::from_str::<EngineConnectionProfileSet>(json);
+    assert!(result.is_err());
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_roundtrips_valid_profile_set() -> TestResult {
+    let set = EngineConnectionProfileSet::new(vec![EngineConnectionProfile::local_default()])?;
+
+    let json = serde_json::to_string(&set)?;
+    let parsed: EngineConnectionProfileSet = serde_json::from_str(&json)?;
+
+    assert_eq!(
+        parsed
+            .default_profile()
+            .ok_or("expected default profile")?
+            .id
+            .as_str(),
+        "local"
+    );
+    Ok(())
+}
