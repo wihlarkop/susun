@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use serde::{Deserialize, Serialize};
 use susun_engine::{ContainerEngine, ProjectIdentity};
 use susun_planner::{DownPlanOptions, ExecutionPlan, UpPlanOptions};
 use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime};
@@ -10,7 +11,7 @@ use thiserror::Error;
 use crate::{AnalysisResult, Planner};
 
 /// Successful runtime operation output.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct RuntimeOperationResult {
     /// Immutable plan that was executed.
     pub plan: ExecutionPlan,
@@ -147,5 +148,19 @@ pub fn render_execution_report_json(report: &ExecutionReport) -> Result<String, 
 
 /// Parses an execution report from JSON using the public SDK schema.
 pub fn parse_execution_report_json(input: &str) -> Result<ExecutionReport, serde_json::Error> {
+    serde_json::from_str(input)
+}
+
+/// Renders a runtime operation result as pretty JSON using the public SDK schema.
+pub fn render_runtime_operation_result_json(
+    result: &RuntimeOperationResult,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(result)
+}
+
+/// Parses a runtime operation result from JSON using the public SDK schema.
+pub fn parse_runtime_operation_result_json(
+    input: &str,
+) -> Result<RuntimeOperationResult, serde_json::Error> {
     serde_json::from_str(input)
 }

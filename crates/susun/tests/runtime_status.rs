@@ -6,7 +6,8 @@ use susun::{
     BuildPolicy, ContainerId, ContainerState, EngineSnapshot, HealthState, ObservedContainer,
     ObservedImageRef, ProjectIdentity, ProjectInstanceId, ProjectName, ReplicaIndex, ResourceName,
     RuntimeOperationError, ServiceInstanceId, ServiceName, SnapshotCompleteness, SusunWorkspace,
-    UpPlanOptions, parse_runtime_overview_json, parse_runtime_status_summary_json,
+    UpPlanOptions, parse_runtime_operation_result_json, parse_runtime_overview_json,
+    parse_runtime_status_summary_json, render_runtime_operation_result_json,
     render_runtime_overview_json, render_runtime_status_summary_json, runtime_overview,
     runtime_status_from_snapshot,
 };
@@ -241,6 +242,28 @@ async fn sdk_project_up_with_engine_executes_through_runtime_facade() -> TestRes
     assert_eq!(result.plan.project.name.as_str(), "valid-minimal");
     assert!(result.report.summary.total_actions > 0);
     assert_eq!(result.report.summary.failed, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn runtime_operation_result_json_helpers_roundtrip() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::new());
+    let options = UpPlanOptions {
+        build_policy: BuildPolicy::NeverBuild,
+        ..UpPlanOptions::default()
+    };
+    let result = sdk_project.up_with_engine(engine, options).await?;
+
+    let json = render_runtime_operation_result_json(&result)?;
+    let parsed = parse_runtime_operation_result_json(&json)?;
+
+    assert_eq!(parsed.plan.plan_id, result.plan.plan_id);
+    assert_eq!(parsed.report.plan_id, result.report.plan_id);
+    assert_eq!(
+        parsed.report.summary.total_actions,
+        result.report.summary.total_actions
+    );
     Ok(())
 }
 

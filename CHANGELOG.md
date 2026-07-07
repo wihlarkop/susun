@@ -29,6 +29,8 @@
   planning is symmetric for `up` and `down`.
 - Added facade JSON helpers for execution plans and execution reports so SDK
   consumers can persist runtime workflow artifacts without lower-crate imports.
+- Added JSON helpers for `RuntimeOperationResult`, the combined result returned
+  by SDK mutating runtime calls.
 
 ## 0.1.0
 
