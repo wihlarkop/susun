@@ -13,14 +13,15 @@ pub mod status;
 pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
-pub use planning::Planner;
+pub use planning::{Planner, parse_execution_plan_json, render_execution_plan_json};
 pub use profiles::{
     parse_engine_connection_profile_set_json, render_engine_connection_profile_set_json,
 };
 pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{
     RuntimeOperationError, RuntimeOperationResult, down_with_engine, down_with_engine_events,
-    up_with_engine, up_with_engine_events,
+    parse_execution_report_json, render_execution_report_json, up_with_engine,
+    up_with_engine_events,
 };
 pub use status::{
     RuntimeContainerStatusSummary, RuntimeOverview, RuntimeOverviewStatus,

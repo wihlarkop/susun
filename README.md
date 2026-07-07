@@ -40,7 +40,10 @@ println!("down plan available: {}", down.is_some());
 
 When an application needs a plan based on the current runtime state but should
 not execute yet, use `plan_up_with_engine` or `plan_down_with_engine` with a
-supplied engine adapter.
+supplied engine adapter. Plans and execution reports can be persisted through
+the facade helpers `render_execution_plan_json`,
+`parse_execution_plan_json`, `render_execution_report_json`, and
+`parse_execution_report_json`.
 
 For mutating runtime flows, analyze once and execute through the same
 `SdkProject`:

@@ -5,9 +5,12 @@ use std::{error::Error, path::PathBuf};
 use susun::{
     Analyzer, BuildPolicy, EngineCapabilities, EngineSnapshot, Error as SusunError, Project,
     ProjectIdentity, ProjectInstanceId, ProjectName, ProjectSummarySchemaVersion, SusunWorkspace,
-    UpPlanOptions, parse_engine_connection_profile_set_json, parse_project_summary_json,
+    UpPlanOptions, parse_engine_connection_profile_set_json, parse_execution_plan_json,
+    parse_execution_report_json, parse_project_summary_json,
     render_engine_connection_profile_set_json, render_project_summary_json,
 };
+use susun::{render_execution_plan_json, render_execution_report_json};
+use susun_runtime::ExecutionReport;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -139,6 +142,40 @@ fn workspace_dry_run_down_plan_uses_facade_defaults() -> TestResult {
     assert!(!outcome.diagnostics.has_errors());
     assert!(outcome.plan.is_some(), "expected a daemon-free down plan");
     assert!(project.dry_run_down_plan()?.is_some());
+    Ok(())
+}
+
+#[test]
+fn facade_execution_plan_json_helpers_roundtrip() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let plan = project
+        .dry_run_up_plan(false)?
+        .ok_or("expected daemon-free up plan")?;
+
+    let json = render_execution_plan_json(&plan)?;
+    let parsed = parse_execution_plan_json(&json)?;
+
+    assert_eq!(parsed.plan_id, plan.plan_id);
+    assert_eq!(parsed.schema_version, plan.schema_version);
+    assert_eq!(parsed.summary, plan.summary);
+    assert_eq!(parsed.actions.len(), plan.actions.len());
+    Ok(())
+}
+
+#[test]
+fn facade_execution_report_json_helpers_roundtrip() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let plan = project
+        .dry_run_up_plan(false)?
+        .ok_or("expected daemon-free up plan")?;
+    let report = ExecutionReport::pending(&plan);
+
+    let json = render_execution_report_json(&report)?;
+    let parsed = parse_execution_report_json(&json)?;
+
+    assert_eq!(parsed.plan_id, report.plan_id);
+    assert_eq!(parsed.summary.total_actions, report.summary.total_actions);
+    assert_eq!(parsed.actions.len(), report.actions.len());
     Ok(())
 }
 

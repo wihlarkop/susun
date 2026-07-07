@@ -139,3 +139,13 @@ where
         .await?;
     Ok(RuntimeOperationResult { plan, report })
 }
+
+/// Renders an execution report as pretty JSON using the public SDK schema.
+pub fn render_execution_report_json(report: &ExecutionReport) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(report)
+}
+
+/// Parses an execution report from JSON using the public SDK schema.
+pub fn parse_execution_report_json(input: &str) -> Result<ExecutionReport, serde_json::Error> {
+    serde_json::from_str(input)
+}

@@ -3,8 +3,8 @@
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity};
 use susun_planner::{
-    DownPlanOptions, NamingPolicy, PlanError, PlanOutcome, PlanningInput, SusunNamingPolicy,
-    UpPlanOptions, plan_down, plan_up,
+    DownPlanOptions, ExecutionPlan, NamingPolicy, PlanError, PlanOutcome, PlanningInput,
+    SusunNamingPolicy, UpPlanOptions, plan_down, plan_up, render_plan_json,
 };
 
 use crate::AnalysisResult;
@@ -95,4 +95,14 @@ fn blocked_by_phase_one() -> PlanOutcome {
         "Phase 1 analysis did not produce a project, selection, and dependency graph",
     ));
     PlanOutcome::blocked(diagnostics)
+}
+
+/// Renders an execution plan as pretty JSON using the public SDK schema.
+pub fn render_execution_plan_json(plan: &ExecutionPlan) -> Result<String, serde_json::Error> {
+    render_plan_json(plan)
+}
+
+/// Parses an execution plan from JSON using the public SDK schema.
+pub fn parse_execution_plan_json(input: &str) -> Result<ExecutionPlan, serde_json::Error> {
+    serde_json::from_str(input)
 }
