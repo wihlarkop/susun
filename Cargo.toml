@@ -42,15 +42,20 @@ futures-core = "0.3"
 futures-util = "0.3"
 indexmap = "2.14.0"
 notify = "=9.0.0-rc.2"
-serde = { version = "1.0", features = ["derive"] }
-saphyr = "0.0.6"
-saphyr-parser = "0.0.6"
+serde = { version = "1.0", features = ["derive", "rc"] }
+saphyr = "0.0.9"
+saphyr-parser = "0.0.9"
 thiserror = "2.0"
 clap = { version = "4", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
+sha2 = "0.11.0"
 tar = "0.4"
-tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+tokio = { version = "1", features = [
+  "macros",
+  "rt-multi-thread",
+  "signal",
+  "time",
+] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 

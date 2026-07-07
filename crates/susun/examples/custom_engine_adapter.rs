@@ -7,8 +7,9 @@ use susun_engine::{
     ContainerRef, CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest,
     CreateNetworkRequest, CreateVolumeRequest, EngineCapabilities, EngineError, EngineImageRef,
     EngineSnapshot, EventsRequest, ExecRequest, LogsRequest, NetworkRef, PortRequest, ProgressSink,
-    ProjectIdentity, PublishedPortBinding, PullImageRequest, RemoveContainerOptions,
-    StopContainerRequest, VolumeRef, WaitContainerRequest, WaitContainerResult,
+    ProjectIdentity, PruneReport, PruneRequest, PublishedPortBinding, PullImageRequest,
+    RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 use susun_model::ProjectName;
 
@@ -103,6 +104,10 @@ impl ContainerEngine for ReadOnlyEngine {
 
     fn port(&self, _request: PortRequest) -> BoxEngineFuture<'_, Vec<PublishedPortBinding>> {
         unsupported("port")
+    }
+
+    fn prune(&self, _request: PruneRequest) -> BoxEngineFuture<'_, PruneReport> {
+        unsupported("prune")
     }
 }
 

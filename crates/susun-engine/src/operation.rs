@@ -9,8 +9,8 @@ use susun_model::{
 };
 
 use crate::{
-    ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ProjectIdentity, ResourceName,
-    ServiceInstanceId, VolumeId,
+    ContainerId, EngineApiVersion, ImageId, LabelKey, LabelValue, NetworkId, ProjectIdentity,
+    ResourceName, ServiceInstanceId, VolumeId,
 };
 
 /// Boxed progress future.
@@ -61,23 +61,40 @@ pub struct ActionProgress {
     pub message: Option<String>,
 }
 
-/// Docker endpoint selected for an adapter.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// Docker-compatible endpoint selected for an adapter. Constructing one
+/// never touches the network — connecting and probing are separate,
+/// explicit steps (see `BollardEngine::connect_to`/`probe`).
+#[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum EngineEndpoint {
-    /// Use local engine discovery.
+    /// Use the platform's conventional local Docker-compatible endpoint.
+    /// Does NOT perform multi-runtime discovery — callers that need to
+    /// pick between Docker Desktop/Podman/Rancher Desktop/etc. resolve
+    /// that themselves and construct an explicit variant below.
     Local,
-    /// Unix domain socket path.
-    UnixSocket(String),
-    /// Windows named pipe path.
-    WindowsNamedPipe(String),
-    /// TCP endpoint. User info is not allowed.
-    Tcp {
-        /// Host and optional port without credentials.
-        host: String,
-        /// Whether TLS is enabled.
-        tls: bool,
-    },
+    /// Connect to this exact Unix socket path.
+    UnixSocket(PathBuf),
+    /// Connect to this exact Windows named pipe.
+    WindowsNamedPipe(Arc<str>),
+    /// Connect to this exact TCP endpoint.
+    Tcp(TcpEndpoint),
+}
+
+/// Fieldless mirror of `EngineEndpoint`'s variants, for error reporting
+/// (e.g. `EngineConnectionError::UnsupportedEndpoint`) without needing to
+/// carry — or redact — the endpoint's actual contents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum EngineEndpointKind {
+    /// Mirrors `EngineEndpoint::Local`.
+    Local,
+    /// Mirrors `EngineEndpoint::UnixSocket`.
+    UnixSocket,
+    /// Mirrors `EngineEndpoint::WindowsNamedPipe`.
+    WindowsNamedPipe,
+    /// Mirrors `EngineEndpoint::Tcp`.
+    Tcp,
 }
 
 impl EngineEndpoint {
@@ -87,20 +104,238 @@ impl EngineEndpoint {
             Self::Local => "local".to_owned(),
             Self::UnixSocket(_) => "unix://<local-socket>".to_owned(),
             Self::WindowsNamedPipe(_) => "npipe://<local-pipe>".to_owned(),
-            Self::Tcp { host, tls } => {
-                let scheme = if *tls { "https" } else { "http" };
-                format!("{scheme}://{}", redact_authority(host))
+            Self::Tcp(endpoint) => {
+                let scheme = if endpoint.tls().is_some() {
+                    "https"
+                } else {
+                    "http"
+                };
+                format!("{scheme}://<remote-host>")
             }
+        }
+    }
+
+    /// Returns this endpoint's kind, without its contents.
+    pub fn kind(&self) -> EngineEndpointKind {
+        match self {
+            Self::Local => EngineEndpointKind::Local,
+            Self::UnixSocket(_) => EngineEndpointKind::UnixSocket,
+            Self::WindowsNamedPipe(_) => EngineEndpointKind::WindowsNamedPipe,
+            Self::Tcp(_) => EngineEndpointKind::Tcp,
         }
     }
 }
 
-fn redact_authority(value: &str) -> String {
-    value
-        .rsplit('@')
-        .next()
-        .map(str::to_owned)
-        .unwrap_or_else(|| "<redacted>".to_owned())
+impl std::fmt::Debug for EngineEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.redacted())
+    }
+}
+
+fn validate_host(host: &str) -> Result<(), crate::InvalidEngineEndpoint> {
+    if host.is_empty() {
+        return Err(crate::InvalidEngineEndpoint::EmptyHost);
+    }
+    if host.contains("http://") || host.contains("https://") {
+        return Err(crate::InvalidEngineEndpoint::EmbeddedScheme);
+    }
+    if host.contains('@') {
+        return Err(crate::InvalidEngineEndpoint::EmbeddedCredentials);
+    }
+    if host.contains('/') || host.contains('?') {
+        return Err(crate::InvalidEngineEndpoint::EmbeddedPathOrQuery);
+    }
+    let has_open = host.starts_with('[');
+    let has_close = host.ends_with(']');
+    if has_open != has_close {
+        return Err(crate::InvalidEngineEndpoint::MalformedIpv6);
+    }
+    if has_open && has_close {
+        host[1..host.len() - 1]
+            .parse::<std::net::Ipv6Addr>()
+            .map_err(|_| crate::InvalidEngineEndpoint::MalformedIpv6)?;
+    }
+    Ok(())
+}
+
+/// TLS client certificate + private key, always constructed as a pair —
+/// there is no way to represent one without the other.
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct ClientIdentityFiles {
+    certificate: PathBuf,
+    private_key: PathBuf,
+}
+
+impl ClientIdentityFiles {
+    /// Constructs a client identity. Fails if either path is empty.
+    pub fn new(
+        certificate: impl Into<PathBuf>,
+        private_key: impl Into<PathBuf>,
+    ) -> Result<Self, crate::TlsConfigurationError> {
+        let certificate = certificate.into();
+        let private_key = private_key.into();
+        if certificate.as_os_str().is_empty() || private_key.as_os_str().is_empty() {
+            return Err(crate::TlsConfigurationError::IncompleteClientIdentity);
+        }
+        Ok(Self {
+            certificate,
+            private_key,
+        })
+    }
+
+    /// Returns the certificate path.
+    pub fn certificate(&self) -> &std::path::Path {
+        &self.certificate
+    }
+
+    /// Returns the private key path.
+    pub fn private_key(&self) -> &std::path::Path {
+        &self.private_key
+    }
+}
+
+impl std::fmt::Debug for ClientIdentityFiles {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ClientIdentityFiles")
+            .finish_non_exhaustive()
+    }
+}
+
+/// TLS configuration for a Docker-compatible `Tcp` endpoint. The current
+/// Bollard adapter supports Docker's mutual-TLS file model: a custom CA
+/// certificate plus a client certificate/key pair.
+///
+/// Fields are private. Construct via `new()` plus the `with_*` builder
+/// methods, never a struct literal.
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TlsConfiguration {
+    ca_certificate: Option<PathBuf>,
+    client_identity: Option<ClientIdentityFiles>,
+    server_name: Option<Arc<str>>,
+}
+
+impl TlsConfiguration {
+    /// Starts an empty TLS configuration.
+    ///
+    /// Adapters may validate that the required files are present when a
+    /// connection is constructed. For the Bollard adapter, `with_ca_certificate`
+    /// and `with_client_identity` are both required.
+    pub fn new() -> Self {
+        Self {
+            ca_certificate: None,
+            client_identity: None,
+            server_name: None,
+        }
+    }
+
+    /// Adds a custom CA certificate path.
+    pub fn with_ca_certificate(mut self, path: impl Into<PathBuf>) -> Self {
+        self.ca_certificate = Some(path.into());
+        self
+    }
+
+    /// Adds a client certificate + key for mutual TLS.
+    pub fn with_client_identity(mut self, identity: ClientIdentityFiles) -> Self {
+        self.client_identity = Some(identity);
+        self
+    }
+
+    /// Overrides the TLS server-name used for verification.
+    pub fn with_server_name(mut self, name: impl Into<Arc<str>>) -> Self {
+        self.server_name = Some(name.into());
+        self
+    }
+
+    /// Returns the custom CA certificate path, if any.
+    pub fn ca_certificate(&self) -> Option<&std::path::Path> {
+        self.ca_certificate.as_deref()
+    }
+
+    /// Returns the client identity, if any.
+    pub fn client_identity(&self) -> Option<&ClientIdentityFiles> {
+        self.client_identity.as_ref()
+    }
+
+    /// Returns the TLS server-name override, if any.
+    pub fn server_name(&self) -> Option<&str> {
+        self.server_name.as_deref()
+    }
+}
+
+impl Default for TlsConfiguration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::fmt::Debug for TlsConfiguration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TlsConfiguration")
+            .field("ca_certificate", &self.ca_certificate.is_some())
+            .field("client_identity", &self.client_identity.is_some())
+            .field("server_name", &self.server_name.is_some())
+            .finish()
+    }
+}
+
+/// A TCP endpoint: host and port, never a loosely-validated URL string.
+#[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct TcpEndpoint {
+    host: Arc<str>,
+    port: u16,
+    tls: Option<TlsConfiguration>,
+}
+
+impl TcpEndpoint {
+    /// Constructs a TCP endpoint. Rejects an empty host, a host containing
+    /// a URL scheme/credentials/path/query, port 0, or malformed bracketed
+    /// IPv6 syntax.
+    pub fn new(host: impl Into<Arc<str>>, port: u16) -> Result<Self, crate::InvalidEngineEndpoint> {
+        let host = host.into();
+        validate_host(&host)?;
+        if port == 0 {
+            return Err(crate::InvalidEngineEndpoint::PortZero);
+        }
+        Ok(Self {
+            host,
+            port,
+            tls: None,
+        })
+    }
+
+    /// Attaches TLS configuration to this endpoint.
+    pub fn with_tls(mut self, tls: TlsConfiguration) -> Self {
+        self.tls = Some(tls);
+        self
+    }
+
+    /// Returns the host.
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the port.
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Returns the TLS configuration, if any.
+    pub fn tls(&self) -> Option<&TlsConfiguration> {
+        self.tls.as_ref()
+    }
+}
+
+impl std::fmt::Debug for TcpEndpoint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TcpEndpoint")
+            .field("host", &"<redacted>")
+            .field("port", &self.port)
+            .field("tls", &self.tls.is_some())
+            .finish()
+    }
 }
 
 /// Image acquisition policy.
@@ -473,4 +708,76 @@ pub struct PruneReport {
     pub images_removed: Vec<ImageId>,
     /// Total disk space reclaimed, in bytes.
     pub space_reclaimed_bytes: u64,
+}
+
+/// Engine daemon version string (distinct from the API version).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct EngineVersion(String);
+
+impl EngineVersion {
+    /// Creates an engine version value.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Returns the engine version string.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Operating system the engine daemon reports running on (e.g. `"linux"`,
+/// `"windows"`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct EngineOperatingSystem(String);
+
+impl EngineOperatingSystem {
+    /// Creates an operating-system value.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Returns the operating-system string.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Architecture the engine daemon reports running on (e.g. `"amd64"`,
+/// `"arm64"`).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct EngineArchitecture(String);
+
+impl EngineArchitecture {
+    /// Creates an architecture value.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    /// Returns the architecture string.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Result of probing a connected engine for liveness and version
+/// information. Neutral — not Bollard-specific — even though today only
+/// `BollardEngine::probe` fills it in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EngineProbe {
+    /// Negotiated/reported API version.
+    pub api_version: Option<EngineApiVersion>,
+    /// Engine daemon version.
+    pub engine_version: Option<EngineVersion>,
+    /// Reported operating system.
+    pub operating_system: Option<EngineOperatingSystem>,
+    /// Reported architecture.
+    pub architecture: Option<EngineArchitecture>,
 }

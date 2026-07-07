@@ -18,7 +18,7 @@ workspace = true
 [dependencies]
 susun-engine = { workspace = true }
 susun-model = { workspace = true }
-bollard = { workspace = true }
+bollard = { workspace = true, features = ["ssl"] }
 futures-util = { workspace = true }
 indexmap = { workspace = true }
 thiserror = { workspace = true }

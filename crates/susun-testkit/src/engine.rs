@@ -7,9 +7,9 @@ use susun_engine::{
     ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineCapabilities,
     EngineError, EngineImageRef, EngineOperation, EngineSnapshot, EventsRequest, ExecRequest,
-    LogsRequest, NetworkId, NetworkRef, PortRequest, ProgressSink, ProjectIdentity,
-    PublishedPortBinding, PullImageRequest, RemoveContainerOptions, StopContainerRequest, VolumeId,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    LogsRequest, NetworkId, NetworkRef, PortRequest, ProgressSink, ProjectIdentity, PruneReport,
+    PruneRequest, PublishedPortBinding, PullImageRequest, RemoveContainerOptions,
+    StopContainerRequest, VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
 /// In-memory engine that can fail selected operations.
@@ -244,6 +244,17 @@ impl ContainerEngine for FakeContainerEngine {
             }
         })
     }
+
+    fn prune(&self, _request: PruneRequest) -> BoxEngineFuture<'_, PruneReport> {
+        let fail = self.should_fail(EngineOperation::Prune);
+        Box::pin(async move {
+            if fail {
+                Err(fake_error(EngineOperation::Prune))
+            } else {
+                Ok(PruneReport::default())
+            }
+        })
+    }
 }
 
 fn unit(operation: EngineOperation, fail: bool) -> BoxEngineFuture<'static, ()> {
@@ -291,5 +302,6 @@ fn operation_capability(operation: EngineOperation) -> &'static str {
         EngineOperation::Copy => "copy",
         EngineOperation::Port => "port",
         EngineOperation::Wait => "wait",
+        EngineOperation::Prune => "prune",
     }
 }

@@ -1,6 +1,6 @@
 //! Neutral engine error hierarchy.
 
-use std::{error::Error as StdError, fmt, io};
+use std::{error::Error as StdError, fmt};
 
 use crate::{ContainerId, NetworkId, ResourceName, VolumeId};
 
@@ -75,16 +75,78 @@ impl fmt::Display for EngineOperation {
     }
 }
 
-/// Engine connection errors with redacted endpoint details.
+/// A target platform, used to explain why an endpoint kind isn't
+/// supported here (e.g. a Windows named pipe requested on Linux).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum Platform {
+    /// Windows.
+    Windows,
+    /// macOS.
+    MacOs,
+    /// Linux.
+    Linux,
+    /// Any other platform.
+    Other,
+}
+
+impl Platform {
+    /// Returns the platform this code is currently compiled/running for.
+    pub fn current() -> Self {
+        if cfg!(target_os = "windows") {
+            Self::Windows
+        } else if cfg!(target_os = "macos") {
+            Self::MacOs
+        } else if cfg!(target_os = "linux") {
+            Self::Linux
+        } else {
+            Self::Other
+        }
+    }
+}
+
+/// A display-safe endpoint, only ever constructed by redacting a real
+/// `crate::EngineEndpoint` — there is no path to build one from an
+/// arbitrary unredacted string.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(transparent))]
+pub struct RedactedEndpoint(String);
+
+impl RedactedEndpoint {
+    /// Redacts an endpoint for safe display.
+    pub fn new(endpoint: &crate::EngineEndpoint) -> Self {
+        Self(endpoint.redacted())
+    }
+}
+
+impl fmt::Display for RedactedEndpoint {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// Engine connection errors with redacted endpoint details. The first
+/// three variants can occur while constructing a client
+/// (`BollardEngine::connect_to`); the latter three normally occur while
+/// proving reachability (`BollardEngine::probe`) or during later engine
+/// operations.
 #[derive(Debug, thiserror::Error)]
 pub enum EngineConnectionError {
-    /// Endpoint could not be reached.
-    #[error("engine endpoint unavailable: {endpoint}")]
-    EndpointUnavailable {
-        /// Redacted endpoint.
-        endpoint: String,
-        /// Underlying I/O error.
-        source: io::Error,
+    /// The endpoint value itself was invalid.
+    #[error("invalid engine endpoint: {detail}")]
+    InvalidEndpoint {
+        /// Redacted detail.
+        detail: String,
+    },
+    /// This endpoint kind isn't supported on the current platform.
+    #[error("engine endpoint kind {endpoint_kind:?} is not supported on {platform:?}")]
+    UnsupportedEndpoint {
+        /// Which endpoint kind was requested.
+        endpoint_kind: crate::EngineEndpointKind,
+        /// Which platform rejected it.
+        platform: Platform,
     },
     /// TLS configuration failed.
     #[error("engine TLS configuration failed: {detail}")]
@@ -92,18 +154,61 @@ pub enum EngineConnectionError {
         /// Redacted detail.
         detail: String,
     },
+    /// Endpoint could not be reached.
+    #[error("engine endpoint unavailable: {endpoint}")]
+    EndpointUnavailable {
+        /// Redacted endpoint.
+        endpoint: RedactedEndpoint,
+        /// Underlying error.
+        source: BoxError,
+    },
     /// API negotiation failed.
-    #[error("engine API negotiation failed: {detail}")]
+    #[error("engine API negotiation failed: {source}")]
     ApiNegotiation {
-        /// Redacted detail.
-        detail: String,
+        /// Underlying error.
+        source: BoxError,
     },
     /// Authentication failed.
-    #[error("engine authentication failed: {detail}")]
+    #[error("engine authentication failed: {endpoint}")]
     Authentication {
-        /// Redacted detail.
-        detail: String,
+        /// Redacted endpoint.
+        endpoint: RedactedEndpoint,
+        /// Underlying error.
+        source: BoxError,
     },
+}
+
+/// A `TcpEndpoint` was constructed with an invalid host or port.
+#[derive(Debug, thiserror::Error)]
+pub enum InvalidEngineEndpoint {
+    /// Host was empty.
+    #[error("host must not be empty")]
+    EmptyHost,
+    /// Host included a URL scheme (e.g. `http://`).
+    #[error("host must not include a URL scheme")]
+    EmbeddedScheme,
+    /// Host included embedded credentials (an `@`).
+    #[error("host must not include credentials")]
+    EmbeddedCredentials,
+    /// Host included a path or query component.
+    #[error("host must not include a path or query")]
+    EmbeddedPathOrQuery,
+    /// Port was zero.
+    #[error("port must not be 0")]
+    PortZero,
+    /// Host used bracket syntax but was not a valid bracketed IPv6 address.
+    #[error("malformed bracketed IPv6 host")]
+    MalformedIpv6,
+}
+
+/// A `ClientIdentityFiles`/`TlsConfiguration` was constructed with an
+/// incomplete or invalid combination of fields.
+#[derive(Debug, thiserror::Error)]
+pub enum TlsConfigurationError {
+    /// A client identity requires both a certificate and a private key —
+    /// one was supplied without the other, or one was empty.
+    #[error("client identity requires both a certificate and a private key")]
+    IncompleteClientIdentity,
 }
 
 /// Resource identity for typed engine errors.

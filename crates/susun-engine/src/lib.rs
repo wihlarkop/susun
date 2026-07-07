@@ -13,18 +13,23 @@ pub mod snapshot;
 
 pub use capability::{EngineApiVersion, EngineCapabilities, MountType, SupportLevel};
 pub use engine::{BoxEngineFuture, ContainerEngine};
-pub use error::{EngineConnectionError, EngineError, EngineOperation, ResourceIdentity};
+pub use error::{
+    EngineConnectionError, EngineError, EngineOperation, InvalidEngineEndpoint, Platform,
+    RedactedEndpoint, ResourceIdentity, TlsConfigurationError,
+};
 pub use identity::{
     IdentityError, NetworkIdentity, ProjectIdentity, ProjectInstanceId, ReplicaIndex,
     ServiceInstanceId, VolumeIdentity,
 };
 pub use operation::{
-    ActionProgress, BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef,
-    CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
-    CreateVolumeRequest, EngineEndpoint, EngineEvent, EngineImageRef, EventsRequest, ExecRequest,
-    LogEvent, LogSource, LogsRequest, MaterializedResourceMount, NetworkRef, PortRequest,
-    ProgressSink, PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
-    PullPolicy, RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
+    ActionProgress, BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream,
+    ClientIdentityFiles, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
+    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineArchitecture,
+    EngineEndpoint, EngineEndpointKind, EngineEvent, EngineImageRef, EngineOperatingSystem,
+    EngineProbe, EngineVersion, EventsRequest, ExecRequest, LogEvent, LogSource, LogsRequest,
+    MaterializedResourceMount, NetworkRef, PortRequest, ProgressSink, PruneReport, PruneRequest,
+    PruneScope, PublishedPortBinding, PullImageRequest, PullPolicy, RemoveContainerOptions,
+    StopContainerRequest, TcpEndpoint, TlsConfiguration, VolumeRef, WaitContainerRequest,
     WaitContainerResult,
 };
 pub use resource::{

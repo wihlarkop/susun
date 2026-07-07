@@ -18,7 +18,7 @@ pub async fn docker_engine() -> Result<Option<BollardEngine>, EngineError> {
         Ok(engine) => engine,
         Err(error) => {
             if required {
-                return Err(error);
+                return Err(EngineError::Connection(error));
             }
             eprintln!("skipping Docker integration test: {error}");
             return Ok(None);
@@ -35,6 +35,7 @@ pub async fn docker_engine() -> Result<Option<BollardEngine>, EngineError> {
 }
 
 /// Best-effort cleanup for all resources owned by one project.
+#[allow(dead_code)]
 pub async fn cleanup_project(
     engine: &BollardEngine,
     project: &ProjectIdentity,

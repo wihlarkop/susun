@@ -21,13 +21,15 @@ pub use runtime::{
 pub use susun_build::Dockerignore;
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
-    ContainerEngine, ContainerId, ContainerRef, ContainerState, CopyFromContainerRequest,
-    CopyToContainerRequest, CreateContainerRequest, EngineCapabilities, EngineEndpoint,
-    EngineError, EngineEvent, EngineSnapshot, EventsRequest, ExecRequest, HealthState, LogEvent,
-    LogSource, LogsRequest, ObservedContainer, ObservedImageRef, PortRequest, ProjectIdentity,
-    ProjectInstanceId, PruneReport, PruneRequest, PruneScope, PublishedPortBinding,
-    RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest,
-    SupportLevel, WaitContainerRequest, WaitContainerResult,
+    ClientIdentityFiles, ContainerEngine, ContainerId, ContainerRef, ContainerState,
+    CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, EngineArchitecture,
+    EngineCapabilities, EngineConnectionError, EngineEndpoint, EngineEndpointKind, EngineError,
+    EngineEvent, EngineOperatingSystem, EngineProbe, EngineSnapshot, EngineVersion, EventsRequest,
+    ExecRequest, HealthState, LogEvent, LogSource, LogsRequest, ObservedContainer,
+    ObservedImageRef, Platform, PortRequest, ProjectIdentity, ProjectInstanceId, PruneReport,
+    PruneRequest, PruneScope, PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions,
+    ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest, SupportLevel, TcpEndpoint,
+    TlsConfiguration, WaitContainerRequest, WaitContainerResult,
 };
 #[cfg(feature = "bollard")]
 pub use susun_engine_bollard::BollardEngine;

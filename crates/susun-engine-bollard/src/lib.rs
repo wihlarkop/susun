@@ -26,14 +26,15 @@ use susun_engine::{
     BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine,
     ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
-    EngineCapabilities, EngineEndpoint, EngineError, EngineEvent, EngineImageRef, EngineOperation,
-    EngineSnapshot, EventsRequest, ExecRequest, HealthState, ImageId, LabelKey, LabelValue,
-    LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef,
-    ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume,
-    PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest, PruneScope,
-    PublishedPortBinding, PullImageRequest, ReplicaIndex, ResourceIdentity, ResourceName,
-    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    EngineArchitecture, EngineCapabilities, EngineConnectionError, EngineEndpoint, EngineError,
+    EngineEvent, EngineImageRef, EngineOperatingSystem, EngineOperation, EngineProbe,
+    EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId, LabelKey,
+    LabelValue, LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId,
+    NetworkRef, ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork,
+    ObservedVolume, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
+    PruneScope, PublishedPortBinding, PullImageRequest, RedactedEndpoint, ReplicaIndex,
+    ResourceIdentity, ResourceName, ServiceInstanceId, SnapshotCompleteness, StopContainerRequest,
+    SupportLevel, VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -48,16 +49,94 @@ pub struct BollardEngine {
     endpoint: EngineEndpoint,
 }
 
+const CONNECT_TIMEOUT_SECS: u64 = 10;
+
 impl BollardEngine {
-    /// Connects to the local Docker Engine using Bollard defaults.
-    pub fn connect_local() -> Result<Self, EngineError> {
-        let docker = Docker::connect_with_defaults().map_err(|error| EngineError::Api {
-            operation: EngineOperation::Capabilities,
-            source: Box::new(error),
+    /// Builds a client using Bollard's own local-discovery defaults.
+    /// Validates configuration only — no network I/O.
+    pub fn connect_local() -> Result<Self, EngineConnectionError> {
+        let docker = Docker::connect_with_defaults().map_err(|error| {
+            EngineConnectionError::EndpointUnavailable {
+                endpoint: RedactedEndpoint::new(&EngineEndpoint::Local),
+                source: Box::new(error),
+            }
         })?;
         Ok(Self {
             docker,
             endpoint: EngineEndpoint::Local,
+        })
+    }
+
+    /// Builds a client for an explicit endpoint. Validates configuration
+    /// (including loading/parsing referenced TLS files) — no network I/O.
+    pub fn connect_to(endpoint: EngineEndpoint) -> Result<Self, EngineConnectionError> {
+        let docker = match &endpoint {
+            EngineEndpoint::Local => Docker::connect_with_defaults(),
+            EngineEndpoint::UnixSocket(path) => Docker::connect_with_socket(
+                &path.to_string_lossy(),
+                CONNECT_TIMEOUT_SECS,
+                bollard::API_DEFAULT_VERSION,
+            ),
+            EngineEndpoint::WindowsNamedPipe(pipe) => Docker::connect_with_socket(
+                pipe,
+                CONNECT_TIMEOUT_SECS,
+                bollard::API_DEFAULT_VERSION,
+            ),
+            EngineEndpoint::Tcp(tcp) => {
+                let addr = format!("{}:{}", tcp.host(), tcp.port());
+                match tcp.tls() {
+                    None => Docker::connect_with_http(
+                        &addr,
+                        CONNECT_TIMEOUT_SECS,
+                        bollard::API_DEFAULT_VERSION,
+                    ),
+                    Some(tls) => {
+                        let Some(identity) = tls.client_identity() else {
+                            return Err(EngineConnectionError::TlsConfiguration {
+                                detail: "mutual TLS requires a client certificate and key"
+                                    .to_owned(),
+                            });
+                        };
+                        let Some(ca_certificate) = tls.ca_certificate() else {
+                            return Err(EngineConnectionError::TlsConfiguration {
+                                detail: "TLS requires a CA certificate path".to_owned(),
+                            });
+                        };
+                        Docker::connect_with_ssl(
+                            &addr,
+                            identity.private_key(),
+                            identity.certificate(),
+                            ca_certificate,
+                            CONNECT_TIMEOUT_SECS,
+                            bollard::API_DEFAULT_VERSION,
+                        )
+                    }
+                }
+            }
+        }
+        .map_err(|error| EngineConnectionError::EndpointUnavailable {
+            endpoint: RedactedEndpoint::new(&endpoint),
+            source: Box::new(error),
+        })?;
+        Ok(Self { docker, endpoint })
+    }
+
+    /// Proves reachability and fetches/validates the engine's reported
+    /// API/version information. The only network call among these three
+    /// constructors/methods.
+    pub async fn probe(&self) -> Result<EngineProbe, EngineConnectionError> {
+        let version =
+            self.docker
+                .version()
+                .await
+                .map_err(|error| EngineConnectionError::ApiNegotiation {
+                    source: Box::new(error),
+                })?;
+        Ok(EngineProbe {
+            api_version: version.api_version.map(EngineApiVersion::new),
+            engine_version: version.version.map(EngineVersion::new),
+            operating_system: version.os.map(EngineOperatingSystem::new),
+            architecture: version.arch.map(EngineArchitecture::new),
         })
     }
 
