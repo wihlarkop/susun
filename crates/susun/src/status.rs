@@ -5,8 +5,31 @@ use std::collections::BTreeMap;
 use serde::{Deserialize, Serialize};
 use susun_engine::{
     ContainerState, EngineSnapshot, HealthState, ObservedContainer, ObservedImageRef,
-    ProjectIdentity, SnapshotCompleteness,
+    ProjectIdentity, RuntimeDoctorReport, RuntimeDoctorStatus, SnapshotCompleteness,
 };
+
+/// Combined runtime readiness and project status summary for dashboards.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOverview {
+    /// Aggregate dashboard status.
+    pub overview_status: RuntimeOverviewStatus,
+    /// Runtime readiness report.
+    pub doctor: RuntimeDoctorReport,
+    /// Project status when a snapshot was available.
+    pub status: Option<RuntimeStatusSummary>,
+}
+
+/// Aggregate runtime overview status.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeOverviewStatus {
+    /// Runtime is available and project status was produced.
+    Ready,
+    /// Runtime is available but project status was not produced.
+    Degraded,
+    /// Runtime is not available.
+    Unavailable,
+}
 
 /// Serializable project runtime status summary for SDK, CLI, and UI consumers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -143,6 +166,35 @@ pub fn runtime_status_from_snapshot(
         services,
         unassigned_containers,
     }
+}
+
+/// Builds a runtime overview from a doctor report and optional project status.
+pub fn runtime_overview(
+    doctor: RuntimeDoctorReport,
+    status: Option<RuntimeStatusSummary>,
+) -> RuntimeOverview {
+    let overview_status = match (doctor.status, status.is_some()) {
+        (RuntimeDoctorStatus::Available, true) => RuntimeOverviewStatus::Ready,
+        (RuntimeDoctorStatus::Available, false) => RuntimeOverviewStatus::Degraded,
+        _ => RuntimeOverviewStatus::Unavailable,
+    };
+    RuntimeOverview {
+        overview_status,
+        doctor,
+        status,
+    }
+}
+
+/// Renders a runtime overview as pretty JSON.
+pub fn render_runtime_overview_json(
+    overview: &RuntimeOverview,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(overview)
+}
+
+/// Parses a runtime overview from JSON.
+pub fn parse_runtime_overview_json(input: &str) -> Result<RuntimeOverview, serde_json::Error> {
+    serde_json::from_str(input)
 }
 
 /// Renders a runtime status summary as pretty JSON.

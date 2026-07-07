@@ -66,6 +66,9 @@ For project dashboards, `runtime_status_from_snapshot` converts a neutral
 `EngineSnapshot` plus `ProjectIdentity` into a compact `RuntimeStatusSummary`
 with service/container counts and JSON helpers. This is the recommended DTO for
 desktop UI status panels; raw snapshots remain available for advanced tooling.
+`runtime_overview` combines a `RuntimeDoctorReport` with optional project status
+into a single `RuntimeOverview` payload for dashboard health cards and daemon
+API responses.
 
 ```powershell
 cargo run -p susun --example runtime_doctor

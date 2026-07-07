@@ -13,6 +13,8 @@
 - Added runtime status summary DTOs and JSON helpers derived from neutral engine
   snapshots.
 - Added `susun status` for human and JSON runtime status summaries.
+- Added runtime overview DTOs and JSON helpers that combine runtime readiness
+  with optional project status.
 
 ## 0.1.0
 

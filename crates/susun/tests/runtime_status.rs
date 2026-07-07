@@ -5,9 +5,11 @@ use std::time::SystemTime;
 use susun::{
     ContainerId, ContainerState, EngineSnapshot, HealthState, ObservedContainer, ObservedImageRef,
     ProjectIdentity, ProjectInstanceId, ProjectName, ReplicaIndex, ResourceName, ServiceInstanceId,
-    ServiceName, SnapshotCompleteness, parse_runtime_status_summary_json,
-    render_runtime_status_summary_json, runtime_status_from_snapshot,
+    ServiceName, SnapshotCompleteness, parse_runtime_overview_json,
+    parse_runtime_status_summary_json, render_runtime_overview_json,
+    render_runtime_status_summary_json, runtime_overview, runtime_status_from_snapshot,
 };
+use susun::{RuntimeDoctorReport, RuntimeOverviewStatus};
 use susun_model::ImageRef;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -93,6 +95,69 @@ fn runtime_status_json_helpers_roundtrip() -> TestResult {
     assert_eq!(parsed, summary);
     assert!(json.contains("\"project_name\""));
     assert!(json.contains("\"services\""));
+    Ok(())
+}
+
+#[test]
+fn runtime_overview_is_ready_when_doctor_and_status_available() -> TestResult {
+    let project = project_identity("app", "project-a")?;
+    let snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let status = runtime_status_from_snapshot(&project, &snapshot);
+    let doctor = RuntimeDoctorReport::available(
+        None,
+        &susun::EngineEndpoint::Local,
+        susun::EngineProbe {
+            api_version: None,
+            engine_version: None,
+            operating_system: None,
+            architecture: None,
+        },
+    );
+
+    let overview = runtime_overview(doctor, Some(status));
+
+    assert_eq!(overview.overview_status, RuntimeOverviewStatus::Ready);
+    assert!(overview.status.is_some());
+    Ok(())
+}
+
+#[test]
+fn runtime_overview_is_degraded_when_status_missing() {
+    let doctor = RuntimeDoctorReport::available(
+        None,
+        &susun::EngineEndpoint::Local,
+        susun::EngineProbe {
+            api_version: None,
+            engine_version: None,
+            operating_system: None,
+            architecture: None,
+        },
+    );
+
+    let overview = runtime_overview(doctor, None);
+
+    assert_eq!(overview.overview_status, RuntimeOverviewStatus::Degraded);
+}
+
+#[test]
+fn runtime_overview_json_helpers_roundtrip() -> TestResult {
+    let doctor = RuntimeDoctorReport::available(
+        None,
+        &susun::EngineEndpoint::Local,
+        susun::EngineProbe {
+            api_version: None,
+            engine_version: None,
+            operating_system: None,
+            architecture: None,
+        },
+    );
+    let overview = runtime_overview(doctor, None);
+
+    let json = render_runtime_overview_json(&overview)?;
+    let parsed = parse_runtime_overview_json(&json)?;
+
+    assert_eq!(parsed, overview);
+    assert!(json.contains("\"overview_status\""));
     Ok(())
 }
 
