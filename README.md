@@ -54,6 +54,9 @@ exposes `EngineConnectionProfile`, `EngineConnectionProfileId`,
 `EngineConnectionDisplayName`, `RuntimeDoctorReport`, and
 `RuntimeDoctorStatus`; concrete probing stays in adapter crates such as
 `susun-engine-bollard`.
+`EngineConnectionProfileSet` validates duplicate profile IDs and default
+selection, so applications such as Susun Studio can own storage while reusing
+Susun's neutral profile semantics.
 
 ```powershell
 cargo run -p susun --example runtime_doctor

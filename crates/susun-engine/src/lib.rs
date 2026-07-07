@@ -37,7 +37,7 @@ pub use operation::{
 };
 pub use profile::{
     EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileError,
-    EngineConnectionProfileId,
+    EngineConnectionProfileId, EngineConnectionProfileSet,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,

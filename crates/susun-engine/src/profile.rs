@@ -74,6 +74,7 @@ pub struct EngineConnectionProfile {
     /// User-visible display name.
     pub display_name: EngineConnectionDisplayName,
     endpoint: EngineEndpoint,
+    default: bool,
 }
 
 impl EngineConnectionProfile {
@@ -87,7 +88,29 @@ impl EngineConnectionProfile {
             id,
             display_name,
             endpoint,
+            default: false,
         }
+    }
+
+    /// Creates the conventional local Docker-compatible default profile.
+    pub fn local_default() -> Self {
+        Self {
+            id: EngineConnectionProfileId(Arc::from("local")),
+            display_name: EngineConnectionDisplayName(Arc::from("Local Docker-compatible runtime")),
+            endpoint: EngineEndpoint::Local,
+            default: true,
+        }
+    }
+
+    /// Marks the profile as the default runtime profile.
+    pub fn with_default(mut self, default: bool) -> Self {
+        self.default = default;
+        self
+    }
+
+    /// Returns whether this profile is marked as the default.
+    pub fn is_default(&self) -> bool {
+        self.default
     }
 
     /// Returns the configured endpoint.
@@ -107,7 +130,62 @@ impl std::fmt::Debug for EngineConnectionProfile {
             .field("id", &self.id)
             .field("display_name", &self.display_name)
             .field("endpoint", &self.endpoint.redacted())
+            .field("default", &self.default)
             .finish()
+    }
+}
+
+/// Ordered collection of engine connection profiles with validated defaults.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EngineConnectionProfileSet {
+    profiles: Vec<EngineConnectionProfile>,
+}
+
+impl EngineConnectionProfileSet {
+    /// Creates a validated profile set.
+    pub fn new(
+        profiles: Vec<EngineConnectionProfile>,
+    ) -> Result<Self, EngineConnectionProfileError> {
+        for (index, profile) in profiles.iter().enumerate() {
+            if profiles[..index]
+                .iter()
+                .any(|candidate| candidate.id == profile.id)
+            {
+                return Err(EngineConnectionProfileError::DuplicateId(
+                    profile.id.clone(),
+                ));
+            }
+        }
+        if profiles.iter().filter(|profile| profile.default).count() > 1 {
+            return Err(EngineConnectionProfileError::MultipleDefaults);
+        }
+        Ok(Self { profiles })
+    }
+
+    /// Returns the profiles in insertion order.
+    pub fn profiles(&self) -> &[EngineConnectionProfile] {
+        &self.profiles
+    }
+
+    /// Returns the selected default profile.
+    ///
+    /// If no profile is explicitly marked default, the first profile is used.
+    pub fn default_profile(&self) -> Option<&EngineConnectionProfile> {
+        self.profiles
+            .iter()
+            .find(|profile| profile.default)
+            .or_else(|| self.profiles.first())
+    }
+
+    /// Finds a profile by id.
+    pub fn get(&self, id: &EngineConnectionProfileId) -> Option<&EngineConnectionProfile> {
+        self.profiles.iter().find(|profile| &profile.id == id)
+    }
+
+    /// Returns whether the set has no profiles.
+    pub fn is_empty(&self) -> bool {
+        self.profiles.is_empty()
     }
 }
 
@@ -123,4 +201,10 @@ pub enum EngineConnectionProfileError {
     /// Display name was empty.
     #[error("engine connection profile display name must not be empty")]
     EmptyDisplayName,
+    /// Profile ids must be unique in a profile set.
+    #[error("duplicate engine connection profile id: {0}")]
+    DuplicateId(EngineConnectionProfileId),
+    /// At most one profile may be marked as default.
+    #[error("only one engine connection profile may be marked default")]
+    MultipleDefaults,
 }

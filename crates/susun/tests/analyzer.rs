@@ -164,3 +164,19 @@ fn facade_reexports_runtime_readiness_types() -> TestResult {
     assert!(matches!(status, susun::RuntimeDoctorStatus::Available));
     Ok(())
 }
+
+#[test]
+fn facade_reexports_runtime_profile_set() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::local_default(),
+    ])?;
+
+    assert_eq!(
+        set.default_profile()
+            .ok_or("expected default profile")?
+            .id
+            .as_str(),
+        "local"
+    );
+    Ok(())
+}
