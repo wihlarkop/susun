@@ -259,6 +259,42 @@ impl SdkProject {
         Planner::new(identity, capabilities, snapshot).plan_down(&self.analysis, options)
     }
 
+    /// Plans `up` using capabilities and a project snapshot from a supplied engine.
+    pub async fn plan_up_with_engine<E>(
+        &self,
+        engine: &E,
+        options: UpPlanOptions,
+    ) -> Result<PlanOutcome, RuntimeOperationError>
+    where
+        E: ContainerEngine + ?Sized,
+    {
+        let identity = self
+            .identity
+            .clone()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        let capabilities = engine.capabilities().await?;
+        let snapshot = engine.snapshot(&identity).await?;
+        Ok(Planner::new(identity, capabilities, snapshot).plan_up(&self.analysis, options)?)
+    }
+
+    /// Plans `down` using capabilities and a project snapshot from a supplied engine.
+    pub async fn plan_down_with_engine<E>(
+        &self,
+        engine: &E,
+        options: DownPlanOptions,
+    ) -> Result<PlanOutcome, RuntimeOperationError>
+    where
+        E: ContainerEngine + ?Sized,
+    {
+        let identity = self
+            .identity
+            .clone()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        let capabilities = engine.capabilities().await?;
+        let snapshot = engine.snapshot(&identity).await?;
+        Ok(Planner::new(identity, capabilities, snapshot).plan_down(&self.analysis, options)?)
+    }
+
     /// Creates a daemon-free local `up` plan for inspection and approvals.
     pub fn dry_run_up(&self, build: bool) -> Result<PlanOutcome, PlanError> {
         let options = UpPlanOptions {

@@ -35,6 +35,10 @@ if let Some(plan) = outcome.plan {
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+When an application needs a plan based on the current runtime state but should
+not execute yet, use `plan_up_with_engine` or `plan_down_with_engine` with a
+supplied engine adapter.
+
 For mutating runtime flows, analyze once and execute through the same
 `SdkProject`:
 

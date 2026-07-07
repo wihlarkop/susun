@@ -21,6 +21,8 @@
   reuse analyzed project identity without manual snapshot plumbing.
 - Added `SdkProject` `up`/`down` execution helpers, including event/cancellation
   variants, for SDK consumers that want one analyzed-project runtime entry point.
+- Added `SdkProject` engine-backed planning helpers for approval flows that need
+  current runtime state without executing a plan.
 
 ## 0.1.0
 

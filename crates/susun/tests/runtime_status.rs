@@ -199,6 +199,35 @@ async fn sdk_project_runtime_overview_skips_snapshot_when_doctor_unavailable() -
 }
 
 #[tokio::test]
+async fn sdk_project_plan_up_with_engine_returns_plan_outcome() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = FakeContainerEngine::new();
+    let options = UpPlanOptions {
+        build_policy: BuildPolicy::NeverBuild,
+        ..UpPlanOptions::default()
+    };
+
+    let outcome = sdk_project.plan_up_with_engine(&engine, options).await?;
+
+    assert!(!outcome.diagnostics.has_errors());
+    assert!(outcome.plan.is_some());
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_plan_up_with_engine_returns_snapshot_errors() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = FakeContainerEngine::failing(EngineOperation::Snapshot);
+
+    let error = sdk_project
+        .plan_up_with_engine(&engine, UpPlanOptions::default())
+        .await;
+
+    assert!(matches!(error, Err(RuntimeOperationError::Engine(_))));
+    Ok(())
+}
+
+#[tokio::test]
 async fn sdk_project_up_with_engine_executes_through_runtime_facade() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let engine = Arc::new(FakeContainerEngine::new());
