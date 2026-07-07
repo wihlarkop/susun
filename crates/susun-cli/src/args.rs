@@ -70,6 +70,8 @@ pub enum Command {
     ///
     /// Does not read Compose files or mutate the host.
     Doctor,
+    /// Emit runtime readiness plus project status as one dashboard summary.
+    Overview,
     /// Produce a daemon-free execution plan.
     Plan {
         /// Plan operation.

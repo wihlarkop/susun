@@ -15,9 +15,11 @@ use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun::{
     Analyzer, EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileId,
-    Planner, RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeStatusSummary, SusunWorkspace,
-    down_with_engine, render_diagnostics, render_diagnostics_json, render_project_summary_json,
-    render_runtime_status_summary_json, runtime_status_from_snapshot, up_with_engine,
+    Planner, RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOverview, RuntimeOverviewStatus,
+    RuntimeStatusSummary, SusunWorkspace, down_with_engine, render_diagnostics,
+    render_diagnostics_json, render_project_summary_json, render_runtime_overview_json,
+    render_runtime_status_summary_json, runtime_overview, runtime_status_from_snapshot,
+    up_with_engine,
 };
 use susun_build::{
     BuildCancellationToken, BuildEngine, BuildEventSink, BuildInputManifest, BuildRequest,
@@ -54,6 +56,7 @@ async fn main() {
         Command::Config => config(&cli.ctx),
         Command::Summary => summary(&cli.ctx),
         Command::Doctor => runtime_doctor(&cli.ctx).await,
+        Command::Overview => runtime_overview_command(&cli.ctx).await,
         Command::Plan { command } => plan(&cli.ctx, command),
         Command::InspectPlan { path } => inspect_plan(&cli.ctx, &path),
         Command::Up {
@@ -1906,6 +1909,44 @@ async fn runtime_doctor(ctx: &ContextArgs) -> i32 {
     emit_runtime_doctor_report(ctx, &profile, &report)
 }
 
+async fn runtime_overview_command(ctx: &ContextArgs) -> i32 {
+    let profile = match local_runtime_profile() {
+        Ok(profile) => profile,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let doctor = BollardEngine::doctor_profile(&profile).await;
+    let status = if doctor.status == RuntimeDoctorStatus::Available {
+        match runtime_status_for_overview(ctx).await {
+            Ok(status) => status,
+            Err(error) => {
+                eprintln!("susun: {error}");
+                None
+            }
+        }
+    } else {
+        None
+    };
+    let overview = runtime_overview(doctor, status);
+    emit_runtime_overview(ctx, &overview)
+}
+
+async fn runtime_status_for_overview(
+    ctx: &ContextArgs,
+) -> Result<Option<RuntimeStatusSummary>, String> {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return Ok(None);
+    };
+    let engine = connect_engine().map_err(|code| format!("runtime connection failed ({code})"))?;
+    let snapshot = engine
+        .snapshot(&identity)
+        .await
+        .map_err(|error| error.to_string())?;
+    Ok(Some(runtime_status_from_snapshot(&identity, &snapshot)))
+}
+
 fn local_runtime_profile() -> Result<EngineConnectionProfile, susun::EngineConnectionProfileError> {
     Ok(EngineConnectionProfile::new(
         EngineConnectionProfileId::new("local")?,
@@ -1959,6 +2000,48 @@ fn runtime_doctor_status_name(status: RuntimeDoctorStatus) -> &'static str {
         RuntimeDoctorStatus::AuthenticationFailed => "authentication_failed",
         RuntimeDoctorStatus::Unsupported => "unsupported",
         RuntimeDoctorStatus::Misconfigured => "misconfigured",
+    }
+}
+
+fn emit_runtime_overview(ctx: &ContextArgs, overview: &RuntimeOverview) -> i32 {
+    match ctx.format {
+        OutputFormat::Json => match render_runtime_overview_json(overview) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("susun: failed to serialize runtime overview: {error}");
+                return 2;
+            }
+        },
+        OutputFormat::Human => {
+            println!(
+                "runtime: {} ({})",
+                runtime_overview_status_name(overview.overview_status),
+                runtime_doctor_status_name(overview.doctor.status)
+            );
+            println!("{}", overview.doctor.message);
+            if let Some(status) = &overview.status {
+                println!(
+                    "{}: {} container(s), {} running, {} exited",
+                    status.project_name,
+                    status.counts.containers,
+                    status.counts.running_containers,
+                    status.counts.exited_containers
+                );
+            }
+        }
+    }
+    if overview.overview_status == RuntimeOverviewStatus::Unavailable {
+        2
+    } else {
+        0
+    }
+}
+
+fn runtime_overview_status_name(status: RuntimeOverviewStatus) -> &'static str {
+    match status {
+        RuntimeOverviewStatus::Ready => "ready",
+        RuntimeOverviewStatus::Degraded => "degraded",
+        RuntimeOverviewStatus::Unavailable => "unavailable",
     }
 }
 

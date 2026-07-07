@@ -15,6 +15,8 @@
 - Added `susun status` for human and JSON runtime status summaries.
 - Added runtime overview DTOs and JSON helpers that combine runtime readiness
   with optional project status.
+- Added `susun overview` for combined runtime readiness and project status
+  output.
 
 ## 0.1.0
 

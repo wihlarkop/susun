@@ -32,6 +32,16 @@ fn help_lists_doctor_command() -> TestResult {
 }
 
 #[test]
+fn help_lists_overview_command() -> TestResult {
+    susun()?
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("overview"));
+    Ok(())
+}
+
+#[test]
 fn help_lists_status_command() -> TestResult {
     susun()?
         .arg("--help")
