@@ -4,6 +4,7 @@
 
 - Added Phase 13 runtime-readiness DTOs for connection profiles and redacted
   doctor reports, plus a Bollard-backed profile doctor helper.
+- Added `susun doctor` to emit a redacted local runtime readiness report.
 
 ## 0.1.0
 

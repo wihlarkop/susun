@@ -22,6 +22,16 @@ fn susun() -> Result<Command, Box<dyn Error>> {
 // ── check subcommand ──────────────────────────────────────────────────────────
 
 #[test]
+fn help_lists_doctor_command() -> TestResult {
+    susun()?
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("doctor"));
+    Ok(())
+}
+
+#[test]
 fn check_valid_file_exits_0() -> TestResult {
     susun()?
         .args(["-f", &fixture("cli/valid-minimal/compose.yaml")])
@@ -129,6 +139,17 @@ fn summary_json_prints_resource_details_without_secret_values() -> TestResult {
 }
 
 // ── --project-name / -p ───────────────────────────────────────────────────────
+
+#[test]
+fn doctor_json_emits_runtime_report_shape() -> TestResult {
+    susun()?
+        .args(["--format", "json"])
+        .arg("doctor")
+        .assert()
+        .stdout(predicate::str::contains("\"status\""))
+        .stdout(predicate::str::contains("\"endpoint\""));
+    Ok(())
+}
 
 #[test]
 fn project_name_flag_overrides_name_field() -> TestResult {

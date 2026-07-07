@@ -66,6 +66,10 @@ pub enum Command {
     ///
     /// The JSON form is intended for tools and desktop integrations.
     Summary,
+    /// Check Docker-compatible runtime readiness.
+    ///
+    /// Does not read Compose files or mutate the host.
+    Doctor,
     /// Produce a daemon-free execution plan.
     Plan {
         /// Plan operation.

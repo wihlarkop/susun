@@ -66,6 +66,8 @@ cargo run -p susun-cli -- -f compose.yaml check
 cargo run -p susun-cli -- -f compose.yaml config
 cargo run -p susun-cli -- -f compose.yaml summary
 cargo run -p susun-cli -- -f compose.yaml --format json summary
+cargo run -p susun-cli -- doctor
+cargo run -p susun-cli -- --format json doctor
 cargo run -p susun-cli -- -f compose.yaml plan up
 ```
 

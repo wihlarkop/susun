@@ -14,8 +14,9 @@ use clap::Parser;
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun::{
-    Analyzer, Planner, SusunWorkspace, down_with_engine, render_diagnostics,
-    render_diagnostics_json, render_project_summary_json, up_with_engine,
+    Analyzer, EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileId,
+    Planner, RuntimeDoctorReport, RuntimeDoctorStatus, SusunWorkspace, down_with_engine,
+    render_diagnostics, render_diagnostics_json, render_project_summary_json, up_with_engine,
 };
 use susun_build::{
     BuildCancellationToken, BuildEngine, BuildEventSink, BuildInputManifest, BuildRequest,
@@ -27,10 +28,10 @@ use susun_compat::{
 };
 use susun_engine::{
     ContainerEngine, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
-    CreateContainerRequest, EngineCapabilities, EngineEvent, EngineSnapshot, EventsRequest,
-    LabelKey, LabelValue, LogsRequest, PortRequest, ProjectIdentity, ProjectInstanceId,
-    RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest,
-    WaitContainerRequest,
+    CreateContainerRequest, EngineCapabilities, EngineEndpoint, EngineEvent, EngineSnapshot,
+    EventsRequest, LabelKey, LabelValue, LogsRequest, PortRequest, ProjectIdentity,
+    ProjectInstanceId, RemoveContainerOptions, ReplicaIndex, ResourceName, ServiceInstanceId,
+    StopContainerRequest, WaitContainerRequest,
 };
 use susun_engine_bollard::BollardEngine;
 use susun_model::Command as EngineCommand;
@@ -51,6 +52,7 @@ async fn main() {
         Command::Check => check(&cli.ctx),
         Command::Config => config(&cli.ctx),
         Command::Summary => summary(&cli.ctx),
+        Command::Doctor => runtime_doctor(&cli.ctx).await,
         Command::Plan { command } => plan(&cli.ctx, command),
         Command::InspectPlan { path } => inspect_plan(&cli.ctx, &path),
         Command::Up {
@@ -1828,6 +1830,74 @@ fn connect_engine() -> Result<BollardEngine, i32> {
         eprintln!("susun: {error}");
         2
     })
+}
+
+async fn runtime_doctor(ctx: &ContextArgs) -> i32 {
+    let profile = match local_runtime_profile() {
+        Ok(profile) => profile,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let report = BollardEngine::doctor_profile(&profile).await;
+    emit_runtime_doctor_report(ctx, &profile, &report)
+}
+
+fn local_runtime_profile() -> Result<EngineConnectionProfile, susun::EngineConnectionProfileError> {
+    Ok(EngineConnectionProfile::new(
+        EngineConnectionProfileId::new("local")?,
+        EngineConnectionDisplayName::new("Local Docker-compatible runtime")?,
+        EngineEndpoint::Local,
+    ))
+}
+
+fn emit_runtime_doctor_report(
+    ctx: &ContextArgs,
+    profile: &EngineConnectionProfile,
+    report: &RuntimeDoctorReport,
+) -> i32 {
+    match ctx.format {
+        OutputFormat::Json => match serde_json::to_string_pretty(report) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("susun: failed to serialize runtime doctor report: {error}");
+                return 2;
+            }
+        },
+        OutputFormat::Human => {
+            println!(
+                "{} [{}]: {}",
+                profile.display_name.as_str(),
+                report.endpoint,
+                runtime_doctor_status_name(report.status)
+            );
+            println!("{}", report.message);
+            if let Some(probe) = &report.probe {
+                if let Some(version) = &probe.engine_version {
+                    println!("engine version: {}", version.as_str());
+                }
+                if let Some(api_version) = &probe.api_version {
+                    println!("api version: {}", api_version.as_str());
+                }
+            }
+        }
+    }
+    if report.status == RuntimeDoctorStatus::Available {
+        0
+    } else {
+        2
+    }
+}
+
+fn runtime_doctor_status_name(status: RuntimeDoctorStatus) -> &'static str {
+    match status {
+        RuntimeDoctorStatus::Available => "available",
+        RuntimeDoctorStatus::Unavailable => "unavailable",
+        RuntimeDoctorStatus::AuthenticationFailed => "authentication_failed",
+        RuntimeDoctorStatus::Unsupported => "unsupported",
+        RuntimeDoctorStatus::Misconfigured => "misconfigured",
+    }
 }
 
 fn emit_execution_report(ctx: &ContextArgs, report: &ExecutionReport) -> i32 {
