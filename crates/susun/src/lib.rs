@@ -31,8 +31,6 @@ pub use susun_engine::{
     ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest, SupportLevel, TcpEndpoint,
     TlsConfiguration, WaitContainerRequest, WaitContainerResult,
 };
-#[cfg(feature = "bollard")]
-pub use susun_engine_bollard::BollardEngine;
 pub use susun_loader::LoadContext;
 pub use susun_model::{Command, Project, ProjectName, ServiceName};
 pub use susun_planner::{
