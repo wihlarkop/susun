@@ -97,6 +97,7 @@ the analyzed project identity directly.
 
 ```powershell
 cargo run -p susun --example runtime_doctor
+cargo run -p susun --example local_docker_up_down -- compose.yaml
 ```
 
 ## CLI

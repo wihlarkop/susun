@@ -2,11 +2,8 @@
 
 use std::{process::ExitCode, sync::Arc};
 
-use susun::{Analyzer, down_with_engine, up_with_engine};
-use susun_engine::{ProjectIdentity, ProjectInstanceId};
+use susun::{DownPlanOptions, SusunWorkspace, UpPlanOptions, render_diagnostics};
 use susun_engine_bollard::BollardEngine;
-use susun_model::ProjectName;
-use susun_planner::{DownPlanOptions, UpPlanOptions};
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -14,14 +11,21 @@ async fn main() -> ExitCode {
         .nth(1)
         .unwrap_or_else(|| "compose.yaml".to_owned());
 
-    let analysis = match Analyzer::new(&path).analyze() {
-        Ok(analysis) if !analysis.report.has_errors() => analysis,
-        Ok(_) => return ExitCode::from(1),
+    let project = match SusunWorkspace::from_file(&path).analyze() {
+        Ok(project) => project,
         Err(error) => {
             eprintln!("susun: {error}");
             return ExitCode::from(2);
         }
     };
+    let analysis = project.analysis();
+    if analysis.report.has_errors() {
+        eprint!(
+            "{}",
+            render_diagnostics(&analysis.report, &analysis.source_map)
+        );
+        return ExitCode::from(1);
+    }
 
     let engine = match BollardEngine::connect_local() {
         Ok(engine) => Arc::new(engine),
@@ -31,19 +35,9 @@ async fn main() -> ExitCode {
         }
     };
 
-    let project = ProjectName::new("local-docker-example");
-    let identity = ProjectIdentity::new(
-        project.clone(),
-        ProjectInstanceId::derive(&project, std::env::current_dir().unwrap_or_default()),
-    );
-
-    match up_with_engine(
-        &analysis,
-        identity.clone(),
-        engine.clone(),
-        UpPlanOptions::default(),
-    )
-    .await
+    match project
+        .up_with_engine(engine.clone(), UpPlanOptions::default())
+        .await
     {
         Ok(result) => println!("up applied {} actions", result.report.summary.total_actions),
         Err(error) => {
@@ -52,7 +46,10 @@ async fn main() -> ExitCode {
         }
     }
 
-    match down_with_engine(&analysis, identity, engine, DownPlanOptions::default()).await {
+    match project
+        .down_with_engine(engine, DownPlanOptions::default())
+        .await
+    {
         Ok(result) => {
             println!(
                 "down applied {} actions",

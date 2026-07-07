@@ -23,6 +23,8 @@
   variants, for SDK consumers that want one analyzed-project runtime entry point.
 - Added `SdkProject` engine-backed planning helpers for approval flows that need
   current runtime state without executing a plan.
+- Updated the local Docker SDK example to use `SusunWorkspace` and `SdkProject`
+  instead of manual analysis and identity wiring.
 
 ## 0.1.0
 
