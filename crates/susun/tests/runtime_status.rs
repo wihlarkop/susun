@@ -1,16 +1,18 @@
 #![allow(missing_docs)]
 
-use std::time::SystemTime;
+use std::{path::PathBuf, time::SystemTime};
 
 use susun::{
     ContainerId, ContainerState, EngineSnapshot, HealthState, ObservedContainer, ObservedImageRef,
     ProjectIdentity, ProjectInstanceId, ProjectName, ReplicaIndex, ResourceName, ServiceInstanceId,
-    ServiceName, SnapshotCompleteness, parse_runtime_overview_json,
+    ServiceName, SnapshotCompleteness, SusunWorkspace, parse_runtime_overview_json,
     parse_runtime_status_summary_json, render_runtime_overview_json,
     render_runtime_status_summary_json, runtime_overview, runtime_status_from_snapshot,
 };
-use susun::{RuntimeDoctorReport, RuntimeOverviewStatus};
+use susun::{RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOverviewStatus};
+use susun_engine::EngineOperation;
 use susun_model::ImageRef;
+use susun_testkit::FakeContainerEngine;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
@@ -99,6 +101,103 @@ fn runtime_status_json_helpers_roundtrip() -> TestResult {
 }
 
 #[test]
+fn sdk_project_runtime_status_from_snapshot_uses_project_identity() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let identity = sdk_project.identity().ok_or("expected project identity")?;
+    let foreign_project = project_identity("other", "project-b")?;
+    let mut snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+
+    let project_container = container(
+        "container-1",
+        "valid-minimal-web-1",
+        identity,
+        Some(("web", 0)),
+        ContainerState::Running,
+    )?;
+    let foreign_container = container(
+        "container-2",
+        "other-web-1",
+        &foreign_project,
+        Some(("web", 0)),
+        ContainerState::Running,
+    )?;
+    snapshot
+        .containers
+        .insert(project_container.id.clone(), project_container);
+    snapshot
+        .containers
+        .insert(foreign_container.id.clone(), foreign_container);
+
+    let summary = sdk_project
+        .runtime_status_from_snapshot(&snapshot)
+        .ok_or("expected runtime status")?;
+
+    assert_eq!(summary.project_name, "valid-minimal");
+    assert_eq!(summary.counts.containers, 1);
+    assert_eq!(summary.services[0].service, "web");
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_runtime_status_with_engine_uses_supplied_engine() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let identity = sdk_project.identity().ok_or("expected project identity")?;
+    let mut snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let project_container = container(
+        "container-1",
+        "valid-minimal-web-1",
+        identity,
+        Some(("web", 0)),
+        ContainerState::Running,
+    )?;
+    snapshot
+        .containers
+        .insert(project_container.id.clone(), project_container);
+    let engine = FakeContainerEngine::new().with_snapshot(snapshot);
+
+    let summary = sdk_project
+        .runtime_status_with_engine(&engine)
+        .await?
+        .ok_or("expected runtime status")?;
+
+    assert_eq!(summary.counts.running_containers, 1);
+    assert_eq!(summary.services[0].container_count, 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_runtime_status_with_engine_returns_snapshot_errors() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = FakeContainerEngine::failing(EngineOperation::Snapshot);
+
+    let error = sdk_project.runtime_status_with_engine(&engine).await;
+
+    assert!(error.is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_runtime_overview_skips_snapshot_when_doctor_unavailable() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let doctor = RuntimeDoctorReport {
+        profile_id: None,
+        status: RuntimeDoctorStatus::Unavailable,
+        endpoint: susun::RedactedEndpoint::new(&susun::EngineEndpoint::Local),
+        probe: None,
+        message: "runtime unavailable".to_owned(),
+    };
+    let engine = FakeContainerEngine::failing(EngineOperation::Snapshot);
+
+    let overview = sdk_project
+        .runtime_overview_with_engine(doctor, &engine)
+        .await?;
+
+    assert_eq!(overview.overview_status, RuntimeOverviewStatus::Unavailable);
+    assert!(overview.status.is_none());
+    Ok(())
+}
+
+#[test]
 fn runtime_overview_is_ready_when_doctor_and_status_available() -> TestResult {
     let project = project_identity("app", "project-a")?;
     let snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
@@ -159,6 +258,10 @@ fn runtime_overview_json_helpers_roundtrip() -> TestResult {
     assert_eq!(parsed, overview);
     assert!(json.contains("\"overview_status\""));
     Ok(())
+}
+
+fn valid_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cli/valid-minimal/compose.yaml")
 }
 
 fn project_identity(

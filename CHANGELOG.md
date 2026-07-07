@@ -17,6 +17,8 @@
   with optional project status.
 - Added `susun overview` for combined runtime readiness and project status
   output.
+- Added `SdkProject` runtime status and overview helpers so SDK consumers can
+  reuse analyzed project identity without manual snapshot plumbing.
 
 ## 0.1.0
 

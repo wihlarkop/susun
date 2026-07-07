@@ -68,7 +68,11 @@ with service/container counts and JSON helpers. This is the recommended DTO for
 desktop UI status panels; raw snapshots remain available for advanced tooling.
 `runtime_overview` combines a `RuntimeDoctorReport` with optional project status
 into a single `RuntimeOverview` payload for dashboard health cards and daemon
-API responses.
+API responses. SDK consumers can call
+`SdkProject::runtime_status_from_snapshot`,
+`SdkProject::runtime_status_with_engine`, or
+`SdkProject::runtime_overview_with_engine` when they want the facade to reuse
+the analyzed project identity directly.
 
 ```powershell
 cargo run -p susun --example runtime_doctor

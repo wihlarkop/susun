@@ -6,13 +6,19 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
+use susun_engine::{
+    ContainerEngine, EngineCapabilities, EngineError, EngineSnapshot, ProjectIdentity,
+    ProjectInstanceId, RuntimeDoctorReport, RuntimeDoctorStatus,
+};
 use susun_model::{Project, ProjectName, port::PublishedPort, volume::VolumeKind};
 use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, UpPlanOptions,
 };
 
-use crate::{AnalysisResult, Analyzer, Error, LoadContext, Planner};
+use crate::{
+    AnalysisResult, Analyzer, Error, LoadContext, Planner, RuntimeOverview, RuntimeStatusSummary,
+    runtime_overview, runtime_status_from_snapshot as summarize_runtime_status,
+};
 
 /// High-level SDK workspace builder.
 ///
@@ -176,6 +182,48 @@ impl SdkProject {
     /// Returns a serializable summary suitable for apps, CLIs, and UIs.
     pub fn summary(&self) -> ProjectSummary {
         ProjectSummary::from_sdk_project(self)
+    }
+
+    /// Builds runtime status from an already-acquired engine snapshot.
+    pub fn runtime_status_from_snapshot(
+        &self,
+        snapshot: &EngineSnapshot,
+    ) -> Option<RuntimeStatusSummary> {
+        self.identity
+            .as_ref()
+            .map(|identity| summarize_runtime_status(identity, snapshot))
+    }
+
+    /// Acquires a project-scoped snapshot and returns SDK-friendly runtime status.
+    pub async fn runtime_status_with_engine<E>(
+        &self,
+        engine: &E,
+    ) -> Result<Option<RuntimeStatusSummary>, EngineError>
+    where
+        E: ContainerEngine + ?Sized,
+    {
+        let Some(identity) = &self.identity else {
+            return Ok(None);
+        };
+        let snapshot = engine.snapshot(identity).await?;
+        Ok(Some(summarize_runtime_status(identity, &snapshot)))
+    }
+
+    /// Combines a runtime doctor report with project status from a supplied engine.
+    pub async fn runtime_overview_with_engine<E>(
+        &self,
+        doctor: RuntimeDoctorReport,
+        engine: &E,
+    ) -> Result<RuntimeOverview, EngineError>
+    where
+        E: ContainerEngine + ?Sized,
+    {
+        let status = if doctor.status == RuntimeDoctorStatus::Available {
+            self.runtime_status_with_engine(engine).await?
+        } else {
+            None
+        };
+        Ok(runtime_overview(doctor, status))
     }
 
     /// Plans `up` against explicit capabilities and snapshot.
