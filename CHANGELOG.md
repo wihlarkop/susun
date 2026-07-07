@@ -12,6 +12,7 @@
 - Added facade JSON helpers for parsing and rendering runtime profile sets.
 - Added runtime status summary DTOs and JSON helpers derived from neutral engine
   snapshots.
+- Added `susun status` for human and JSON runtime status summaries.
 
 ## 0.1.0
 

@@ -32,6 +32,16 @@ fn help_lists_doctor_command() -> TestResult {
 }
 
 #[test]
+fn help_lists_status_command() -> TestResult {
+    susun()?
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("status"));
+    Ok(())
+}
+
+#[test]
 fn check_valid_file_exits_0() -> TestResult {
     susun()?
         .args(["-f", &fixture("cli/valid-minimal/compose.yaml")])

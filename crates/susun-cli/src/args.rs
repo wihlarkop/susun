@@ -194,6 +194,8 @@ pub enum Command {
     },
     /// List Susun-managed project containers.
     Ps,
+    /// Emit a project runtime status summary.
+    Status,
     /// Print logs for Susun-managed project containers.
     Logs {
         /// Follow log output.

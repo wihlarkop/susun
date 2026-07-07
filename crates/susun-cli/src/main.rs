@@ -15,8 +15,9 @@ use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun::{
     Analyzer, EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileId,
-    Planner, RuntimeDoctorReport, RuntimeDoctorStatus, SusunWorkspace, down_with_engine,
-    render_diagnostics, render_diagnostics_json, render_project_summary_json, up_with_engine,
+    Planner, RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeStatusSummary, SusunWorkspace,
+    down_with_engine, render_diagnostics, render_diagnostics_json, render_project_summary_json,
+    render_runtime_status_summary_json, runtime_status_from_snapshot, up_with_engine,
 };
 use susun_build::{
     BuildCancellationToken, BuildEngine, BuildEventSink, BuildInputManifest, BuildRequest,
@@ -110,6 +111,7 @@ async fn main() {
             remove_orphans: _,
         } => runtime_down(&cli.ctx, remove_volumes).await,
         Command::Ps => runtime_ps(&cli.ctx).await,
+        Command::Status => runtime_status(&cli.ctx).await,
         Command::Logs {
             follow,
             timestamps,
@@ -1640,6 +1642,66 @@ async fn runtime_ps(ctx: &ContextArgs) -> i32 {
                     container.state,
                     container.image
                 );
+            }
+        }
+    }
+    0
+}
+
+async fn runtime_status(ctx: &ContextArgs) -> i32 {
+    let Some((_, identity)) = analyze_for_runtime(ctx) else {
+        return 1;
+    };
+    let engine = match connect_engine() {
+        Ok(engine) => engine,
+        Err(code) => return code,
+    };
+    let snapshot = match engine.snapshot(&identity).await {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            eprintln!("susun: {error}");
+            return 2;
+        }
+    };
+    let summary = runtime_status_from_snapshot(&identity, &snapshot);
+    emit_runtime_status_summary(ctx, &summary)
+}
+
+fn emit_runtime_status_summary(ctx: &ContextArgs, summary: &RuntimeStatusSummary) -> i32 {
+    match ctx.format {
+        OutputFormat::Json => match render_runtime_status_summary_json(summary) {
+            Ok(json) => println!("{json}"),
+            Err(error) => {
+                eprintln!("susun: failed to serialize runtime status: {error}");
+                return 2;
+            }
+        },
+        OutputFormat::Human => {
+            println!(
+                "{}: {} container(s), {} running, {} exited, {} network(s), {} volume(s)",
+                summary.project_name,
+                summary.counts.containers,
+                summary.counts.running_containers,
+                summary.counts.exited_containers,
+                summary.counts.networks,
+                summary.counts.volumes
+            );
+            for service in &summary.services {
+                println!(
+                    "- {}: {} container(s), {} running",
+                    service.service, service.container_count, service.running_containers
+                );
+                for container in &service.containers {
+                    println!(
+                        "  {} [{}] {:?}",
+                        container.name,
+                        container.replica.unwrap_or_default(),
+                        container.state
+                    );
+                }
+            }
+            for container in &summary.unassigned_containers {
+                println!("- {} [unassigned] {:?}", container.name, container.state);
             }
         }
     }
