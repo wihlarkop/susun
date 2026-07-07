@@ -48,6 +48,17 @@ The facade crate also re-exports common SDK types such as `Project`,
 `ExecutionReport`, so most applications can depend on `susun` first and reach
 for lower-level crates only when they need specialized extension points.
 
+For desktop tools and daemons that manage Docker-compatible runtimes, Susun also
+provides neutral connection profile and runtime doctor DTOs. The public facade
+exposes `EngineConnectionProfile`, `EngineConnectionProfileId`,
+`EngineConnectionDisplayName`, `RuntimeDoctorReport`, and
+`RuntimeDoctorStatus`; concrete probing stays in adapter crates such as
+`susun-engine-bollard`.
+
+```powershell
+cargo run -p susun --example runtime_doctor
+```
+
 ## CLI
 
 ```powershell

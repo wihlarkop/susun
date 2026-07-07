@@ -23,13 +23,15 @@ pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
     ClientIdentityFiles, ContainerEngine, ContainerId, ContainerRef, ContainerState,
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, EngineArchitecture,
-    EngineCapabilities, EngineConnectionError, EngineEndpoint, EngineEndpointKind, EngineError,
-    EngineEvent, EngineOperatingSystem, EngineProbe, EngineSnapshot, EngineVersion, EventsRequest,
-    ExecRequest, HealthState, LogEvent, LogSource, LogsRequest, ObservedContainer,
-    ObservedImageRef, Platform, PortRequest, ProjectIdentity, ProjectInstanceId, PruneReport,
-    PruneRequest, PruneScope, PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions,
-    ReplicaIndex, ResourceName, ServiceInstanceId, StopContainerRequest, SupportLevel, TcpEndpoint,
-    TlsConfiguration, WaitContainerRequest, WaitContainerResult,
+    EngineCapabilities, EngineConnectionDisplayName, EngineConnectionError,
+    EngineConnectionProfile, EngineConnectionProfileError, EngineConnectionProfileId,
+    EngineEndpoint, EngineEndpointKind, EngineError, EngineEvent, EngineOperatingSystem,
+    EngineProbe, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, LogEvent,
+    LogSource, LogsRequest, ObservedContainer, ObservedImageRef, Platform, PortRequest,
+    ProjectIdentity, ProjectInstanceId, PruneReport, PruneRequest, PruneScope,
+    PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions, ReplicaIndex, ResourceName,
+    RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId, StopContainerRequest,
+    SupportLevel, TcpEndpoint, TlsConfiguration, WaitContainerRequest, WaitContainerResult,
 };
 pub use susun_loader::LoadContext;
 pub use susun_model::{Command, Project, ProjectName, ServiceName};

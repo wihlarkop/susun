@@ -149,3 +149,18 @@ fn facade_reexports_common_sdk_types() -> TestResult {
     assert_eq!(identity.name.as_str(), "sdk");
     Ok(())
 }
+
+#[test]
+fn facade_reexports_runtime_readiness_types() -> TestResult {
+    let profile = susun::EngineConnectionProfile::new(
+        susun::EngineConnectionProfileId::new("local")?,
+        susun::EngineConnectionDisplayName::new("Local Docker")?,
+        susun::EngineEndpoint::Local,
+    );
+    let status = susun::RuntimeDoctorStatus::Available;
+
+    assert_eq!(profile.redacted_endpoint(), "local");
+    assert_eq!(profile.display_name.as_str(), "Local Docker");
+    assert!(matches!(status, susun::RuntimeDoctorStatus::Available));
+    Ok(())
+}

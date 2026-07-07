@@ -26,15 +26,16 @@ use susun_engine::{
     BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine,
     ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
-    EngineArchitecture, EngineCapabilities, EngineConnectionError, EngineEndpoint, EngineError,
-    EngineEvent, EngineImageRef, EngineOperatingSystem, EngineOperation, EngineProbe,
-    EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId, LabelKey,
-    LabelValue, LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId,
-    NetworkRef, ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork,
-    ObservedVolume, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
-    PruneScope, PublishedPortBinding, PullImageRequest, RedactedEndpoint, ReplicaIndex,
-    ResourceIdentity, ResourceName, ServiceInstanceId, SnapshotCompleteness, StopContainerRequest,
-    SupportLevel, VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
+    EngineArchitecture, EngineCapabilities, EngineConnectionError, EngineConnectionProfile,
+    EngineEndpoint, EngineError, EngineEvent, EngineImageRef, EngineOperatingSystem,
+    EngineOperation, EngineProbe, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest,
+    HealthState, ImageId, LabelKey, LabelValue, LogEvent, LogSource, LogsRequest,
+    MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer, ObservedImage,
+    ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink, ProjectIdentity,
+    PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
+    RedactedEndpoint, ReplicaIndex, ResourceIdentity, ResourceName, RuntimeDoctorReport,
+    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -138,6 +139,22 @@ impl BollardEngine {
             operating_system: version.os.map(EngineOperatingSystem::new),
             architecture: version.arch.map(EngineArchitecture::new),
         })
+    }
+
+    /// Connects to a profile, probes it, and returns a redacted readiness report.
+    pub async fn doctor_profile(profile: &EngineConnectionProfile) -> RuntimeDoctorReport {
+        let profile_id = Some(profile.id.clone());
+        let endpoint = profile.endpoint().clone();
+        let engine = match Self::connect_to(endpoint.clone()) {
+            Ok(engine) => engine,
+            Err(error) => {
+                return RuntimeDoctorReport::from_connection_error(profile_id, &endpoint, &error);
+            }
+        };
+        match engine.probe().await {
+            Ok(probe) => RuntimeDoctorReport::available(profile_id, &endpoint, probe),
+            Err(error) => RuntimeDoctorReport::from_connection_error(profile_id, &endpoint, &error),
+        }
     }
 
     /// Returns the redacted endpoint.

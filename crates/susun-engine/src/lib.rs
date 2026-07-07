@@ -4,14 +4,17 @@
 //! future runtime adapters. It intentionally has no Docker client dependency.
 
 pub mod capability;
+pub mod doctor;
 pub mod engine;
 pub mod error;
 pub mod identity;
 pub mod operation;
+pub mod profile;
 pub mod resource;
 pub mod snapshot;
 
 pub use capability::{EngineApiVersion, EngineCapabilities, MountType, SupportLevel};
+pub use doctor::{RuntimeDoctorReport, RuntimeDoctorStatus};
 pub use engine::{BoxEngineFuture, ContainerEngine};
 pub use error::{
     EngineConnectionError, EngineError, EngineOperation, InvalidEngineEndpoint, Platform,
@@ -31,6 +34,10 @@ pub use operation::{
     PruneScope, PublishedPortBinding, PullImageRequest, PullPolicy, RemoveContainerOptions,
     StopContainerRequest, TcpEndpoint, TlsConfiguration, VolumeRef, WaitContainerRequest,
     WaitContainerResult,
+};
+pub use profile::{
+    EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileError,
+    EngineConnectionProfileId,
 };
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,
