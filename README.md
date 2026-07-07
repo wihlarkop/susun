@@ -58,7 +58,9 @@ exposes `EngineConnectionProfile`, `EngineConnectionProfileId`,
 selection, so applications such as Susun Studio can own storage while reusing
 Susun's neutral profile semantics. When profile JSON is persisted or accepted
 through an API, deserialize it through these Susun types so constructor-backed
-validation runs before use.
+validation runs before use. The `susun` facade provides
+`parse_engine_connection_profile_set_json` and
+`render_engine_connection_profile_set_json` for that boundary.
 
 ```powershell
 cargo run -p susun --example runtime_doctor

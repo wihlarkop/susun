@@ -5,7 +5,8 @@ use std::{error::Error, path::PathBuf};
 use susun::{
     Analyzer, BuildPolicy, EngineCapabilities, EngineSnapshot, Error as SusunError, Project,
     ProjectIdentity, ProjectInstanceId, ProjectName, ProjectSummarySchemaVersion, SusunWorkspace,
-    UpPlanOptions, parse_project_summary_json, render_project_summary_json,
+    UpPlanOptions, parse_engine_connection_profile_set_json, parse_project_summary_json,
+    render_engine_connection_profile_set_json, render_project_summary_json,
 };
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -179,4 +180,47 @@ fn facade_reexports_runtime_profile_set() -> TestResult {
         "local"
     );
     Ok(())
+}
+
+#[test]
+fn facade_runtime_profile_json_helpers_roundtrip() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::local_default(),
+    ])?;
+
+    let json = render_engine_connection_profile_set_json(&set)?;
+    let parsed = parse_engine_connection_profile_set_json(&json)?;
+
+    assert_eq!(
+        parsed
+            .default_profile()
+            .ok_or("expected default profile")?
+            .id
+            .as_str(),
+        "local"
+    );
+    Ok(())
+}
+
+#[test]
+fn facade_runtime_profile_json_helpers_reject_duplicate_ids() {
+    let json = r#"{
+        "profiles": [
+            {
+                "id": "local",
+                "display_name": "Local A",
+                "endpoint": "Local",
+                "default": false
+            },
+            {
+                "id": "local",
+                "display_name": "Local B",
+                "endpoint": "Local",
+                "default": false
+            }
+        ]
+    }"#;
+
+    let result = parse_engine_connection_profile_set_json(json);
+    assert!(result.is_err());
 }

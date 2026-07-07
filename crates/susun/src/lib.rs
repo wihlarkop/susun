@@ -6,12 +6,16 @@
 
 pub mod analyzer;
 pub mod planning;
+pub mod profiles;
 pub mod render;
 pub mod runtime;
 pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
 pub use planning::Planner;
+pub use profiles::{
+    parse_engine_connection_profile_set_json, render_engine_connection_profile_set_json,
+};
 pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{
     RuntimeOperationError, RuntimeOperationResult, down_with_engine, down_with_engine_events,
