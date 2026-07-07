@@ -35,6 +35,23 @@ if let Some(plan) = outcome.plan {
 # Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
+For mutating runtime flows, analyze once and execute through the same
+`SdkProject`:
+
+```rust
+# use std::sync::Arc;
+# use susun::{SusunWorkspace, UpPlanOptions};
+# async fn run(engine: Arc<impl susun::ContainerEngine + 'static>) -> Result<(), Box<dyn std::error::Error>> {
+let project = SusunWorkspace::from_file("compose.yaml").analyze()?;
+let result = project.up_with_engine(engine, UpPlanOptions::default()).await?;
+println!(
+    "executed {} action(s)",
+    result.report.summary.total_actions
+);
+# Ok(())
+# }
+```
+
 Lower-level facades remain available when callers need explicit control:
 
 - `Analyzer` for source-aware Compose analysis.

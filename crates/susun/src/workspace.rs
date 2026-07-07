@@ -2,6 +2,7 @@
 
 use std::{
     path::{Path, PathBuf},
+    sync::Arc,
     time::SystemTime,
 };
 
@@ -16,9 +17,15 @@ use susun_planner::{
 };
 
 use crate::{
-    AnalysisResult, Analyzer, Error, LoadContext, Planner, RuntimeOverview, RuntimeStatusSummary,
-    runtime_overview, runtime_status_from_snapshot as summarize_runtime_status,
+    AnalysisResult, Analyzer, Error, LoadContext, Planner, RuntimeOperationError,
+    RuntimeOperationResult, RuntimeOverview, RuntimeStatusSummary,
+    down_with_engine as execute_down_with_engine,
+    down_with_engine_events as execute_down_with_engine_events, runtime_overview,
+    runtime_status_from_snapshot as summarize_runtime_status,
+    up_with_engine as execute_up_with_engine,
+    up_with_engine_events as execute_up_with_engine_events,
 };
+use susun_runtime::{CancellationToken, EventSink};
 
 /// High-level SDK workspace builder.
 ///
@@ -272,6 +279,90 @@ impl SdkProject {
     /// Returns the successful plan from [`Self::dry_run_up`] when available.
     pub fn dry_run_up_plan(&self, build: bool) -> Result<Option<ExecutionPlan>, PlanError> {
         self.dry_run_up(build).map(|outcome| outcome.plan)
+    }
+
+    /// Plans and executes `up` with a supplied engine.
+    pub async fn up_with_engine<E>(
+        &self,
+        engine: Arc<E>,
+        options: UpPlanOptions,
+    ) -> Result<RuntimeOperationResult, RuntimeOperationError>
+    where
+        E: ContainerEngine + 'static,
+    {
+        let identity = self
+            .identity
+            .clone()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        execute_up_with_engine(&self.analysis, identity, engine, options).await
+    }
+
+    /// Plans and executes `down` with a supplied engine.
+    pub async fn down_with_engine<E>(
+        &self,
+        engine: Arc<E>,
+        options: DownPlanOptions,
+    ) -> Result<RuntimeOperationResult, RuntimeOperationError>
+    where
+        E: ContainerEngine + 'static,
+    {
+        let identity = self
+            .identity
+            .clone()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        execute_down_with_engine(&self.analysis, identity, engine, options).await
+    }
+
+    /// Plans and executes `up` with event streaming and cooperative cancellation.
+    pub async fn up_with_engine_events<E>(
+        &self,
+        engine: Arc<E>,
+        options: UpPlanOptions,
+        events: EventSink,
+        cancellation: CancellationToken,
+    ) -> Result<RuntimeOperationResult, RuntimeOperationError>
+    where
+        E: ContainerEngine + 'static,
+    {
+        let identity = self
+            .identity
+            .clone()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        execute_up_with_engine_events(
+            &self.analysis,
+            identity,
+            engine,
+            options,
+            events,
+            cancellation,
+        )
+        .await
+    }
+
+    /// Plans and executes `down` with event streaming and cooperative cancellation.
+    pub async fn down_with_engine_events<E>(
+        &self,
+        engine: Arc<E>,
+        options: DownPlanOptions,
+        events: EventSink,
+        cancellation: CancellationToken,
+    ) -> Result<RuntimeOperationResult, RuntimeOperationError>
+    where
+        E: ContainerEngine + 'static,
+    {
+        let identity = self
+            .identity
+            .clone()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        execute_down_with_engine_events(
+            &self.analysis,
+            identity,
+            engine,
+            options,
+            events,
+            cancellation,
+        )
+        .await
     }
 }
 

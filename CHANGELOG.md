@@ -19,6 +19,8 @@
   output.
 - Added `SdkProject` runtime status and overview helpers so SDK consumers can
   reuse analyzed project identity without manual snapshot plumbing.
+- Added `SdkProject` `up`/`down` execution helpers, including event/cancellation
+  variants, for SDK consumers that want one analyzed-project runtime entry point.
 
 ## 0.1.0
 

@@ -1,13 +1,14 @@
 #![allow(missing_docs)]
 
-use std::{path::PathBuf, time::SystemTime};
+use std::{path::PathBuf, sync::Arc, time::SystemTime};
 
 use susun::{
-    ContainerId, ContainerState, EngineSnapshot, HealthState, ObservedContainer, ObservedImageRef,
-    ProjectIdentity, ProjectInstanceId, ProjectName, ReplicaIndex, ResourceName, ServiceInstanceId,
-    ServiceName, SnapshotCompleteness, SusunWorkspace, parse_runtime_overview_json,
-    parse_runtime_status_summary_json, render_runtime_overview_json,
-    render_runtime_status_summary_json, runtime_overview, runtime_status_from_snapshot,
+    BuildPolicy, ContainerId, ContainerState, EngineSnapshot, HealthState, ObservedContainer,
+    ObservedImageRef, ProjectIdentity, ProjectInstanceId, ProjectName, ReplicaIndex, ResourceName,
+    RuntimeOperationError, ServiceInstanceId, ServiceName, SnapshotCompleteness, SusunWorkspace,
+    UpPlanOptions, parse_runtime_overview_json, parse_runtime_status_summary_json,
+    render_runtime_overview_json, render_runtime_status_summary_json, runtime_overview,
+    runtime_status_from_snapshot,
 };
 use susun::{RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOverviewStatus};
 use susun_engine::EngineOperation;
@@ -197,6 +198,36 @@ async fn sdk_project_runtime_overview_skips_snapshot_when_doctor_unavailable() -
     Ok(())
 }
 
+#[tokio::test]
+async fn sdk_project_up_with_engine_executes_through_runtime_facade() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::new());
+    let options = UpPlanOptions {
+        build_policy: BuildPolicy::NeverBuild,
+        ..UpPlanOptions::default()
+    };
+
+    let result = sdk_project.up_with_engine(engine, options).await?;
+
+    assert_eq!(result.plan.project.name.as_str(), "valid-minimal");
+    assert!(result.report.summary.total_actions > 0);
+    assert_eq!(result.report.summary.failed, 0);
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_up_with_engine_requires_analyzed_project() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::failing(EngineOperation::Capabilities));
+
+    let error = sdk_project
+        .up_with_engine(engine, UpPlanOptions::default())
+        .await;
+
+    assert!(matches!(error, Err(RuntimeOperationError::MissingProject)));
+    Ok(())
+}
+
 #[test]
 fn runtime_overview_is_ready_when_doctor_and_status_available() -> TestResult {
     let project = project_identity("app", "project-a")?;
@@ -262,6 +293,10 @@ fn runtime_overview_json_helpers_roundtrip() -> TestResult {
 
 fn valid_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cli/valid-minimal/compose.yaml")
+}
+
+fn malformed_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/cli/malformed/compose.yaml")
 }
 
 fn project_identity(
