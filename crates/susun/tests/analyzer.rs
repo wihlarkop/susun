@@ -114,6 +114,23 @@ fn analysis_error_summary_json_helper_rejects_unsupported_schema_version() -> Te
 }
 
 #[test]
+fn analysis_error_summary_json_helper_rejects_message_drift() -> TestResult {
+    let error = Analyzer::new("/very/private/missing-compose.yaml")
+        .analyze()
+        .err()
+        .ok_or("expected load error")?;
+    let summary = AnalysisErrorSummary::from(&error);
+    let json = render_analysis_error_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["message"] = serde_json::json!("raw /very/private/missing-compose.yaml");
+
+    let result = parse_analysis_error_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn valid_file_report_is_clean() -> TestResult {
     let result = Analyzer::new(valid_path()).analyze()?;
     assert!(!result.report.has_errors());

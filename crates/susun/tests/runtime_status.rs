@@ -546,6 +546,19 @@ fn runtime_operation_error_summary_json_helper_rejects_unsupported_schema_versio
 }
 
 #[test]
+fn runtime_operation_error_summary_json_helper_rejects_message_drift() -> TestResult {
+    let summary = RuntimeOperationErrorSummary::from(&RuntimeOperationError::MissingProject);
+    let json = render_runtime_operation_error_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["message"] = serde_json::json!("raw /very/private/compose.yaml");
+
+    let result = parse_runtime_operation_error_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn runtime_overview_is_ready_when_doctor_and_status_available() -> TestResult {
     let project = project_identity("app", "project-a")?;
     let snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);

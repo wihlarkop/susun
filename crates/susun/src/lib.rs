@@ -183,7 +183,26 @@ pub fn parse_analysis_error_summary_json(
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
+    validate_analysis_error_summary(&summary)?;
     Ok(summary)
+}
+
+fn validate_analysis_error_summary(
+    summary: &AnalysisErrorSummary,
+) -> Result<(), serde_json::Error> {
+    let expected = match summary.kind {
+        AnalysisErrorKind::LoadNotFound => "compose file was not found",
+        AnalysisErrorKind::LoadRead => "compose file could not be read",
+        AnalysisErrorKind::LoadFileTooLarge => "compose file exceeds the configured size limit",
+        AnalysisErrorKind::LoadNotUtf8 => "compose file is not valid UTF-8",
+        AnalysisErrorKind::Normalize => "internal normalization error",
+    };
+    if summary.message != expected {
+        return Err(serde_json::Error::custom(
+            "analysis error summary message does not match kind",
+        ));
+    }
+    Ok(())
 }
 
 fn analysis_load_error_summary(error: &susun_loader::LoadError) -> (AnalysisErrorKind, String) {

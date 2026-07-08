@@ -74,6 +74,8 @@
   system-level analysis error payloads.
 - Added required `SdkProject` runtime status helpers that return structured
   `RuntimeOperationError` values instead of optional status.
+- Hardened analysis and runtime error summary parsers to reject fixed-kind
+  message drift in persisted UI/API payloads.
 
 ## 0.1.0
 

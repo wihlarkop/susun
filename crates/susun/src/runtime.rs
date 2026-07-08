@@ -407,7 +407,38 @@ pub fn parse_runtime_operation_error_summary_json(
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
+    validate_runtime_operation_error_summary(&summary)?;
     Ok(summary)
+}
+
+fn validate_runtime_operation_error_summary(
+    summary: &RuntimeOperationErrorSummary,
+) -> Result<(), serde_json::Error> {
+    let fixed_message = match summary.kind {
+        RuntimeOperationErrorKind::MissingProject => Some("analysis did not produce a project"),
+        RuntimeOperationErrorKind::MissingGraph => {
+            Some("analysis did not produce a dependency graph")
+        }
+        RuntimeOperationErrorKind::MissingSelection => {
+            Some("analysis did not produce service selection")
+        }
+        RuntimeOperationErrorKind::Blocked => Some("planner diagnostics blocked execution"),
+        RuntimeOperationErrorKind::Engine
+        | RuntimeOperationErrorKind::Plan
+        | RuntimeOperationErrorKind::Runtime => None,
+    };
+    if let Some(expected) = fixed_message {
+        if summary.message != expected {
+            return Err(serde_json::Error::custom(
+                "runtime operation error summary message does not match kind",
+            ));
+        }
+    } else if summary.message.trim().is_empty() {
+        return Err(serde_json::Error::custom(
+            "runtime operation error summary message must not be empty",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_runtime_operation_result(

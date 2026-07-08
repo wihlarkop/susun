@@ -70,7 +70,9 @@ payloads through `diagnostics_summary`,
 `render_diagnostic_report_summary_json`, and
 `parse_diagnostic_report_summary_json`. System-level analysis failures can be
 converted to display-safe `AnalysisErrorSummary` payloads without exposing local
-Compose file paths.
+Compose file paths. Error-summary parsers validate that fixed error kinds keep
+their display-safe messages, so persisted payloads cannot drift back to raw
+source/path text.
 
 For mutating runtime flows, analyze once and execute through the same
 `SdkProject`:
