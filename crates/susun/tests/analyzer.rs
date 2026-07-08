@@ -3,13 +3,15 @@
 use std::{error::Error, path::PathBuf};
 
 use susun::{
-    Analyzer, BuildPolicy, DependencyGraph, EngineCapabilities, EngineSnapshot,
-    Error as SusunError, Project, ProjectIdentity, ProjectInstanceId, ProjectName,
-    ProjectSelection, ProjectSummarySchemaVersion, SourceMap, SusunWorkspace, UpPlanOptions,
+    Analyzer, BuildPolicy, DependencyGraph, DiagnosticReportSummarySchemaVersion,
+    EngineCapabilities, EngineSnapshot, Error as SusunError, Project, ProjectIdentity,
+    ProjectInstanceId, ProjectName, ProjectSelection, ProjectSummarySchemaVersion, SourceMap,
+    SusunWorkspace, UpPlanOptions, parse_diagnostic_report_summary_json,
     parse_engine_connection_profile_set_json, parse_engine_connection_profile_set_summary_json,
     parse_execution_plan_json, parse_execution_report_json, parse_plan_outcome_summary_json,
-    parse_project_summary_json, render_engine_connection_profile_set_json,
-    render_engine_connection_profile_set_summary_json, render_project_summary_json,
+    parse_project_summary_json, render_diagnostic_report_summary_json,
+    render_engine_connection_profile_set_json, render_engine_connection_profile_set_summary_json,
+    render_project_summary_json,
 };
 use susun::{
     EngineConnectionProfileSetSummary, EngineConnectionProfileSetSummarySchemaVersion,
@@ -241,6 +243,69 @@ fn workspace_diagnostics_helpers_render_analysis_report() -> TestResult {
     assert!(text.contains("error["));
     assert!(json.contains("\"diagnostics\""));
     assert!(json.contains("\"severity\""));
+    Ok(())
+}
+
+#[test]
+fn workspace_diagnostics_summary_json_helpers_roundtrip() -> TestResult {
+    let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let summary = project.diagnostics_summary();
+
+    assert_eq!(
+        summary.schema_version,
+        DiagnosticReportSummarySchemaVersion::CURRENT
+    );
+    assert!(summary.has_errors);
+    assert_eq!(summary.diagnostic_count, summary.diagnostics.len());
+    assert!(summary.diagnostic_count > 0);
+
+    let json = render_diagnostic_report_summary_json(&summary)?;
+    let parsed = parse_diagnostic_report_summary_json(&json)?;
+
+    assert_eq!(parsed, summary);
+    assert_eq!(project.render_diagnostics_summary_json()?, json);
+    Ok(())
+}
+
+#[test]
+fn diagnostics_summary_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let summary = project.diagnostics_summary();
+    let json = render_diagnostic_report_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_diagnostic_report_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
+fn diagnostics_summary_json_helper_rejects_inconsistent_counts() -> TestResult {
+    let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let summary = project.diagnostics_summary();
+    let json = render_diagnostic_report_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["diagnostic_count"] = serde_json::json!(999);
+
+    let result = parse_diagnostic_report_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
+fn diagnostics_summary_json_helper_rejects_inconsistent_error_flag() -> TestResult {
+    let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let summary = project.diagnostics_summary();
+    let json = render_diagnostic_report_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["has_errors"] = serde_json::json!(false);
+
+    let result = parse_diagnostic_report_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 

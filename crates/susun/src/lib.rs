@@ -24,7 +24,11 @@ pub use profiles::{
     parse_engine_connection_profile_set_summary_json, render_engine_connection_profile_set_json,
     render_engine_connection_profile_set_summary_json,
 };
-pub use render::{render_diagnostics, render_diagnostics_json};
+pub use render::{
+    DiagnosticLabelSummary, DiagnosticReportSummary, DiagnosticReportSummarySchemaVersion,
+    DiagnosticSummary, diagnostic_report_summary, parse_diagnostic_report_summary_json,
+    render_diagnostic_report_summary_json, render_diagnostics, render_diagnostics_json,
+};
 pub use runtime::{
     RuntimeOperationError, RuntimeOperationErrorKind, RuntimeOperationErrorSummary,
     RuntimeOperationErrorSummarySchemaVersion, RuntimeOperationResult,

@@ -68,6 +68,8 @@
 - Hardened SDK JSON parse helpers for project, plan, profile, runtime status,
   runtime overview, and runtime operation summaries so inconsistent persisted
   payloads are rejected.
+- Added versioned `DiagnosticReportSummary` DTOs and facade JSON helpers for
+  stable analysis diagnostic UI/API payloads.
 
 ## 0.1.0
 

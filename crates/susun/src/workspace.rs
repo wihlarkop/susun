@@ -23,10 +23,11 @@ use susun_planner::{
 use susun_source::SourceMap;
 
 use crate::{
-    AnalysisResult, Analyzer, Error, LoadContext, Planner, RuntimeOperationError,
-    RuntimeOperationResult, RuntimeOverview, RuntimeStatusSummary,
-    down_with_engine as execute_down_with_engine,
-    down_with_engine_events as execute_down_with_engine_events, runtime_overview,
+    AnalysisResult, Analyzer, DiagnosticReportSummary, Error, LoadContext, Planner,
+    RuntimeOperationError, RuntimeOperationResult, RuntimeOverview, RuntimeStatusSummary,
+    diagnostic_report_summary, down_with_engine as execute_down_with_engine,
+    down_with_engine_events as execute_down_with_engine_events,
+    render_diagnostic_report_summary_json, runtime_overview,
     runtime_status_from_snapshot as summarize_runtime_status,
     up_with_engine as execute_up_with_engine,
     up_with_engine_events as execute_up_with_engine_events,
@@ -270,6 +271,16 @@ impl SdkProject {
     /// Renders analysis diagnostics as stable JSON using source locations.
     pub fn render_diagnostics_json(&self) -> String {
         crate::render_diagnostics_json(&self.analysis.report, &self.analysis.source_map)
+    }
+
+    /// Returns a versioned diagnostics summary suitable for UI/API payloads.
+    pub fn diagnostics_summary(&self) -> DiagnosticReportSummary {
+        diagnostic_report_summary(&self.analysis.report, &self.analysis.source_map)
+    }
+
+    /// Renders a versioned diagnostics summary as stable JSON.
+    pub fn render_diagnostics_summary_json(&self) -> Result<String, serde_json::Error> {
+        render_diagnostic_report_summary_json(&self.diagnostics_summary())
     }
 
     /// Returns the canonical project when analysis produced one.

@@ -26,6 +26,8 @@ let project = SusunWorkspace::from_file("compose.yaml")
 
 if project.has_errors() {
     eprint!("{}", project.render_diagnostics());
+    let diagnostics_json = project.render_diagnostics_summary_json()?;
+    println!("{diagnostics_json}");
 }
 
 let summary = project.summary();
@@ -63,6 +65,10 @@ responses. Approval UIs can persist compact planning results through
 `render_plan_outcome_summary_json`, and `parse_plan_outcome_summary_json`.
 Official SDK parse helpers validate schema versions and internal summary
 consistency so persisted UI/API payloads fail fast when counts or statuses drift.
+Analysis diagnostics are available as typed, versioned `DiagnosticReportSummary`
+payloads through `diagnostics_summary`,
+`render_diagnostic_report_summary_json`, and
+`parse_diagnostic_report_summary_json`.
 
 For mutating runtime flows, analyze once and execute through the same
 `SdkProject`:
