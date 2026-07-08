@@ -13,9 +13,9 @@ use susun::{
     runtime_status_from_snapshot,
 };
 use susun::{
-    RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOperationSummary,
-    RuntimeOperationSummarySchemaVersion, RuntimeOverviewSchemaVersion, RuntimeOverviewStatus,
-    RuntimeStatusSummarySchemaVersion,
+    RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOperationResultSchemaVersion,
+    RuntimeOperationSummary, RuntimeOperationSummarySchemaVersion, RuntimeOverviewSchemaVersion,
+    RuntimeOverviewStatus, RuntimeStatusSummarySchemaVersion,
 };
 use susun_engine::EngineOperation;
 use susun_model::ImageRef;
@@ -287,12 +287,50 @@ async fn runtime_operation_result_json_helpers_roundtrip() -> TestResult {
     let json = render_runtime_operation_result_json(&result)?;
     let parsed = parse_runtime_operation_result_json(&json)?;
 
+    assert_eq!(
+        parsed.schema_version,
+        RuntimeOperationResultSchemaVersion::CURRENT
+    );
     assert_eq!(parsed.plan.plan_id, result.plan.plan_id);
     assert_eq!(parsed.report.plan_id, result.report.plan_id);
     assert_eq!(
         parsed.report.summary.total_actions,
         result.report.summary.total_actions
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn runtime_operation_result_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::new());
+    let result = sdk_project
+        .up_with_engine(engine, UpPlanOptions::default())
+        .await?;
+    let json = render_runtime_operation_result_json(&result)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["major"] = serde_json::json!(2);
+
+    let result = parse_runtime_operation_result_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn runtime_operation_result_json_helper_rejects_mismatched_report_plan() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::new());
+    let result = sdk_project
+        .up_with_engine(engine, UpPlanOptions::default())
+        .await?;
+    let json = render_runtime_operation_result_json(&result)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["report"]["plan_id"] = serde_json::json!("plan-mismatch");
+
+    let result = parse_runtime_operation_result_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 

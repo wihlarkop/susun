@@ -26,9 +26,9 @@ pub use profiles::{
 };
 pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{
-    RuntimeOperationError, RuntimeOperationResult, RuntimeOperationSummary,
-    RuntimeOperationSummarySchemaVersion, down_with_engine, down_with_engine_events,
-    parse_execution_report_json, parse_runtime_operation_result_json,
+    RuntimeOperationError, RuntimeOperationResult, RuntimeOperationResultSchemaVersion,
+    RuntimeOperationSummary, RuntimeOperationSummarySchemaVersion, down_with_engine,
+    down_with_engine_events, parse_execution_report_json, parse_runtime_operation_result_json,
     parse_runtime_operation_summary_json, render_execution_report_json,
     render_runtime_operation_result_json, render_runtime_operation_summary_json, up_with_engine,
     up_with_engine_events,

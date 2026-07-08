@@ -8,15 +8,31 @@ use susun_planner::{DownPlanOptions, ExecutionPlan, UpPlanOptions};
 use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime};
 use thiserror::Error;
 
-use crate::{AnalysisResult, Planner};
+use crate::{AnalysisResult, Planner, planning::validate_execution_plan_schema};
 
 /// Successful runtime operation output.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RuntimeOperationResult {
+    /// Serialized runtime operation result schema version.
+    pub schema_version: RuntimeOperationResultSchemaVersion,
     /// Immutable plan that was executed.
     pub plan: ExecutionPlan,
     /// Complete execution report.
     pub report: ExecutionReport,
+}
+
+/// Serialized runtime operation result schema version.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOperationResultSchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl RuntimeOperationResultSchemaVersion {
+    /// Current runtime operation result schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
 }
 
 /// Serializable runtime operation summary for status/history UIs.
@@ -125,7 +141,7 @@ where
         return Err(RuntimeOperationError::Blocked);
     };
     let report = Runtime::new(engine).apply(&plan).await?;
-    Ok(RuntimeOperationResult { plan, report })
+    Ok(RuntimeOperationResult::new(plan, report))
 }
 
 /// Plans and executes `down` with a supplied engine.
@@ -146,7 +162,7 @@ where
         return Err(RuntimeOperationError::Blocked);
     };
     let report = Runtime::new(engine).apply(&plan).await?;
-    Ok(RuntimeOperationResult { plan, report })
+    Ok(RuntimeOperationResult::new(plan, report))
 }
 
 /// Plans and executes `up` with a supplied engine, streaming runtime events to
@@ -173,7 +189,7 @@ where
         .with_events(events)
         .apply_cancellable(&plan, cancellation)
         .await?;
-    Ok(RuntimeOperationResult { plan, report })
+    Ok(RuntimeOperationResult::new(plan, report))
 }
 
 /// Plans and executes `down` with a supplied engine, streaming runtime events to
@@ -200,7 +216,17 @@ where
         .with_events(events)
         .apply_cancellable(&plan, cancellation)
         .await?;
-    Ok(RuntimeOperationResult { plan, report })
+    Ok(RuntimeOperationResult::new(plan, report))
+}
+
+impl RuntimeOperationResult {
+    fn new(plan: ExecutionPlan, report: ExecutionReport) -> Self {
+        Self {
+            schema_version: RuntimeOperationResultSchemaVersion::CURRENT,
+            plan,
+            report,
+        }
+    }
 }
 
 /// Renders an execution report as pretty JSON using the public SDK schema.
@@ -210,7 +236,9 @@ pub fn render_execution_report_json(report: &ExecutionReport) -> Result<String, 
 
 /// Parses an execution report from JSON using the public SDK schema.
 pub fn parse_execution_report_json(input: &str) -> Result<ExecutionReport, serde_json::Error> {
-    serde_json::from_str(input)
+    let report: ExecutionReport = serde_json::from_str(input)?;
+    validate_execution_report_consistency(&report)?;
+    Ok(report)
 }
 
 /// Renders a runtime operation result as pretty JSON using the public SDK schema.
@@ -224,7 +252,9 @@ pub fn render_runtime_operation_result_json(
 pub fn parse_runtime_operation_result_json(
     input: &str,
 ) -> Result<RuntimeOperationResult, serde_json::Error> {
-    serde_json::from_str(input)
+    let result: RuntimeOperationResult = serde_json::from_str(input)?;
+    validate_runtime_operation_result(&result)?;
+    Ok(result)
 }
 
 /// Renders a runtime operation summary as pretty JSON using the public SDK schema.
@@ -246,4 +276,36 @@ pub fn parse_runtime_operation_summary_json(
         )));
     }
     Ok(summary)
+}
+
+fn validate_runtime_operation_result(
+    result: &RuntimeOperationResult,
+) -> Result<(), serde_json::Error> {
+    if result.schema_version != RuntimeOperationResultSchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported runtime operation result schema version {}.{}",
+            result.schema_version.major, result.schema_version.minor
+        )));
+    }
+    validate_execution_plan_schema(&result.plan)?;
+    validate_execution_report_consistency(&result.report)?;
+    if result.report.plan_id != result.plan.plan_id {
+        return Err(serde_json::Error::custom(
+            "runtime operation report plan_id does not match execution plan",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_execution_report_consistency(
+    report: &ExecutionReport,
+) -> Result<(), serde_json::Error> {
+    if report.summary.total_actions != report.actions.len() {
+        return Err(serde_json::Error::custom(format!(
+            "execution report total_actions {} does not match {} action result(s)",
+            report.summary.total_actions,
+            report.actions.len()
+        )));
+    }
+    Ok(())
 }

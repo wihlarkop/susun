@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize, de::Error as _};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity};
 use susun_planner::{
-    DownPlanOptions, ExecutionPlan, NamingPolicy, PlanError, PlanOutcome, PlanningInput,
-    SusunNamingPolicy, UpPlanOptions, plan_down, plan_up, render_plan_json,
+    DownPlanOptions, ExecutionPlan, NamingPolicy, PlanError, PlanOutcome, PlanSchemaVersion,
+    PlanningInput, SusunNamingPolicy, UpPlanOptions, plan_down, plan_up, render_plan_json,
 };
 
 use crate::AnalysisResult;
@@ -188,7 +188,9 @@ pub fn render_execution_plan_json(plan: &ExecutionPlan) -> Result<String, serde_
 
 /// Parses an execution plan from JSON using the public SDK schema.
 pub fn parse_execution_plan_json(input: &str) -> Result<ExecutionPlan, serde_json::Error> {
-    serde_json::from_str(input)
+    let plan: ExecutionPlan = serde_json::from_str(input)?;
+    validate_execution_plan_schema(&plan)?;
+    Ok(plan)
 }
 
 /// Renders a plan outcome summary as pretty JSON using the public SDK schema.
@@ -210,4 +212,16 @@ pub fn parse_plan_outcome_summary_json(
         )));
     }
     Ok(summary)
+}
+
+pub(crate) fn validate_execution_plan_schema(
+    plan: &ExecutionPlan,
+) -> Result<(), serde_json::Error> {
+    if plan.schema_version != PlanSchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported execution plan schema version {}.{}",
+            plan.schema_version.major, plan.schema_version.minor
+        )));
+    }
+    Ok(())
 }

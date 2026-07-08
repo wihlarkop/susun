@@ -41,6 +41,9 @@
   consumers can persist runtime workflow artifacts without lower-crate imports.
 - Added JSON helpers for `RuntimeOperationResult`, the combined result returned
   by SDK mutating runtime calls.
+- Hardened full workflow artifact parsers by validating execution plan schema,
+  execution report summary consistency, and versioned runtime operation result
+  payloads.
 - Added direct `SdkProject` diagnostic helpers for error checks, diagnostic
   counts, and text/JSON diagnostic rendering.
 - Added deterministic environment injection on `SusunWorkspace` through

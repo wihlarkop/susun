@@ -321,6 +321,22 @@ fn facade_execution_plan_json_helpers_roundtrip() -> TestResult {
 }
 
 #[test]
+fn facade_execution_plan_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let plan = project
+        .dry_run_up_plan(false)?
+        .ok_or("expected daemon-free up plan")?;
+    let json = render_execution_plan_json(&plan)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_execution_plan_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn facade_plan_outcome_summary_json_helpers_roundtrip() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let outcome = project.dry_run_up(false)?;
@@ -393,6 +409,23 @@ fn facade_execution_report_json_helpers_roundtrip() -> TestResult {
     assert_eq!(parsed.plan_id, report.plan_id);
     assert_eq!(parsed.summary.total_actions, report.summary.total_actions);
     assert_eq!(parsed.actions.len(), report.actions.len());
+    Ok(())
+}
+
+#[test]
+fn facade_execution_report_json_helper_rejects_inconsistent_summary() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let plan = project
+        .dry_run_up_plan(false)?
+        .ok_or("expected daemon-free up plan")?;
+    let report = ExecutionReport::pending(&plan);
+    let json = render_execution_report_json(&report)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["summary"]["total_actions"] = serde_json::json!(999);
+
+    let result = parse_execution_report_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 
