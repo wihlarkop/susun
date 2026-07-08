@@ -3,9 +3,9 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, de::Error as _};
-use susun_engine::{ContainerEngine, ProjectIdentity};
+use susun_engine::{ContainerEngine, EngineConnectionError, EngineError, ProjectIdentity};
 use susun_planner::{DownPlanOptions, ExecutionPlan, UpPlanOptions};
-use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime};
+use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime, RuntimeError};
 use thiserror::Error;
 
 use crate::{AnalysisResult, Planner, planning::validate_execution_plan_schema};
@@ -121,6 +121,90 @@ pub enum RuntimeOperationError {
     /// Runtime failed before a complete report could be produced.
     #[error(transparent)]
     Runtime(#[from] susun_runtime::RuntimeError),
+}
+
+/// Serializable, redacted runtime operation error for UI/API consumers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOperationErrorSummary {
+    /// Serialized runtime operation error summary schema version.
+    pub schema_version: RuntimeOperationErrorSummarySchemaVersion,
+    /// Stable error category.
+    pub kind: RuntimeOperationErrorKind,
+    /// Display-safe error message.
+    pub message: String,
+}
+
+/// Serialized runtime operation error summary schema version.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOperationErrorSummarySchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl RuntimeOperationErrorSummarySchemaVersion {
+    /// Current runtime operation error summary schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
+}
+
+/// Stable runtime operation error category.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RuntimeOperationErrorKind {
+    /// Analysis did not produce a project.
+    MissingProject,
+    /// Analysis did not produce a dependency graph.
+    MissingGraph,
+    /// Analysis did not produce service selection.
+    MissingSelection,
+    /// Engine interaction failed.
+    Engine,
+    /// Planning failed before execution.
+    Plan,
+    /// Planner emitted blocking diagnostics.
+    Blocked,
+    /// Runtime execution failed before a complete report was produced.
+    Runtime,
+}
+
+impl From<&RuntimeOperationError> for RuntimeOperationErrorSummary {
+    fn from(error: &RuntimeOperationError) -> Self {
+        let (kind, message) = match error {
+            RuntimeOperationError::MissingProject => (
+                RuntimeOperationErrorKind::MissingProject,
+                "analysis did not produce a project".to_owned(),
+            ),
+            RuntimeOperationError::MissingGraph => (
+                RuntimeOperationErrorKind::MissingGraph,
+                "analysis did not produce a dependency graph".to_owned(),
+            ),
+            RuntimeOperationError::MissingSelection => (
+                RuntimeOperationErrorKind::MissingSelection,
+                "analysis did not produce service selection".to_owned(),
+            ),
+            RuntimeOperationError::Engine(error) => (
+                RuntimeOperationErrorKind::Engine,
+                engine_error_message(error),
+            ),
+            RuntimeOperationError::Plan(error) => {
+                (RuntimeOperationErrorKind::Plan, error.to_string())
+            }
+            RuntimeOperationError::Blocked => (
+                RuntimeOperationErrorKind::Blocked,
+                "planner diagnostics blocked execution".to_owned(),
+            ),
+            RuntimeOperationError::Runtime(error) => (
+                RuntimeOperationErrorKind::Runtime,
+                runtime_error_message(error),
+            ),
+        };
+        Self {
+            schema_version: RuntimeOperationErrorSummarySchemaVersion::CURRENT,
+            kind,
+            message,
+        }
+    }
 }
 
 /// Plans and executes `up` with a supplied engine.
@@ -278,6 +362,27 @@ pub fn parse_runtime_operation_summary_json(
     Ok(summary)
 }
 
+/// Renders a runtime operation error summary as pretty JSON using the public SDK schema.
+pub fn render_runtime_operation_error_summary_json(
+    summary: &RuntimeOperationErrorSummary,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(summary)
+}
+
+/// Parses a runtime operation error summary from JSON using the public SDK schema.
+pub fn parse_runtime_operation_error_summary_json(
+    input: &str,
+) -> Result<RuntimeOperationErrorSummary, serde_json::Error> {
+    let summary: RuntimeOperationErrorSummary = serde_json::from_str(input)?;
+    if summary.schema_version != RuntimeOperationErrorSummarySchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported runtime operation error summary schema version {}.{}",
+            summary.schema_version.major, summary.schema_version.minor
+        )));
+    }
+    Ok(summary)
+}
+
 fn validate_runtime_operation_result(
     result: &RuntimeOperationResult,
 ) -> Result<(), serde_json::Error> {
@@ -308,4 +413,49 @@ fn validate_execution_report_consistency(
         )));
     }
     Ok(())
+}
+
+fn engine_error_message(error: &EngineError) -> String {
+    match error {
+        EngineError::Connection(error) => engine_connection_error_message(error),
+        EngineError::Api { operation, .. } => format!("engine {operation} failed"),
+        EngineError::Unsupported { capability } => format!("engine does not support {capability}"),
+        EngineError::Conflict { resource, .. } => {
+            format!("engine resource conflict for {resource}")
+        }
+        EngineError::NotFound { resource } => format!("engine resource not found: {resource}"),
+        EngineError::Authentication { registry } => {
+            format!("engine authentication failed for {registry}")
+        }
+        EngineError::Cancelled => "engine operation cancelled".to_owned(),
+    }
+}
+
+fn engine_connection_error_message(error: &EngineConnectionError) -> String {
+    match error {
+        EngineConnectionError::InvalidEndpoint { detail }
+        | EngineConnectionError::TlsConfiguration { detail } => detail.clone(),
+        EngineConnectionError::UnsupportedEndpoint { .. } => {
+            "engine endpoint kind is not supported on this platform".to_owned()
+        }
+        EngineConnectionError::EndpointUnavailable { .. } => {
+            "engine endpoint is unavailable".to_owned()
+        }
+        EngineConnectionError::ApiNegotiation { .. } => {
+            "failed to probe engine API version".to_owned()
+        }
+        EngineConnectionError::Authentication { .. } => {
+            "engine endpoint authentication failed".to_owned()
+        }
+    }
+}
+
+fn runtime_error_message(error: &RuntimeError) -> String {
+    match error {
+        RuntimeError::InvalidPlan(error) => error.to_string(),
+        RuntimeError::Capabilities(_) => "engine capability discovery failed".to_owned(),
+        RuntimeError::InternalInvariant { detail } => {
+            format!("runtime invariant failed: {detail}")
+        }
+    }
 }

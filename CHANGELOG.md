@@ -61,6 +61,8 @@
   approval/persistence payloads.
 - Added `RuntimeOperationSummary` and facade JSON helpers for compact runtime
   operation history/status payloads.
+- Added `RuntimeOperationErrorSummary` and facade JSON helpers for redacted
+  UI/API error payloads from failed SDK runtime calls.
 
 ## 0.1.0
 

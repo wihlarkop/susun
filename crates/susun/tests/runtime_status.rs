@@ -6,18 +6,21 @@ use susun::{
     BuildPolicy, ContainerId, ContainerState, EngineSnapshot, HealthState, ObservedContainer,
     ObservedImageRef, ProjectIdentity, ProjectInstanceId, ProjectName, ReplicaIndex, ResourceName,
     RuntimeOperationError, ServiceInstanceId, ServiceName, SnapshotCompleteness, SusunWorkspace,
-    UpPlanOptions, parse_runtime_operation_result_json, parse_runtime_operation_summary_json,
-    parse_runtime_overview_json, parse_runtime_status_summary_json,
+    UpPlanOptions, parse_runtime_operation_error_summary_json, parse_runtime_operation_result_json,
+    parse_runtime_operation_summary_json, parse_runtime_overview_json,
+    parse_runtime_status_summary_json, render_runtime_operation_error_summary_json,
     render_runtime_operation_result_json, render_runtime_operation_summary_json,
     render_runtime_overview_json, render_runtime_status_summary_json, runtime_overview,
     runtime_status_from_snapshot,
 };
 use susun::{
-    RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOperationResultSchemaVersion,
-    RuntimeOperationSummary, RuntimeOperationSummarySchemaVersion, RuntimeOverviewSchemaVersion,
-    RuntimeOverviewStatus, RuntimeStatusSummarySchemaVersion,
+    RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOperationErrorKind,
+    RuntimeOperationErrorSummary, RuntimeOperationErrorSummarySchemaVersion,
+    RuntimeOperationResultSchemaVersion, RuntimeOperationSummary,
+    RuntimeOperationSummarySchemaVersion, RuntimeOverviewSchemaVersion, RuntimeOverviewStatus,
+    RuntimeStatusSummarySchemaVersion,
 };
-use susun_engine::EngineOperation;
+use susun_engine::{EngineError, EngineOperation};
 use susun_model::ImageRef;
 use susun_testkit::FakeContainerEngine;
 
@@ -393,6 +396,60 @@ async fn sdk_project_up_with_engine_requires_analyzed_project() -> TestResult {
         .await;
 
     assert!(matches!(error, Err(RuntimeOperationError::MissingProject)));
+    Ok(())
+}
+
+#[test]
+fn runtime_operation_error_summary_covers_missing_project() -> TestResult {
+    let error = RuntimeOperationError::MissingProject;
+    let summary = RuntimeOperationErrorSummary::from(&error);
+
+    assert_eq!(
+        summary.schema_version,
+        RuntimeOperationErrorSummarySchemaVersion::CURRENT
+    );
+    assert_eq!(summary.kind, RuntimeOperationErrorKind::MissingProject);
+    assert_eq!(summary.message, "analysis did not produce a project");
+
+    let json = render_runtime_operation_error_summary_json(&summary)?;
+    let parsed = parse_runtime_operation_error_summary_json(&json)?;
+    assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn runtime_operation_error_summary_redacts_engine_api_source() {
+    #[derive(Debug)]
+    struct RawSource;
+
+    impl std::fmt::Display for RawSource {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("raw /very/private/docker.sock source")
+        }
+    }
+
+    impl std::error::Error for RawSource {}
+
+    let error =
+        RuntimeOperationError::Engine(EngineError::api(EngineOperation::Snapshot, RawSource));
+    let summary = RuntimeOperationErrorSummary::from(&error);
+
+    assert_eq!(summary.kind, RuntimeOperationErrorKind::Engine);
+    assert_eq!(summary.message, "engine snapshot failed");
+    assert!(!summary.message.contains("very/private"));
+    assert!(!summary.message.contains("docker.sock"));
+}
+
+#[test]
+fn runtime_operation_error_summary_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let summary = RuntimeOperationErrorSummary::from(&RuntimeOperationError::Blocked);
+    let json = render_runtime_operation_error_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_runtime_operation_error_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 

@@ -55,8 +55,10 @@ and inconsistent report summaries. The full `RuntimeOperationResult` returned by
 mutating SDK calls is versioned and can also be persisted with
 `render_runtime_operation_result_json` and
 `parse_runtime_operation_result_json`, or summarized with
-`RuntimeOperationSummary` and its JSON helpers. Approval UIs can persist compact
-planning results through `PlanOutcomeSummary`,
+`RuntimeOperationSummary` and its JSON helpers. Failed mutating SDK calls can be
+converted into redacted `RuntimeOperationErrorSummary` payloads for UI/API error
+responses. Approval UIs can persist compact planning results through
+`PlanOutcomeSummary`,
 `render_plan_outcome_summary_json`, and `parse_plan_outcome_summary_json`.
 
 For mutating runtime flows, analyze once and execute through the same
