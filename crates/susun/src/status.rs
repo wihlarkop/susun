@@ -11,12 +11,28 @@ use susun_engine::{
 /// Combined runtime readiness and project status summary for dashboards.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeOverview {
+    /// Serialized runtime overview schema version.
+    pub schema_version: RuntimeOverviewSchemaVersion,
     /// Aggregate dashboard status.
     pub overview_status: RuntimeOverviewStatus,
     /// Runtime readiness report.
     pub doctor: RuntimeDoctorReport,
     /// Project status when a snapshot was available.
     pub status: Option<RuntimeStatusSummary>,
+}
+
+/// Serialized runtime overview schema version.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOverviewSchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl RuntimeOverviewSchemaVersion {
+    /// Current runtime overview schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
 }
 
 /// Aggregate runtime overview status.
@@ -34,6 +50,8 @@ pub enum RuntimeOverviewStatus {
 /// Serializable project runtime status summary for SDK, CLI, and UI consumers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RuntimeStatusSummary {
+    /// Serialized runtime status summary schema version.
+    pub schema_version: RuntimeStatusSummarySchemaVersion,
     /// Compose project name.
     pub project_name: String,
     /// Opaque project instance ID.
@@ -44,6 +62,20 @@ pub struct RuntimeStatusSummary {
     pub services: Vec<RuntimeServiceStatusSummary>,
     /// Containers without service ownership, sorted by name.
     pub unassigned_containers: Vec<RuntimeContainerStatusSummary>,
+}
+
+/// Serialized runtime status summary schema version.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeStatusSummarySchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl RuntimeStatusSummarySchemaVersion {
+    /// Current runtime status summary schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
 }
 
 /// Runtime resource counts for one project instance.
@@ -160,6 +192,7 @@ pub fn runtime_status_from_snapshot(
     sort_containers(&mut unassigned_containers);
 
     RuntimeStatusSummary {
+        schema_version: RuntimeStatusSummarySchemaVersion::CURRENT,
         project_name: project.name.as_str().to_owned(),
         project_instance: project.working_set.as_str().to_owned(),
         counts,
@@ -179,6 +212,7 @@ pub fn runtime_overview(
         _ => RuntimeOverviewStatus::Unavailable,
     };
     RuntimeOverview {
+        schema_version: RuntimeOverviewSchemaVersion::CURRENT,
         overview_status,
         doctor,
         status,

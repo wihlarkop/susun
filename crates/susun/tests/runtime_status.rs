@@ -14,7 +14,8 @@ use susun::{
 };
 use susun::{
     RuntimeDoctorReport, RuntimeDoctorStatus, RuntimeOperationSummary,
-    RuntimeOperationSummarySchemaVersion, RuntimeOverviewStatus,
+    RuntimeOperationSummarySchemaVersion, RuntimeOverviewSchemaVersion, RuntimeOverviewStatus,
+    RuntimeStatusSummarySchemaVersion,
 };
 use susun_engine::EngineOperation;
 use susun_model::ImageRef;
@@ -66,6 +67,10 @@ fn runtime_status_filters_and_groups_project_containers() -> TestResult {
 
     let summary = runtime_status_from_snapshot(&project, &snapshot);
 
+    assert_eq!(
+        summary.schema_version,
+        RuntimeStatusSummarySchemaVersion::CURRENT
+    );
     assert_eq!(summary.project_name, "app");
     assert_eq!(summary.project_instance, "project-a");
     assert_eq!(summary.counts.containers, 3);
@@ -101,7 +106,12 @@ fn runtime_status_json_helpers_roundtrip() -> TestResult {
     let parsed = parse_runtime_status_summary_json(&json)?;
 
     assert_eq!(parsed, summary);
+    assert_eq!(
+        parsed.schema_version,
+        RuntimeStatusSummarySchemaVersion::CURRENT
+    );
     assert!(json.contains("\"project_name\""));
+    assert!(json.contains("\"schema_version\""));
     assert!(json.contains("\"services\""));
     Ok(())
 }
@@ -333,6 +343,10 @@ fn runtime_overview_is_ready_when_doctor_and_status_available() -> TestResult {
 
     let overview = runtime_overview(doctor, Some(status));
 
+    assert_eq!(
+        overview.schema_version,
+        RuntimeOverviewSchemaVersion::CURRENT
+    );
     assert_eq!(overview.overview_status, RuntimeOverviewStatus::Ready);
     assert!(overview.status.is_some());
     Ok(())
@@ -374,7 +388,9 @@ fn runtime_overview_json_helpers_roundtrip() -> TestResult {
     let parsed = parse_runtime_overview_json(&json)?;
 
     assert_eq!(parsed, overview);
+    assert_eq!(parsed.schema_version, RuntimeOverviewSchemaVersion::CURRENT);
     assert!(json.contains("\"overview_status\""));
+    assert!(json.contains("\"schema_version\""));
     Ok(())
 }
 

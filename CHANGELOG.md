@@ -15,6 +15,8 @@
 - Added `susun status` for human and JSON runtime status summaries.
 - Added runtime overview DTOs and JSON helpers that combine runtime readiness
   with optional project status.
+- Added schema versions to runtime status and overview DTOs for persisted
+  dashboard payloads.
 - Added `susun overview` for combined runtime readiness and project status
   output.
 - Added `SdkProject` runtime status and overview helpers so SDK consumers can
