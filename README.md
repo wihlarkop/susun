@@ -140,7 +140,10 @@ with a stable upgrade boundary. SDK consumers can call
 `SdkProject::runtime_status_from_snapshot`,
 `SdkProject::runtime_status_with_engine`, or
 `SdkProject::runtime_overview_with_engine` when they want the facade to reuse
-the analyzed project identity directly.
+the analyzed project identity directly. Use
+`SdkProject::require_runtime_status_from_snapshot` or
+`SdkProject::require_runtime_status_with_engine` when missing project identity
+should be reported as a structured `RuntimeOperationError` instead of `None`.
 
 ```powershell
 cargo run -p susun --example runtime_doctor

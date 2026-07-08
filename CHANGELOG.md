@@ -72,6 +72,8 @@
   stable analysis diagnostic UI/API payloads.
 - Added `AnalysisErrorSummary` and facade JSON helpers for display-safe
   system-level analysis error payloads.
+- Added required `SdkProject` runtime status helpers that return structured
+  `RuntimeOperationError` values instead of optional status.
 
 ## 0.1.0
 

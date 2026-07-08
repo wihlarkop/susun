@@ -323,6 +323,19 @@ impl SdkProject {
             .map(|identity| summarize_runtime_status(identity, snapshot))
     }
 
+    /// Builds runtime status from a snapshot, returning a structured error
+    /// when analysis did not produce a project identity.
+    pub fn require_runtime_status_from_snapshot(
+        &self,
+        snapshot: &EngineSnapshot,
+    ) -> Result<RuntimeStatusSummary, RuntimeOperationError> {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        Ok(summarize_runtime_status(identity, snapshot))
+    }
+
     /// Acquires a project-scoped snapshot and returns SDK-friendly runtime status.
     pub async fn runtime_status_with_engine<E>(
         &self,
@@ -336,6 +349,23 @@ impl SdkProject {
         };
         let snapshot = engine.snapshot(identity).await?;
         Ok(Some(summarize_runtime_status(identity, &snapshot)))
+    }
+
+    /// Acquires a project-scoped snapshot and returns runtime status, returning
+    /// a structured error when analysis did not produce a project identity.
+    pub async fn require_runtime_status_with_engine<E>(
+        &self,
+        engine: &E,
+    ) -> Result<RuntimeStatusSummary, RuntimeOperationError>
+    where
+        E: ContainerEngine + ?Sized,
+    {
+        let identity = self
+            .identity
+            .as_ref()
+            .ok_or(RuntimeOperationError::MissingProject)?;
+        let snapshot = engine.snapshot(identity).await?;
+        Ok(summarize_runtime_status(identity, &snapshot))
     }
 
     /// Combines a runtime doctor report with project status from a supplied engine.

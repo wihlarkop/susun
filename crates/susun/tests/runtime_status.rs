@@ -196,6 +196,17 @@ fn sdk_project_runtime_status_from_snapshot_uses_project_identity() -> TestResul
     Ok(())
 }
 
+#[test]
+fn sdk_project_required_runtime_status_from_snapshot_returns_missing_project() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+
+    let error = sdk_project.require_runtime_status_from_snapshot(&snapshot);
+
+    assert!(matches!(error, Err(RuntimeOperationError::MissingProject)));
+    Ok(())
+}
+
 #[tokio::test]
 async fn sdk_project_runtime_status_with_engine_uses_supplied_engine() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
@@ -220,6 +231,45 @@ async fn sdk_project_runtime_status_with_engine_uses_supplied_engine() -> TestRe
 
     assert_eq!(summary.counts.running_containers, 1);
     assert_eq!(summary.services[0].container_count, 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_required_runtime_status_with_engine_uses_supplied_engine() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let identity = sdk_project.identity().ok_or("expected project identity")?;
+    let mut snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let project_container = container(
+        "container-1",
+        "valid-minimal-web-1",
+        identity,
+        Some(("web", 0)),
+        ContainerState::Running,
+    )?;
+    snapshot
+        .containers
+        .insert(project_container.id.clone(), project_container);
+    let engine = FakeContainerEngine::new().with_snapshot(snapshot);
+
+    let summary = sdk_project
+        .require_runtime_status_with_engine(&engine)
+        .await?;
+
+    assert_eq!(summary.counts.running_containers, 1);
+    assert_eq!(summary.services[0].container_count, 1);
+    Ok(())
+}
+
+#[tokio::test]
+async fn sdk_project_required_runtime_status_with_engine_returns_missing_project() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let engine = FakeContainerEngine::failing(EngineOperation::Snapshot);
+
+    let error = sdk_project
+        .require_runtime_status_with_engine(&engine)
+        .await;
+
+    assert!(matches!(error, Err(RuntimeOperationError::MissingProject)));
     Ok(())
 }
 
