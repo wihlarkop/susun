@@ -3,9 +3,10 @@
 use std::{error::Error, path::PathBuf};
 
 use susun::{
-    Analyzer, BuildPolicy, EngineCapabilities, EngineSnapshot, Error as SusunError, Project,
-    ProjectIdentity, ProjectInstanceId, ProjectName, ProjectSummarySchemaVersion, SusunWorkspace,
-    UpPlanOptions, parse_engine_connection_profile_set_json, parse_execution_plan_json,
+    Analyzer, BuildPolicy, DependencyGraph, EngineCapabilities, EngineSnapshot,
+    Error as SusunError, Project, ProjectIdentity, ProjectInstanceId, ProjectName,
+    ProjectSelection, ProjectSummarySchemaVersion, SourceMap, SusunWorkspace, UpPlanOptions,
+    parse_engine_connection_profile_set_json, parse_execution_plan_json,
     parse_execution_report_json, parse_project_summary_json,
     render_engine_connection_profile_set_json, render_project_summary_json,
 };
@@ -140,6 +141,26 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     let rendered = render_project_summary_json(&summary)?;
     let parsed = parse_project_summary_json(&rendered)?;
     assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn workspace_exposes_analysis_components_without_analysis_plumbing() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let canonical: &Project = project.project().ok_or("expected project")?;
+    let selection: &ProjectSelection = project.selection().ok_or("expected selection")?;
+    let graph: &DependencyGraph = project.graph().ok_or("expected graph")?;
+    let source_map: &SourceMap = project.source_map();
+
+    assert_eq!(canonical.name.as_str(), "valid-minimal");
+    assert!(
+        selection
+            .active_services
+            .iter()
+            .any(|service| service.as_str() == "web")
+    );
+    assert_eq!(graph.order.len(), 1);
+    assert!(!susun::render_diagnostics(project.diagnostics(), source_map).contains("error["));
     Ok(())
 }
 

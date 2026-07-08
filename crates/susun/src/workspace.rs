@@ -13,11 +13,14 @@ use susun_engine::{
     ContainerEngine, EngineCapabilities, EngineError, EngineSnapshot, ProjectIdentity,
     ProjectInstanceId, RuntimeDoctorReport, RuntimeDoctorStatus,
 };
+use susun_graph::DependencyGraph;
 use susun_loader::MapEnvironment;
 use susun_model::{Project, ProjectName, port::PublishedPort, volume::VolumeKind};
+use susun_normalize::selection::ProjectSelection;
 use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, UpPlanOptions,
 };
+use susun_source::SourceMap;
 
 use crate::{
     AnalysisResult, Analyzer, Error, LoadContext, Planner, RuntimeOperationError,
@@ -272,6 +275,21 @@ impl SdkProject {
     /// Returns the canonical project when analysis produced one.
     pub fn project(&self) -> Option<&Project> {
         self.analysis.project.as_ref()
+    }
+
+    /// Returns the active service selection when analysis produced one.
+    pub fn selection(&self) -> Option<&ProjectSelection> {
+        self.analysis.selection.as_ref()
+    }
+
+    /// Returns the dependency graph when analysis produced one.
+    pub fn graph(&self) -> Option<&DependencyGraph> {
+        self.analysis.graph.as_ref()
+    }
+
+    /// Returns the source map for loaded Compose files.
+    pub fn source_map(&self) -> &SourceMap {
+        &self.analysis.source_map
     }
 
     /// Returns the stable project identity when analysis produced a project.

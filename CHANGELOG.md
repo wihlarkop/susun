@@ -41,6 +41,8 @@
   helpers instead of reaching into analysis internals.
 - Added consuming `SdkProject` accessors for advanced integrations that need
   owned analysis data or derived identity alongside the workspace.
+- Added direct `SdkProject` accessors and facade re-exports for active
+  selection, dependency graph, and source map inspection.
 
 ## 0.1.0
 

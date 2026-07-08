@@ -81,6 +81,8 @@ Lower-level facades remain available when callers need explicit control:
 
 Advanced integrations can call `SdkProject::into_analysis` or
 `SdkProject::into_parts` when lower-level crates need owned analysis data.
+For read-only inspection, `SdkProject::selection`, `graph`, and `source_map`
+avoid reaching through `analysis()` directly.
 
 The facade crate also re-exports common SDK types such as `Project`,
 `ProjectName`, `EngineCapabilities`, `EngineSnapshot`, `ProjectIdentity`,

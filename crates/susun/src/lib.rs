@@ -46,8 +46,10 @@ pub use susun_engine::{
     SnapshotField, StopContainerRequest, SupportLevel, TcpEndpoint, TlsConfiguration,
     WaitContainerRequest, WaitContainerResult,
 };
+pub use susun_graph::DependencyGraph;
 pub use susun_loader::LoadContext;
 pub use susun_model::{Command, Project, ProjectName, ServiceName};
+pub use susun_normalize::selection::ProjectSelection;
 pub use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,
     UpPlanOptions, render_plan_json,
@@ -56,6 +58,7 @@ pub use susun_runtime::{
     ActionExecutionResult, ActionOutput, ActionStatus, CancellationToken, EventSink,
     ExecutionReport, Runtime, RuntimeError, RuntimeEvent, RuntimeOptions,
 };
+pub use susun_source::SourceMap;
 #[cfg(feature = "watch")]
 pub use susun_watch::{
     WatchCancellationToken, WatchError, WatchEvent, WatchEventKind, WatchOptions, WatchResult,
