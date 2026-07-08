@@ -205,6 +205,23 @@ pub enum EngineConnectionError {
     },
 }
 
+impl EngineConnectionError {
+    /// Returns a display-safe message that does not include adapter source
+    /// errors or unredacted endpoint details.
+    #[must_use]
+    pub fn redacted_message(&self) -> String {
+        match self {
+            Self::InvalidEndpoint { detail } | Self::TlsConfiguration { detail } => detail.clone(),
+            Self::UnsupportedEndpoint { .. } => {
+                "engine endpoint kind is not supported on this platform".to_owned()
+            }
+            Self::EndpointUnavailable { .. } => "engine endpoint is unavailable".to_owned(),
+            Self::ApiNegotiation { .. } => "failed to probe engine API version".to_owned(),
+            Self::Authentication { .. } => "engine endpoint authentication failed".to_owned(),
+        }
+    }
+}
+
 /// A `TcpEndpoint` was constructed with an invalid host or port.
 #[derive(Debug, thiserror::Error)]
 pub enum InvalidEngineEndpoint {
@@ -324,6 +341,25 @@ impl EngineError {
         Self::Api {
             operation,
             source: Box::new(source),
+        }
+    }
+
+    /// Returns a display-safe message that does not include adapter source
+    /// errors or unredacted endpoint details.
+    #[must_use]
+    pub fn redacted_message(&self) -> String {
+        match self {
+            Self::Connection(error) => error.redacted_message(),
+            Self::Api { operation, .. } => format!("engine {operation} failed"),
+            Self::Unsupported { capability } => format!("engine does not support {capability}"),
+            Self::Conflict { resource, .. } => {
+                format!("engine resource conflict for {resource}")
+            }
+            Self::NotFound { resource } => format!("engine resource not found: {resource}"),
+            Self::Authentication { registry } => {
+                format!("engine authentication failed for {registry}")
+            }
+            Self::Cancelled => "engine operation cancelled".to_owned(),
         }
     }
 }

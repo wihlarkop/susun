@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize, de::Error as _};
-use susun_engine::{ContainerEngine, EngineConnectionError, EngineError, ProjectIdentity};
+use susun_engine::{ContainerEngine, ProjectIdentity};
 use susun_planner::{DownPlanOptions, ExecutionPlan, UpPlanOptions};
 use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime, RuntimeError};
 use thiserror::Error;
@@ -183,10 +183,9 @@ impl From<&RuntimeOperationError> for RuntimeOperationErrorSummary {
                 RuntimeOperationErrorKind::MissingSelection,
                 "analysis did not produce service selection".to_owned(),
             ),
-            RuntimeOperationError::Engine(error) => (
-                RuntimeOperationErrorKind::Engine,
-                engine_error_message(error),
-            ),
+            RuntimeOperationError::Engine(error) => {
+                (RuntimeOperationErrorKind::Engine, error.redacted_message())
+            }
             RuntimeOperationError::Plan(error) => {
                 (RuntimeOperationErrorKind::Plan, error.to_string())
             }
@@ -413,41 +412,6 @@ fn validate_execution_report_consistency(
         )));
     }
     Ok(())
-}
-
-fn engine_error_message(error: &EngineError) -> String {
-    match error {
-        EngineError::Connection(error) => engine_connection_error_message(error),
-        EngineError::Api { operation, .. } => format!("engine {operation} failed"),
-        EngineError::Unsupported { capability } => format!("engine does not support {capability}"),
-        EngineError::Conflict { resource, .. } => {
-            format!("engine resource conflict for {resource}")
-        }
-        EngineError::NotFound { resource } => format!("engine resource not found: {resource}"),
-        EngineError::Authentication { registry } => {
-            format!("engine authentication failed for {registry}")
-        }
-        EngineError::Cancelled => "engine operation cancelled".to_owned(),
-    }
-}
-
-fn engine_connection_error_message(error: &EngineConnectionError) -> String {
-    match error {
-        EngineConnectionError::InvalidEndpoint { detail }
-        | EngineConnectionError::TlsConfiguration { detail } => detail.clone(),
-        EngineConnectionError::UnsupportedEndpoint { .. } => {
-            "engine endpoint kind is not supported on this platform".to_owned()
-        }
-        EngineConnectionError::EndpointUnavailable { .. } => {
-            "engine endpoint is unavailable".to_owned()
-        }
-        EngineConnectionError::ApiNegotiation { .. } => {
-            "failed to probe engine API version".to_owned()
-        }
-        EngineConnectionError::Authentication { .. } => {
-            "engine endpoint authentication failed".to_owned()
-        }
-    }
 }
 
 fn runtime_error_message(error: &RuntimeError) -> String {

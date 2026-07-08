@@ -1,9 +1,9 @@
 #![allow(missing_docs)]
 
 use susun_engine::{
-    ClientIdentityFiles, EngineConnectionDisplayName, EngineConnectionProfile,
-    EngineConnectionProfileError, EngineConnectionProfileId, EngineConnectionProfileSet,
-    EngineEndpoint, RuntimeDoctorReport, RuntimeDoctorStatus, TcpEndpoint,
+    EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileError,
+    EngineConnectionProfileId, EngineConnectionProfileSet, EngineEndpoint, EngineError,
+    EngineOperation, RuntimeDoctorReport, RuntimeDoctorStatus,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -206,7 +206,7 @@ fn serde_rejects_arbitrary_redacted_endpoint_text() -> TestResult {
 #[cfg(feature = "serde")]
 #[test]
 fn serde_reuses_tcp_endpoint_validation() {
-    let result = serde_json::from_value::<TcpEndpoint>(serde_json::json!({
+    let result = serde_json::from_value::<susun_engine::TcpEndpoint>(serde_json::json!({
         "host": "::1",
         "port": 2375
     }));
@@ -217,7 +217,7 @@ fn serde_reuses_tcp_endpoint_validation() {
 #[cfg(feature = "serde")]
 #[test]
 fn serde_reuses_client_identity_validation() {
-    let result = serde_json::from_value::<ClientIdentityFiles>(serde_json::json!({
+    let result = serde_json::from_value::<susun_engine::ClientIdentityFiles>(serde_json::json!({
         "certificate": "C:/certs/client.pem",
         "private_key": ""
     }));
@@ -249,4 +249,25 @@ fn doctor_report_does_not_surface_raw_api_negotiation_source() {
     assert_eq!(report.message, "failed to probe engine API version");
     assert!(!report.message.contains("very/private"));
     assert!(!report.message.contains("docker.sock"));
+}
+
+#[test]
+fn engine_error_redacted_message_does_not_surface_raw_api_source() {
+    #[derive(Debug)]
+    struct RawSource;
+
+    impl std::fmt::Display for RawSource {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("raw /very/private/docker.sock source")
+        }
+    }
+
+    impl std::error::Error for RawSource {}
+
+    let error = EngineError::api(EngineOperation::PullImage, RawSource);
+    let message = error.redacted_message();
+
+    assert_eq!(message, "engine pull image failed");
+    assert!(!message.contains("very/private"));
+    assert!(!message.contains("docker.sock"));
 }

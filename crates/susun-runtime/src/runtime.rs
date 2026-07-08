@@ -324,7 +324,7 @@ where
                 finished_at: Some(finished_at),
                 attempts,
                 output: None,
-                error: Some(error.to_string()),
+                error: Some(error.redacted_message()),
             },
         }
     }

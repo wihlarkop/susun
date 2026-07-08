@@ -43,12 +43,7 @@ async fn action_failure_is_recorded_in_report() -> Result<(), Box<dyn Error>> {
     assert_eq!(result.attempts, 2);
     assert_eq!(report.summary.failed, 1);
     assert_eq!(report.summary.succeeded, 0);
-    assert!(
-        result
-            .error
-            .as_deref()
-            .is_some_and(|message| message.contains("fake engine failure"))
-    );
+    assert_eq!(result.error.as_deref(), Some("engine pull image failed"));
     Ok(())
 }
 

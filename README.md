@@ -52,7 +52,8 @@ the facade helpers `render_execution_plan_json`,
 `parse_execution_plan_json`, `render_execution_report_json`, and
 `parse_execution_report_json`; facade parsers reject unsupported plan schemas
 and inconsistent report summaries. The full `RuntimeOperationResult` returned by
-mutating SDK calls is versioned and can also be persisted with
+mutating SDK calls is versioned, uses redacted per-action error messages in
+execution reports, and can also be persisted with
 `render_runtime_operation_result_json` and
 `parse_runtime_operation_result_json`, or summarized with
 `RuntimeOperationSummary` and its JSON helpers. Failed mutating SDK calls can be

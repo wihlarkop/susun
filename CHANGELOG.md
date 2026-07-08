@@ -63,6 +63,8 @@
   operation history/status payloads.
 - Added `RuntimeOperationErrorSummary` and facade JSON helpers for redacted
   UI/API error payloads from failed SDK runtime calls.
+- Hardened runtime execution reports so failed action messages use shared
+  redacted engine error text instead of raw adapter/source errors.
 
 ## 0.1.0
 
