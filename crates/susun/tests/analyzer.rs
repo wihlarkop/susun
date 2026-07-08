@@ -115,7 +115,9 @@ fn workspace_exposes_configured_options_for_sdk_consumers() {
 fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let summary = project.summary();
+    let converted = susun::ProjectSummary::from(&project);
 
+    assert_eq!(converted, summary);
     assert!(!project.has_errors());
     assert_eq!(project.diagnostic_count(), 0);
     assert!(project.diagnostics().is_empty());

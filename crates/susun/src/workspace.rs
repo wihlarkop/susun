@@ -299,7 +299,7 @@ impl SdkProject {
 
     /// Returns a serializable summary suitable for apps, CLIs, and UIs.
     pub fn summary(&self) -> ProjectSummary {
-        ProjectSummary::from_sdk_project(self)
+        ProjectSummary::from(self)
     }
 
     /// Builds runtime status from an already-acquired engine snapshot.
@@ -694,6 +694,12 @@ impl ProjectSummary {
             diagnostic_count: project.analysis.report.sorted().len(),
             services,
         }
+    }
+}
+
+impl From<&SdkProject> for ProjectSummary {
+    fn from(project: &SdkProject) -> Self {
+        Self::from_sdk_project(project)
     }
 }
 

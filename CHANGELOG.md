@@ -43,6 +43,7 @@
   owned analysis data or derived identity alongside the workspace.
 - Added direct `SdkProject` accessors and facade re-exports for active
   selection, dependency graph, and source map inspection.
+- Added `From<&SdkProject> for ProjectSummary` for standard SDK DTO conversion.
 
 ## 0.1.0
 
