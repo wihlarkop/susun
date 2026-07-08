@@ -39,6 +39,8 @@
   deterministic env, project name override, and profiles.
 - Updated SDK examples to use `SdkProject` diagnostic helpers and facade JSON
   helpers instead of reaching into analysis internals.
+- Added consuming `SdkProject` accessors for advanced integrations that need
+  owned analysis data or derived identity alongside the workspace.
 
 ## 0.1.0
 

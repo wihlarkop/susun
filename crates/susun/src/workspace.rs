@@ -234,6 +234,16 @@ impl SdkProject {
         &self.analysis
     }
 
+    /// Consumes this SDK project and returns the owned analysis result.
+    pub fn into_analysis(self) -> AnalysisResult {
+        self.analysis
+    }
+
+    /// Consumes this SDK project into its workspace, analysis, and derived identity.
+    pub fn into_parts(self) -> (SusunWorkspace, AnalysisResult, Option<ProjectIdentity>) {
+        (self.workspace, self.analysis, self.identity)
+    }
+
     /// Returns the diagnostics emitted during analysis.
     pub fn diagnostics(&self) -> &DiagnosticReport {
         &self.analysis.report

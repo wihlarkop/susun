@@ -79,6 +79,9 @@ Lower-level facades remain available when callers need explicit control:
 - `up_with_engine` and `down_with_engine` for runtime execution with a supplied
   engine adapter.
 
+Advanced integrations can call `SdkProject::into_analysis` or
+`SdkProject::into_parts` when lower-level crates need owned analysis data.
+
 The facade crate also re-exports common SDK types such as `Project`,
 `ProjectName`, `EngineCapabilities`, `EngineSnapshot`, `ProjectIdentity`,
 `UpPlanOptions`, `DownPlanOptions`, `ExecutionPlan`, `PlanOutcome`, and

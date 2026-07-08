@@ -2,35 +2,31 @@
 
 use std::{process::ExitCode, time::SystemTime};
 
-use susun::{Analyzer, render_diagnostics};
+use susun::SusunWorkspace;
 use susun_convergence::{
     ConvergenceInput, ConvergencePolicy, DesiredDeployment, DesiredInstanceFingerprints,
     ObservedDeployment, plan_convergence, render_convergence_human,
 };
-use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity, ProjectInstanceId};
-use susun_model::ProjectName;
+use susun_engine::{EngineCapabilities, EngineSnapshot};
 
 fn main() -> ExitCode {
     let path = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "compose.yaml".to_owned());
 
-    let analysis = match Analyzer::new(&path).analyze() {
-        Ok(analysis) => analysis,
+    let sdk_project = match SusunWorkspace::from_file(&path).analyze() {
+        Ok(project) => project,
         Err(error) => {
             eprintln!("susun: {error}");
             return ExitCode::from(2);
         }
     };
-
-    if analysis.report.has_errors() {
-        eprint!(
-            "{}",
-            render_diagnostics(&analysis.report, &analysis.source_map)
-        );
+    if sdk_project.has_errors() {
+        eprint!("{}", sdk_project.render_diagnostics());
         return ExitCode::from(1);
     }
 
+    let (_workspace, analysis, identity) = sdk_project.into_parts();
     let Some(project) = analysis.project else {
         return ExitCode::from(1);
     };
@@ -40,12 +36,10 @@ fn main() -> ExitCode {
     let Some(graph) = analysis.graph else {
         return ExitCode::from(1);
     };
+    let Some(identity) = identity else {
+        return ExitCode::from(1);
+    };
 
-    let project_name = ProjectName::new("convergence-example");
-    let identity = ProjectIdentity::new(
-        project_name.clone(),
-        ProjectInstanceId::derive(&project_name, std::env::current_dir().unwrap_or_default()),
-    );
     let desired_services = selection.active_services.clone();
     let desired = DesiredDeployment::new(project, selection, graph, identity, Default::default());
     let observed = ObservedDeployment::new(

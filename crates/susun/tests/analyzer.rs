@@ -189,6 +189,34 @@ fn workspace_diagnostics_helpers_render_analysis_report() -> TestResult {
 }
 
 #[test]
+fn sdk_project_into_analysis_returns_owned_analysis() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let analysis = project.into_analysis();
+
+    assert!(analysis.project.is_some());
+    assert!(analysis.selection.is_some());
+    assert!(analysis.graph.is_some());
+    Ok(())
+}
+
+#[test]
+fn sdk_project_into_parts_preserves_workspace_and_identity() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path())
+        .with_project_name("parts-app")
+        .analyze()?;
+
+    let (workspace, analysis, identity) = project.into_parts();
+
+    assert_eq!(workspace.project_name(), Some("parts-app"));
+    assert!(analysis.project.is_some());
+    assert_eq!(
+        identity.ok_or("expected identity")?.name.as_str(),
+        "parts-app"
+    );
+    Ok(())
+}
+
+#[test]
 fn workspace_summary_exposes_resource_references_without_secret_values() -> TestResult {
     let project = SusunWorkspace::from_file(resources_path()).analyze()?;
     let summary = project.summary();
