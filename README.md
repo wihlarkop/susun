@@ -105,7 +105,10 @@ Susun's neutral profile semantics. When profile JSON is persisted or accepted
 through an API, deserialize it through these Susun types so constructor-backed
 validation runs before use. The `susun` facade provides
 `parse_engine_connection_profile_set_json` and
-`render_engine_connection_profile_set_json` for that boundary.
+`render_engine_connection_profile_set_json` for that boundary. Profile JSON is
+configuration data, not a redacted UI summary: endpoint fields can contain local
+socket paths, named pipes, remote hosts, and TLS certificate/key paths, so store
+it only in protected application storage.
 
 For project dashboards, `runtime_status_from_snapshot` converts a neutral
 `EngineSnapshot` plus `ProjectIdentity` into a compact `RuntimeStatusSummary`

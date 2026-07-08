@@ -78,11 +78,20 @@ impl BollardEngine {
                 CONNECT_TIMEOUT_SECS,
                 bollard::API_DEFAULT_VERSION,
             ),
-            EngineEndpoint::WindowsNamedPipe(pipe) => Docker::connect_with_socket(
-                pipe,
-                CONNECT_TIMEOUT_SECS,
-                bollard::API_DEFAULT_VERSION,
-            ),
+            EngineEndpoint::WindowsNamedPipe(pipe) => {
+                #[cfg(windows)]
+                {
+                    connect_named_pipe(pipe)
+                }
+                #[cfg(not(windows))]
+                {
+                    let _ = pipe;
+                    return Err(EngineConnectionError::UnsupportedEndpoint {
+                        endpoint_kind: endpoint.kind(),
+                        platform: susun_engine::Platform::current(),
+                    });
+                }
+            }
             EngineEndpoint::Tcp(tcp) => {
                 let addr = format!("{}:{}", tcp.host(), tcp.port());
                 match tcp.tls() {
@@ -103,6 +112,12 @@ impl BollardEngine {
                                 detail: "TLS requires a CA certificate path".to_owned(),
                             });
                         };
+                        if tls.server_name().is_some() {
+                            return Err(EngineConnectionError::TlsConfiguration {
+                                detail: "TLS server-name override is not supported by susun-engine-bollard"
+                                    .to_owned(),
+                            });
+                        }
                         Docker::connect_with_ssl(
                             &addr,
                             identity.private_key(),
@@ -161,6 +176,11 @@ impl BollardEngine {
     pub fn endpoint(&self) -> &EngineEndpoint {
         &self.endpoint
     }
+}
+
+#[cfg(windows)]
+fn connect_named_pipe(pipe: &str) -> Result<Docker, bollard::errors::Error> {
+    Docker::connect_with_named_pipe(pipe, CONNECT_TIMEOUT_SECS, bollard::API_DEFAULT_VERSION)
 }
 
 impl ContainerEngine for BollardEngine {

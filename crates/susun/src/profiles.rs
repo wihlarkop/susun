@@ -3,6 +3,10 @@
 use susun_engine::EngineConnectionProfileSet;
 
 /// Renders an engine connection profile set as pretty JSON.
+///
+/// This is configuration JSON, not a redacted UI summary. Endpoint fields can
+/// include local socket paths, named pipes, remote hosts, and TLS file paths.
+/// Store it only in protected application storage.
 pub fn render_engine_connection_profile_set_json(
     profiles: &EngineConnectionProfileSet,
 ) -> Result<String, serde_json::Error> {
@@ -13,6 +17,9 @@ pub fn render_engine_connection_profile_set_json(
 ///
 /// Deserialization uses the validated Susun profile types, so invalid profile
 /// ids, empty display names, duplicate ids, and multiple defaults are rejected.
+/// This is configuration JSON, not a redacted UI summary. Endpoint fields can
+/// include local socket paths, named pipes, remote hosts, and TLS file paths.
+/// Read it only from protected application storage.
 pub fn parse_engine_connection_profile_set_json(
     input: &str,
 ) -> Result<EngineConnectionProfileSet, serde_json::Error> {

@@ -1,8 +1,9 @@
 #![allow(missing_docs)]
 
 use susun_engine::{
-    EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileError,
-    EngineConnectionProfileId, EngineConnectionProfileSet, EngineEndpoint,
+    ClientIdentityFiles, EngineConnectionDisplayName, EngineConnectionProfile,
+    EngineConnectionProfileError, EngineConnectionProfileId, EngineConnectionProfileSet,
+    EngineEndpoint, RuntimeDoctorReport, RuntimeDoctorStatus, TcpEndpoint,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -185,4 +186,67 @@ fn serde_roundtrips_valid_profile_set() -> TestResult {
         "local"
     );
     Ok(())
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_rejects_arbitrary_redacted_endpoint_text() -> TestResult {
+    let result = serde_json::from_str::<susun_engine::RedactedEndpoint>(
+        r#""this-is-not-actually-redacted""#,
+    );
+
+    assert!(result.is_err());
+
+    let parsed =
+        serde_json::from_str::<susun_engine::RedactedEndpoint>(r#""unix://<local-socket>""#)?;
+    assert_eq!(parsed.to_string(), "unix://<local-socket>");
+    Ok(())
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_reuses_tcp_endpoint_validation() {
+    let result = serde_json::from_value::<TcpEndpoint>(serde_json::json!({
+        "host": "::1",
+        "port": 2375
+    }));
+
+    assert!(result.is_err());
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn serde_reuses_client_identity_validation() {
+    let result = serde_json::from_value::<ClientIdentityFiles>(serde_json::json!({
+        "certificate": "C:/certs/client.pem",
+        "private_key": ""
+    }));
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn doctor_report_does_not_surface_raw_api_negotiation_source() {
+    #[derive(Debug)]
+    struct RawSource;
+
+    impl std::fmt::Display for RawSource {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("raw /very/private/docker.sock source")
+        }
+    }
+
+    impl std::error::Error for RawSource {}
+
+    let endpoint = EngineEndpoint::UnixSocket("/very/private/docker.sock".into());
+    let error = susun_engine::EngineConnectionError::ApiNegotiation {
+        source: Box::new(RawSource),
+    };
+
+    let report = RuntimeDoctorReport::from_connection_error(None, &endpoint, &error);
+
+    assert_eq!(report.status, RuntimeDoctorStatus::Unavailable);
+    assert_eq!(report.message, "failed to probe engine API version");
+    assert!(!report.message.contains("very/private"));
+    assert!(!report.message.contains("docker.sock"));
 }

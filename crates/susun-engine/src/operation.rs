@@ -154,6 +154,8 @@ fn validate_host(host: &str) -> Result<(), crate::InvalidEngineEndpoint> {
         host[1..host.len() - 1]
             .parse::<std::net::Ipv6Addr>()
             .map_err(|_| crate::InvalidEngineEndpoint::MalformedIpv6)?;
+    } else if host.contains(':') {
+        return Err(crate::InvalidEngineEndpoint::UnbracketedIpv6);
     }
     Ok(())
 }
@@ -161,7 +163,7 @@ fn validate_host(host: &str) -> Result<(), crate::InvalidEngineEndpoint> {
 /// TLS client certificate + private key, always constructed as a pair —
 /// there is no way to represent one without the other.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct ClientIdentityFiles {
     certificate: PathBuf,
     private_key: PathBuf,
@@ -199,6 +201,23 @@ impl std::fmt::Debug for ClientIdentityFiles {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ClientIdentityFiles")
             .finish_non_exhaustive()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for ClientIdentityFiles {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct ClientIdentityFilesSerde {
+            certificate: PathBuf,
+            private_key: PathBuf,
+        }
+
+        let value = <ClientIdentityFilesSerde as serde::Deserialize>::deserialize(deserializer)?;
+        Self::new(value.certificate, value.private_key).map_err(serde::de::Error::custom)
     }
 }
 
@@ -242,7 +261,10 @@ impl TlsConfiguration {
         self
     }
 
-    /// Overrides the TLS server-name used for verification.
+    /// Reserves a TLS server-name override for adapters that support it.
+    ///
+    /// The current Bollard adapter rejects this field because Bollard 0.21's
+    /// SSL constructor does not expose an explicit server-name override.
     pub fn with_server_name(mut self, name: impl Into<Arc<str>>) -> Self {
         self.server_name = Some(name.into());
         self
@@ -282,7 +304,7 @@ impl std::fmt::Debug for TlsConfiguration {
 
 /// A TCP endpoint: host and port, never a loosely-validated URL string.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct TcpEndpoint {
     host: Arc<str>,
     port: u16,
@@ -335,6 +357,29 @@ impl std::fmt::Debug for TcpEndpoint {
             .field("port", &self.port)
             .field("tls", &self.tls.is_some())
             .finish()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for TcpEndpoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct TcpEndpointSerde {
+            host: Arc<str>,
+            port: u16,
+            #[serde(default)]
+            tls: Option<TlsConfiguration>,
+        }
+
+        let value = <TcpEndpointSerde as serde::Deserialize>::deserialize(deserializer)?;
+        let endpoint = Self::new(value.host, value.port).map_err(serde::de::Error::custom)?;
+        Ok(match value.tls {
+            Some(tls) => endpoint.with_tls(tls),
+            None => endpoint,
+        })
     }
 }
 

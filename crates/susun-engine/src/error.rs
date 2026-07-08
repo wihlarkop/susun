@@ -108,9 +108,11 @@ impl Platform {
 
 /// A display-safe endpoint, only ever constructed by redacting a real
 /// `crate::EngineEndpoint` — there is no path to build one from an
-/// arbitrary unredacted string.
+/// arbitrary unredacted string. Serde deserialization accepts only Susun's
+/// known redacted endpoint tokens so persisted UI/API payloads cannot inject
+/// arbitrary endpoint text.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[cfg_attr(feature = "serde", serde(transparent))]
 pub struct RedactedEndpoint(String);
 
@@ -119,11 +121,36 @@ impl RedactedEndpoint {
     pub fn new(endpoint: &crate::EngineEndpoint) -> Self {
         Self(endpoint.redacted())
     }
+
+    #[cfg(feature = "serde")]
+    fn from_serialized_redacted(value: String) -> Option<Self> {
+        matches!(
+            value.as_str(),
+            "local"
+                | "unix://<local-socket>"
+                | "npipe://<local-pipe>"
+                | "http://<remote-host>"
+                | "https://<remote-host>"
+        )
+        .then_some(Self(value))
+    }
 }
 
 impl fmt::Display for RedactedEndpoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for RedactedEndpoint {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::from_serialized_redacted(value)
+            .ok_or_else(|| serde::de::Error::custom("unsupported redacted engine endpoint"))
     }
 }
 
@@ -199,6 +226,9 @@ pub enum InvalidEngineEndpoint {
     /// Host used bracket syntax but was not a valid bracketed IPv6 address.
     #[error("malformed bracketed IPv6 host")]
     MalformedIpv6,
+    /// Host looks like IPv6 but did not use bracketed authority syntax.
+    #[error("IPv6 host must use bracketed authority syntax")]
+    UnbracketedIpv6,
 }
 
 /// A `ClientIdentityFiles`/`TlsConfiguration` was constructed with an

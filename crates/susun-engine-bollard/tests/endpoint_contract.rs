@@ -120,6 +120,14 @@ fn tcp_endpoint_rejects_malformed_bracketed_ipv6() {
 }
 
 #[test]
+fn tcp_endpoint_rejects_unbracketed_ipv6() {
+    assert!(matches!(
+        TcpEndpoint::new("::1", 2375),
+        Err(InvalidEngineEndpoint::UnbracketedIpv6)
+    ));
+}
+
+#[test]
 fn client_identity_rejects_certificate_without_key() {
     let result = ClientIdentityFiles::new("C:/certs/client.pem", "");
     assert!(matches!(
@@ -168,6 +176,53 @@ fn tls_configuration_debug_output_is_redacted() -> Result<(), Box<dyn std::error
     assert!(!debug.contains("client.pem"));
     assert!(!debug.contains("client-key.pem"));
     assert!(!debug.contains("ca.pem"));
+    Ok(())
+}
+
+#[test]
+fn bollard_adapter_rejects_tls_server_name_override() -> Result<(), Box<dyn std::error::Error>> {
+    let identity = ClientIdentityFiles::new("C:/certs/client.pem", "C:/certs/client-key.pem")?;
+    let tls = TlsConfiguration::new()
+        .with_ca_certificate("C:/certs/ca.pem")
+        .with_client_identity(identity)
+        .with_server_name("docker.internal");
+    let endpoint = EngineEndpoint::Tcp(TcpEndpoint::new("example.internal", 2376)?.with_tls(tls));
+
+    let result = susun_engine_bollard::BollardEngine::connect_to(endpoint);
+
+    assert!(matches!(
+        result,
+        Err(EngineConnectionError::TlsConfiguration { detail })
+            if detail.contains("server-name override")
+    ));
+    Ok(())
+}
+
+#[cfg(not(windows))]
+#[test]
+fn windows_named_pipe_is_unsupported_on_non_windows() {
+    let endpoint = EngineEndpoint::WindowsNamedPipe(r"\\.\pipe\docker_engine".into());
+    let result = susun_engine_bollard::BollardEngine::connect_to(endpoint);
+
+    assert!(matches!(
+        result,
+        Err(EngineConnectionError::UnsupportedEndpoint {
+            endpoint_kind: EngineEndpointKind::WindowsNamedPipe,
+            ..
+        })
+    ));
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_named_pipe_uses_named_pipe_endpoint_boundary() -> Result<(), EngineConnectionError> {
+    let endpoint = EngineEndpoint::WindowsNamedPipe(r"\\.\pipe\missing_susun_test_pipe".into());
+    let engine = susun_engine_bollard::BollardEngine::connect_to(endpoint)?;
+
+    assert_eq!(
+        engine.endpoint().kind(),
+        EngineEndpointKind::WindowsNamedPipe
+    );
     Ok(())
 }
 

@@ -19,6 +19,10 @@
   dashboard payloads.
 - Hardened versioned SDK summary JSON parsers to reject unsupported schema
   versions.
+- Hardened runtime endpoint/profile contracts: redacted endpoints reject
+  arbitrary deserialization, TCP endpoints reject ambiguous IPv6 hosts, profile
+  JSON is documented as protected configuration, and runtime doctor messages no
+  longer surface raw adapter error strings.
 - Added `susun overview` for combined runtime readiness and project status
   output.
 - Added `SdkProject` runtime status and overview helpers so SDK consumers can

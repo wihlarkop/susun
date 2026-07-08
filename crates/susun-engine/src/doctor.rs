@@ -69,12 +69,28 @@ impl RuntimeDoctorReport {
             EngineConnectionError::EndpointUnavailable { .. }
             | EngineConnectionError::ApiNegotiation { .. } => RuntimeDoctorStatus::Unavailable,
         };
+        let message = match error {
+            EngineConnectionError::InvalidEndpoint { detail }
+            | EngineConnectionError::TlsConfiguration { detail } => detail.clone(),
+            EngineConnectionError::UnsupportedEndpoint { .. } => {
+                "engine endpoint kind is not supported on this platform".to_owned()
+            }
+            EngineConnectionError::Authentication { .. } => {
+                "engine endpoint authentication failed".to_owned()
+            }
+            EngineConnectionError::EndpointUnavailable { .. } => {
+                "engine endpoint is unavailable".to_owned()
+            }
+            EngineConnectionError::ApiNegotiation { .. } => {
+                "failed to probe engine API version".to_owned()
+            }
+        };
         Self {
             profile_id,
             status,
             endpoint: RedactedEndpoint::new(endpoint),
             probe: None,
-            message: error.to_string(),
+            message,
         }
     }
 }
