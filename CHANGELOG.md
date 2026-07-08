@@ -31,6 +31,8 @@
   consumers can persist runtime workflow artifacts without lower-crate imports.
 - Added JSON helpers for `RuntimeOperationResult`, the combined result returned
   by SDK mutating runtime calls.
+- Added direct `SdkProject` diagnostic helpers for error checks, diagnostic
+  counts, and text/JSON diagnostic rendering.
 
 ## 0.1.0
 

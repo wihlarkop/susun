@@ -7,6 +7,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use susun_diagnostics::DiagnosticReport;
 use susun_engine::{
     ContainerEngine, EngineCapabilities, EngineError, EngineSnapshot, ProjectIdentity,
     ProjectInstanceId, RuntimeDoctorReport, RuntimeDoctorStatus,
@@ -174,6 +175,31 @@ impl SdkProject {
     /// Returns the full analysis result.
     pub fn analysis(&self) -> &AnalysisResult {
         &self.analysis
+    }
+
+    /// Returns the diagnostics emitted during analysis.
+    pub fn diagnostics(&self) -> &DiagnosticReport {
+        &self.analysis.report
+    }
+
+    /// Returns whether analysis emitted error diagnostics.
+    pub fn has_errors(&self) -> bool {
+        self.analysis.report.has_errors()
+    }
+
+    /// Returns the number of diagnostics at all severities.
+    pub fn diagnostic_count(&self) -> usize {
+        self.analysis.report.sorted().len()
+    }
+
+    /// Renders analysis diagnostics as plain text using source locations.
+    pub fn render_diagnostics(&self) -> String {
+        crate::render_diagnostics(&self.analysis.report, &self.analysis.source_map)
+    }
+
+    /// Renders analysis diagnostics as stable JSON using source locations.
+    pub fn render_diagnostics_json(&self) -> String {
+        crate::render_diagnostics_json(&self.analysis.report, &self.analysis.source_map)
     }
 
     /// Returns the canonical project when analysis produced one.

@@ -75,6 +75,9 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let summary = project.summary();
 
+    assert!(!project.has_errors());
+    assert_eq!(project.diagnostic_count(), 0);
+    assert!(project.diagnostics().is_empty());
     assert_eq!(summary.schema_version, ProjectSummarySchemaVersion::CURRENT);
     assert_eq!(summary.project_name.as_deref(), Some("valid-minimal"));
     assert_eq!(summary.service_count, 1);
@@ -97,6 +100,23 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     let rendered = render_project_summary_json(&summary)?;
     let parsed = parse_project_summary_json(&rendered)?;
     assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn workspace_diagnostics_helpers_render_analysis_report() -> TestResult {
+    let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+
+    assert!(project.has_errors());
+    assert!(project.diagnostic_count() > 0);
+    assert!(project.diagnostics().has_errors());
+
+    let text = project.render_diagnostics();
+    let json = project.render_diagnostics_json();
+
+    assert!(text.contains("error["));
+    assert!(json.contains("\"diagnostics\""));
+    assert!(json.contains("\"severity\""));
     Ok(())
 }
 

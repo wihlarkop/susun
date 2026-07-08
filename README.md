@@ -21,6 +21,10 @@ let project = SusunWorkspace::from_file("compose.yaml")
     .with_profile("debug")
     .analyze()?;
 
+if project.has_errors() {
+    eprint!("{}", project.render_diagnostics());
+}
+
 let summary = project.summary();
 println!(
     "{} service(s), {} active",
