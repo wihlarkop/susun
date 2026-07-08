@@ -71,6 +71,46 @@ fn valid_file_report_is_clean() -> TestResult {
 }
 
 #[test]
+fn workspace_exposes_default_configuration_for_sdk_consumers() {
+    let workspace = SusunWorkspace::new();
+
+    assert!(workspace.files().is_empty());
+    assert_eq!(workspace.primary_file(), PathBuf::from("compose.yaml"));
+    assert_eq!(workspace.env_file(), None);
+    assert_eq!(workspace.env_vars(), None);
+    assert_eq!(workspace.project_name(), None);
+    assert!(workspace.profiles().is_empty());
+}
+
+#[test]
+fn workspace_exposes_configured_options_for_sdk_consumers() {
+    let primary = PathBuf::from("compose.yaml");
+    let override_file = PathBuf::from("compose.override.yaml");
+    let env_file = PathBuf::from(".env.local");
+    let workspace = SusunWorkspace::from_file(primary.clone())
+        .with_file(override_file.clone())
+        .with_env_file(env_file.clone())
+        .with_env_var("COMPOSE_PROJECT_NAME", "sdk-app")
+        .with_project_name("explicit-name")
+        .with_profiles(["debug", "worker"]);
+
+    assert_eq!(workspace.files(), &[primary, override_file]);
+    assert_eq!(workspace.env_file(), Some(env_file.as_path()));
+    assert_eq!(
+        workspace
+            .env_vars()
+            .and_then(|vars| vars.get("COMPOSE_PROJECT_NAME"))
+            .map(String::as_str),
+        Some("sdk-app")
+    );
+    assert_eq!(workspace.project_name(), Some("explicit-name"));
+    assert_eq!(
+        workspace.profiles(),
+        &["debug".to_owned(), "worker".to_owned()]
+    );
+}
+
+#[test]
 fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let summary = project.summary();

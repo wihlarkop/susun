@@ -35,6 +35,8 @@
   counts, and text/JSON diagnostic rendering.
 - Added deterministic environment injection on `SusunWorkspace` through
   `with_env_var` and `with_env_vars`.
+- Added read-only `SusunWorkspace` accessors for configured files, env file,
+  deterministic env, project name override, and profiles.
 
 ## 0.1.0
 

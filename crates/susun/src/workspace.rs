@@ -126,6 +126,34 @@ impl SusunWorkspace {
             .unwrap_or_else(|| PathBuf::from("compose.yaml"))
     }
 
+    /// Returns the explicitly configured Compose files.
+    ///
+    /// An empty slice means [`Self::primary_file`] will default to
+    /// `compose.yaml`.
+    pub fn files(&self) -> &[PathBuf] {
+        &self.files
+    }
+
+    /// Returns the explicit `.env` file, if configured.
+    pub fn env_file(&self) -> Option<&Path> {
+        self.env_file.as_deref()
+    }
+
+    /// Returns the deterministic environment map, if configured.
+    pub fn env_vars(&self) -> Option<&BTreeMap<String, String>> {
+        self.env.as_ref()
+    }
+
+    /// Returns the explicit Compose project name override, if configured.
+    pub fn project_name(&self) -> Option<&str> {
+        self.project_name.as_deref()
+    }
+
+    /// Returns the active Compose profiles configured for analysis.
+    pub fn profiles(&self) -> &[String] {
+        &self.profiles
+    }
+
     /// Returns the project directory used for stable identity derivation.
     pub fn project_directory(&self) -> PathBuf {
         self.primary_file()

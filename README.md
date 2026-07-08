@@ -13,6 +13,8 @@ release-candidate gates.
 
 Use `SusunWorkspace` for application and desktop-tool integrations. It mirrors
 the Compose context flags a CLI would accept, but returns structured data.
+Configured files, env file, deterministic env map, project name override, and
+profiles are available through read-only accessors for application state UIs.
 
 ```rust
 use susun::SusunWorkspace;
