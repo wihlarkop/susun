@@ -2,7 +2,7 @@
 
 use std::process::ExitCode;
 
-use susun::{SusunWorkspace, render_diagnostics};
+use susun::SusunWorkspace;
 
 fn main() -> ExitCode {
     let path = std::env::args()
@@ -16,13 +16,8 @@ fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let analysis = project.analysis();
-
-    if analysis.report.has_errors() {
-        eprint!(
-            "{}",
-            render_diagnostics(&analysis.report, &analysis.source_map)
-        );
+    if project.has_errors() {
+        eprint!("{}", project.render_diagnostics());
         return ExitCode::from(1);
     }
 

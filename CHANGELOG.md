@@ -37,6 +37,8 @@
   `with_env_var` and `with_env_vars`.
 - Added read-only `SusunWorkspace` accessors for configured files, env file,
   deterministic env, project name override, and profiles.
+- Updated SDK examples to use `SdkProject` diagnostic helpers and facade JSON
+  helpers instead of reaching into analysis internals.
 
 ## 0.1.0
 

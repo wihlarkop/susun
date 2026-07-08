@@ -2,7 +2,7 @@
 
 use std::{process::ExitCode, sync::Arc};
 
-use susun::{DownPlanOptions, SusunWorkspace, UpPlanOptions, render_diagnostics};
+use susun::{DownPlanOptions, SusunWorkspace, UpPlanOptions};
 use susun_engine_bollard::BollardEngine;
 
 #[tokio::main]
@@ -18,12 +18,8 @@ async fn main() -> ExitCode {
             return ExitCode::from(2);
         }
     };
-    let analysis = project.analysis();
-    if analysis.report.has_errors() {
-        eprint!(
-            "{}",
-            render_diagnostics(&analysis.report, &analysis.source_map)
-        );
+    if project.has_errors() {
+        eprint!("{}", project.render_diagnostics());
         return ExitCode::from(1);
     }
 

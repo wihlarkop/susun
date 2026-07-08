@@ -2,7 +2,7 @@
 
 use std::process::ExitCode;
 
-use susun::{SusunWorkspace, render_diagnostics};
+use susun::{SusunWorkspace, render_project_summary_json};
 
 fn main() -> ExitCode {
     let path = std::env::args()
@@ -17,16 +17,12 @@ fn main() -> ExitCode {
         }
     };
 
-    let analysis = project.analysis();
-    if analysis.report.has_errors() {
-        eprint!(
-            "{}",
-            render_diagnostics(&analysis.report, &analysis.source_map)
-        );
+    if project.has_errors() {
+        eprint!("{}", project.render_diagnostics());
         return ExitCode::from(1);
     }
 
-    match serde_json::to_string_pretty(&project.summary()) {
+    match render_project_summary_json(&project.summary()) {
         Ok(json) => {
             println!("{json}");
             ExitCode::SUCCESS

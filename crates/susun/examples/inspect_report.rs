@@ -11,13 +11,16 @@ fn main() -> ExitCode {
         .unwrap_or_else(|| "compose.yaml".to_owned());
 
     let project = match SusunWorkspace::from_file(&path).analyze() {
-        Ok(project) if !project.analysis().report.has_errors() => project,
-        Ok(_) => return ExitCode::from(1),
+        Ok(project) => project,
         Err(error) => {
             eprintln!("susun: {error}");
             return ExitCode::from(2);
         }
     };
+    if project.has_errors() {
+        eprint!("{}", project.render_diagnostics());
+        return ExitCode::from(1);
+    }
 
     match project.dry_run_up(false) {
         Ok(outcome) => match outcome.plan {
