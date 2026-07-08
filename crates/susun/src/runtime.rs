@@ -19,6 +19,68 @@ pub struct RuntimeOperationResult {
     pub report: ExecutionReport,
 }
 
+/// Serializable runtime operation summary for status/history UIs.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOperationSummary {
+    /// Serialized runtime operation summary schema version.
+    pub schema_version: RuntimeOperationSummarySchemaVersion,
+    /// Stable plan ID.
+    pub plan_id: String,
+    /// Executed operation.
+    pub operation: String,
+    /// Total planned actions.
+    pub planned_actions: usize,
+    /// Safe planned actions.
+    pub safe_actions: usize,
+    /// Caution planned actions.
+    pub caution_actions: usize,
+    /// Destructive planned actions.
+    pub destructive_actions: usize,
+    /// Total reported actions.
+    pub reported_actions: usize,
+    /// Succeeded actions.
+    pub succeeded: usize,
+    /// Failed actions.
+    pub failed: usize,
+    /// Skipped actions.
+    pub skipped: usize,
+    /// Cancelled actions.
+    pub cancelled: usize,
+}
+
+/// Serialized runtime operation summary schema version.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RuntimeOperationSummarySchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl RuntimeOperationSummarySchemaVersion {
+    /// Current runtime operation summary schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
+}
+
+impl From<&RuntimeOperationResult> for RuntimeOperationSummary {
+    fn from(result: &RuntimeOperationResult) -> Self {
+        Self {
+            schema_version: RuntimeOperationSummarySchemaVersion::CURRENT,
+            plan_id: result.plan.plan_id.as_str().to_owned(),
+            operation: result.plan.operation.as_str().to_owned(),
+            planned_actions: result.plan.summary.total_actions,
+            safe_actions: result.plan.summary.safe_actions,
+            caution_actions: result.plan.summary.caution_actions,
+            destructive_actions: result.plan.summary.destructive_actions,
+            reported_actions: result.report.summary.total_actions,
+            succeeded: result.report.summary.succeeded,
+            failed: result.report.summary.failed,
+            skipped: result.report.summary.skipped,
+            cancelled: result.report.summary.cancelled,
+        }
+    }
+}
+
 /// Error returned by high-level runtime operations.
 #[derive(Debug, Error)]
 pub enum RuntimeOperationError {
@@ -162,5 +224,19 @@ pub fn render_runtime_operation_result_json(
 pub fn parse_runtime_operation_result_json(
     input: &str,
 ) -> Result<RuntimeOperationResult, serde_json::Error> {
+    serde_json::from_str(input)
+}
+
+/// Renders a runtime operation summary as pretty JSON using the public SDK schema.
+pub fn render_runtime_operation_summary_json(
+    summary: &RuntimeOperationSummary,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(summary)
+}
+
+/// Parses a runtime operation summary from JSON using the public SDK schema.
+pub fn parse_runtime_operation_summary_json(
+    input: &str,
+) -> Result<RuntimeOperationSummary, serde_json::Error> {
     serde_json::from_str(input)
 }

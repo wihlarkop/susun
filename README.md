@@ -53,7 +53,8 @@ the facade helpers `render_execution_plan_json`,
 `parse_execution_report_json`. The full `RuntimeOperationResult` returned by
 mutating SDK calls can also be persisted with
 `render_runtime_operation_result_json` and
-`parse_runtime_operation_result_json`. Approval UIs can persist compact
+`parse_runtime_operation_result_json`, or summarized with
+`RuntimeOperationSummary` and its JSON helpers. Approval UIs can persist compact
 planning results through `PlanOutcomeSummary`,
 `render_plan_outcome_summary_json`, and `parse_plan_outcome_summary_json`.
 

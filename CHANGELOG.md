@@ -46,6 +46,8 @@
 - Added `From<&SdkProject> for ProjectSummary` for standard SDK DTO conversion.
 - Added `PlanOutcomeSummary` and facade JSON helpers for stable planning
   approval/persistence payloads.
+- Added `RuntimeOperationSummary` and facade JSON helpers for compact runtime
+  operation history/status payloads.
 
 ## 0.1.0
 
