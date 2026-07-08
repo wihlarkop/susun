@@ -17,6 +17,8 @@
   with optional project status.
 - Added schema versions to runtime status and overview DTOs for persisted
   dashboard payloads.
+- Hardened versioned SDK summary JSON parsers to reject unsupported schema
+  versions.
 - Added `susun overview` for combined runtime readiness and project status
   output.
 - Added `SdkProject` runtime status and overview helpers so SDK consumers can

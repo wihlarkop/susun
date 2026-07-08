@@ -1,6 +1,6 @@
 //! High-level planning facade.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error as _};
 use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 use susun_engine::{EngineCapabilities, EngineSnapshot, ProjectIdentity};
 use susun_planner::{
@@ -202,5 +202,12 @@ pub fn render_plan_outcome_summary_json(
 pub fn parse_plan_outcome_summary_json(
     input: &str,
 ) -> Result<PlanOutcomeSummary, serde_json::Error> {
-    serde_json::from_str(input)
+    let summary: PlanOutcomeSummary = serde_json::from_str(input)?;
+    if summary.schema_version != PlanOutcomeSummarySchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported plan outcome summary schema version {}.{}",
+            summary.schema_version.major, summary.schema_version.minor
+        )));
+    }
+    Ok(summary)
 }

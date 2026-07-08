@@ -117,6 +117,21 @@ fn runtime_status_json_helpers_roundtrip() -> TestResult {
 }
 
 #[test]
+fn runtime_status_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let project = project_identity("app", "project-a")?;
+    let snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let summary = runtime_status_from_snapshot(&project, &snapshot);
+    let json = render_runtime_status_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["major"] = serde_json::json!(2);
+
+    let result = parse_runtime_status_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn sdk_project_runtime_status_from_snapshot_uses_project_identity() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let identity = sdk_project.identity().ok_or("expected project identity")?;
@@ -313,6 +328,24 @@ async fn runtime_operation_summary_json_helpers_roundtrip() -> TestResult {
 }
 
 #[tokio::test]
+async fn runtime_operation_summary_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::new());
+    let result = sdk_project
+        .up_with_engine(engine, UpPlanOptions::default())
+        .await?;
+    let summary = RuntimeOperationSummary::from(&result);
+    let json = render_runtime_operation_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_runtime_operation_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[tokio::test]
 async fn sdk_project_up_with_engine_requires_analyzed_project() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(malformed_path()).analyze()?;
     let engine = Arc::new(FakeContainerEngine::failing(EngineOperation::Capabilities));
@@ -391,6 +424,34 @@ fn runtime_overview_json_helpers_roundtrip() -> TestResult {
     assert_eq!(parsed.schema_version, RuntimeOverviewSchemaVersion::CURRENT);
     assert!(json.contains("\"overview_status\""));
     assert!(json.contains("\"schema_version\""));
+    Ok(())
+}
+
+#[test]
+fn runtime_overview_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let project = project_identity("app", "project-a")?;
+    let snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let status = runtime_status_from_snapshot(&project, &snapshot);
+    let doctor = RuntimeDoctorReport::available(
+        None,
+        &susun::EngineEndpoint::Local,
+        susun::EngineProbe {
+            api_version: None,
+            engine_version: None,
+            operating_system: None,
+            architecture: None,
+        },
+    );
+    let overview = runtime_overview(doctor, Some(status));
+    let json = render_runtime_overview_json(&overview)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+
+    value["schema_version"]["major"] = serde_json::json!(2);
+    assert!(parse_runtime_overview_json(&serde_json::to_string(&value)?).is_err());
+
+    value["schema_version"]["major"] = serde_json::json!(1);
+    value["status"]["schema_version"]["minor"] = serde_json::json!(1);
+    assert!(parse_runtime_overview_json(&serde_json::to_string(&value)?).is_err());
     Ok(())
 }
 

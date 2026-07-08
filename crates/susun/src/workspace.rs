@@ -7,7 +7,7 @@ use std::{
     time::SystemTime,
 };
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error as _};
 use susun_diagnostics::DiagnosticReport;
 use susun_engine::{
     ContainerEngine, EngineCapabilities, EngineError, EngineSnapshot, ProjectIdentity,
@@ -710,7 +710,14 @@ pub fn render_project_summary_json(summary: &ProjectSummary) -> Result<String, s
 
 /// Parses a project summary from JSON using the public SDK schema.
 pub fn parse_project_summary_json(input: &str) -> Result<ProjectSummary, serde_json::Error> {
-    serde_json::from_str(input)
+    let summary: ProjectSummary = serde_json::from_str(input)?;
+    if summary.schema_version != ProjectSummarySchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported project summary schema version {}.{}",
+            summary.schema_version.major, summary.schema_version.minor
+        )));
+    }
+    Ok(summary)
 }
 
 /// Serializable top-level project resource summary.

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error as _};
 use susun_engine::{
     ContainerState, EngineSnapshot, HealthState, ObservedContainer, ObservedImageRef,
     ProjectIdentity, RuntimeDoctorReport, RuntimeDoctorStatus, SnapshotCompleteness,
@@ -228,7 +228,9 @@ pub fn render_runtime_overview_json(
 
 /// Parses a runtime overview from JSON.
 pub fn parse_runtime_overview_json(input: &str) -> Result<RuntimeOverview, serde_json::Error> {
-    serde_json::from_str(input)
+    let overview: RuntimeOverview = serde_json::from_str(input)?;
+    validate_runtime_overview_schema(&overview)?;
+    Ok(overview)
 }
 
 /// Renders a runtime status summary as pretty JSON.
@@ -242,7 +244,34 @@ pub fn render_runtime_status_summary_json(
 pub fn parse_runtime_status_summary_json(
     input: &str,
 ) -> Result<RuntimeStatusSummary, serde_json::Error> {
-    serde_json::from_str(input)
+    let summary: RuntimeStatusSummary = serde_json::from_str(input)?;
+    validate_runtime_status_summary_schema(&summary)?;
+    Ok(summary)
+}
+
+fn validate_runtime_overview_schema(overview: &RuntimeOverview) -> Result<(), serde_json::Error> {
+    if overview.schema_version != RuntimeOverviewSchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported runtime overview schema version {}.{}",
+            overview.schema_version.major, overview.schema_version.minor
+        )));
+    }
+    if let Some(status) = &overview.status {
+        validate_runtime_status_summary_schema(status)?;
+    }
+    Ok(())
+}
+
+fn validate_runtime_status_summary_schema(
+    summary: &RuntimeStatusSummary,
+) -> Result<(), serde_json::Error> {
+    if summary.schema_version != RuntimeStatusSummarySchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported runtime status summary schema version {}.{}",
+            summary.schema_version.major, summary.schema_version.minor
+        )));
+    }
+    Ok(())
 }
 
 impl RuntimeContainerStatusSummary {

@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::Error as _};
 use susun_engine::{ContainerEngine, ProjectIdentity};
 use susun_planner::{DownPlanOptions, ExecutionPlan, UpPlanOptions};
 use susun_runtime::{CancellationToken, EventSink, ExecutionReport, Runtime};
@@ -238,5 +238,12 @@ pub fn render_runtime_operation_summary_json(
 pub fn parse_runtime_operation_summary_json(
     input: &str,
 ) -> Result<RuntimeOperationSummary, serde_json::Error> {
-    serde_json::from_str(input)
+    let summary: RuntimeOperationSummary = serde_json::from_str(input)?;
+    if summary.schema_version != RuntimeOperationSummarySchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported runtime operation summary schema version {}.{}",
+            summary.schema_version.major, summary.schema_version.minor
+        )));
+    }
+    Ok(summary)
 }

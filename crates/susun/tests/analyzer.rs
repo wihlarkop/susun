@@ -150,6 +150,20 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
 }
 
 #[test]
+fn project_summary_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let summary = project.summary();
+    let json = render_project_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["major"] = serde_json::json!(2);
+
+    let result = parse_project_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn workspace_exposes_analysis_components_without_analysis_plumbing() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let canonical: &Project = project.project().ok_or("expected project")?;
@@ -324,6 +338,21 @@ fn facade_plan_outcome_summary_json_helpers_roundtrip() -> TestResult {
     let parsed = parse_plan_outcome_summary_json(&json)?;
 
     assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn plan_outcome_summary_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let outcome = project.dry_run_up(false)?;
+    let summary = PlanOutcomeSummary::from(&outcome);
+    let json = render_plan_outcome_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_plan_outcome_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 
