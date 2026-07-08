@@ -4,6 +4,9 @@
 //! files. Lower-level crates (`susun-loader`, `susun-normalize`, etc.) are
 //! implementation details and must not be imported directly by applications.
 
+use serde::{Deserialize, Serialize, de::Error as _};
+use thiserror::Error;
+
 pub mod analyzer;
 pub mod planning;
 pub mod profiles;
@@ -89,8 +92,6 @@ pub use workspace::{
     render_project_summary_json,
 };
 
-use thiserror::Error;
-
 /// Top-level error returned by [`Analyzer::analyze`].
 ///
 /// This represents system-level failures only. User-visible issues (unknown
@@ -104,4 +105,104 @@ pub enum Error {
     /// An internal normalization invariant was violated.
     #[error(transparent)]
     Normalize(#[from] susun_normalize::error::NormalizeError),
+}
+
+/// Serializable, display-safe analysis error for UI/API consumers.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AnalysisErrorSummary {
+    /// Serialized analysis error summary schema version.
+    pub schema_version: AnalysisErrorSummarySchemaVersion,
+    /// Stable error category.
+    pub kind: AnalysisErrorKind,
+    /// Display-safe error message.
+    pub message: String,
+}
+
+/// Serialized analysis error summary schema version.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AnalysisErrorSummarySchemaVersion {
+    /// Major schema version.
+    pub major: u16,
+    /// Minor schema version.
+    pub minor: u16,
+}
+
+impl AnalysisErrorSummarySchemaVersion {
+    /// Current analysis error summary schema version.
+    pub const CURRENT: Self = Self { major: 1, minor: 0 };
+}
+
+/// Stable analysis error category.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalysisErrorKind {
+    /// The requested Compose file was not found.
+    LoadNotFound,
+    /// The requested Compose file could not be read.
+    LoadRead,
+    /// The requested Compose file exceeded the configured size limit.
+    LoadFileTooLarge,
+    /// The requested Compose file was not valid UTF-8.
+    LoadNotUtf8,
+    /// An internal normalization invariant was violated.
+    Normalize,
+}
+
+impl From<&Error> for AnalysisErrorSummary {
+    fn from(error: &Error) -> Self {
+        let (kind, message) = match error {
+            Error::Load(error) => analysis_load_error_summary(error),
+            Error::Normalize(_) => (
+                AnalysisErrorKind::Normalize,
+                "internal normalization error".to_owned(),
+            ),
+        };
+        Self {
+            schema_version: AnalysisErrorSummarySchemaVersion::CURRENT,
+            kind,
+            message,
+        }
+    }
+}
+
+/// Renders an analysis error summary as pretty JSON using the public SDK schema.
+pub fn render_analysis_error_summary_json(
+    summary: &AnalysisErrorSummary,
+) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(summary)
+}
+
+/// Parses an analysis error summary from JSON using the public SDK schema.
+pub fn parse_analysis_error_summary_json(
+    input: &str,
+) -> Result<AnalysisErrorSummary, serde_json::Error> {
+    let summary: AnalysisErrorSummary = serde_json::from_str(input)?;
+    if summary.schema_version != AnalysisErrorSummarySchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported analysis error summary schema version {}.{}",
+            summary.schema_version.major, summary.schema_version.minor
+        )));
+    }
+    Ok(summary)
+}
+
+fn analysis_load_error_summary(error: &susun_loader::LoadError) -> (AnalysisErrorKind, String) {
+    match error {
+        susun_loader::LoadError::NotFound { .. } => (
+            AnalysisErrorKind::LoadNotFound,
+            "compose file was not found".to_owned(),
+        ),
+        susun_loader::LoadError::Read { .. } => (
+            AnalysisErrorKind::LoadRead,
+            "compose file could not be read".to_owned(),
+        ),
+        susun_loader::LoadError::FileTooLarge { .. } => (
+            AnalysisErrorKind::LoadFileTooLarge,
+            "compose file exceeds the configured size limit".to_owned(),
+        ),
+        susun_loader::LoadError::NotUtf8 { .. } => (
+            AnalysisErrorKind::LoadNotUtf8,
+            "compose file is not valid UTF-8".to_owned(),
+        ),
+    }
 }

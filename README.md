@@ -68,7 +68,9 @@ consistency so persisted UI/API payloads fail fast when counts or statuses drift
 Analysis diagnostics are available as typed, versioned `DiagnosticReportSummary`
 payloads through `diagnostics_summary`,
 `render_diagnostic_report_summary_json`, and
-`parse_diagnostic_report_summary_json`.
+`parse_diagnostic_report_summary_json`. System-level analysis failures can be
+converted to display-safe `AnalysisErrorSummary` payloads without exposing local
+Compose file paths.
 
 For mutating runtime flows, analyze once and execute through the same
 `SdkProject`:

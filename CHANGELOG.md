@@ -70,6 +70,8 @@
   payloads are rejected.
 - Added versioned `DiagnosticReportSummary` DTOs and facade JSON helpers for
   stable analysis diagnostic UI/API payloads.
+- Added `AnalysisErrorSummary` and facade JSON helpers for display-safe
+  system-level analysis error payloads.
 
 ## 0.1.0
 

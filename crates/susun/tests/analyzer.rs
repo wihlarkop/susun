@@ -3,15 +3,16 @@
 use std::{error::Error, path::PathBuf};
 
 use susun::{
-    Analyzer, BuildPolicy, DependencyGraph, DiagnosticReportSummarySchemaVersion,
-    EngineCapabilities, EngineSnapshot, Error as SusunError, Project, ProjectIdentity,
-    ProjectInstanceId, ProjectName, ProjectSelection, ProjectSummarySchemaVersion, SourceMap,
-    SusunWorkspace, UpPlanOptions, parse_diagnostic_report_summary_json,
+    AnalysisErrorKind, AnalysisErrorSummary, AnalysisErrorSummarySchemaVersion, Analyzer,
+    BuildPolicy, DependencyGraph, DiagnosticReportSummarySchemaVersion, EngineCapabilities,
+    EngineSnapshot, Error as SusunError, Project, ProjectIdentity, ProjectInstanceId, ProjectName,
+    ProjectSelection, ProjectSummarySchemaVersion, SourceMap, SusunWorkspace, UpPlanOptions,
+    parse_analysis_error_summary_json, parse_diagnostic_report_summary_json,
     parse_engine_connection_profile_set_json, parse_engine_connection_profile_set_summary_json,
     parse_execution_plan_json, parse_execution_report_json, parse_plan_outcome_summary_json,
-    parse_project_summary_json, render_diagnostic_report_summary_json,
-    render_engine_connection_profile_set_json, render_engine_connection_profile_set_summary_json,
-    render_project_summary_json,
+    parse_project_summary_json, render_analysis_error_summary_json,
+    render_diagnostic_report_summary_json, render_engine_connection_profile_set_json,
+    render_engine_connection_profile_set_summary_json, render_project_summary_json,
 };
 use susun::{
     EngineConnectionProfileSetSummary, EngineConnectionProfileSetSummarySchemaVersion,
@@ -68,6 +69,48 @@ fn malformed_file_returns_ok_with_error_report() -> TestResult {
 fn missing_file_returns_load_error() {
     let err = Analyzer::new("/nonexistent/compose.yaml").analyze().err();
     assert!(matches!(err, Some(SusunError::Load(_))));
+}
+
+#[test]
+fn analysis_error_summary_redacts_load_paths() -> TestResult {
+    let error = Analyzer::new("/very/private/missing-compose.yaml")
+        .analyze()
+        .err()
+        .ok_or("expected load error")?;
+    let summary = AnalysisErrorSummary::from(&error);
+
+    assert_eq!(
+        summary.schema_version,
+        AnalysisErrorSummarySchemaVersion::CURRENT
+    );
+    assert_eq!(summary.kind, AnalysisErrorKind::LoadNotFound);
+    assert_eq!(summary.message, "compose file was not found");
+    assert!(!summary.message.contains("very/private"));
+    assert!(!summary.message.contains("missing-compose"));
+
+    let json = render_analysis_error_summary_json(&summary)?;
+    assert!(!json.contains("very/private"));
+    assert!(!json.contains("missing-compose"));
+    let parsed = parse_analysis_error_summary_json(&json)?;
+    assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn analysis_error_summary_json_helper_rejects_unsupported_schema_version() -> TestResult {
+    let error = Analyzer::new("/very/private/missing-compose.yaml")
+        .analyze()
+        .err()
+        .ok_or("expected load error")?;
+    let summary = AnalysisErrorSummary::from(&error);
+    let json = render_analysis_error_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_analysis_error_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
 }
 
 #[test]
