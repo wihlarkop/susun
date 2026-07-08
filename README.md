@@ -108,7 +108,11 @@ validation runs before use. The `susun` facade provides
 `render_engine_connection_profile_set_json` for that boundary. Profile JSON is
 configuration data, not a redacted UI summary: endpoint fields can contain local
 socket paths, named pipes, remote hosts, and TLS certificate/key paths, so store
-it only in protected application storage.
+it only in protected application storage. For UI lists, logs, and daemon API
+responses, convert protected profiles into `EngineConnectionProfileSetSummary`
+and render them with `render_engine_connection_profile_set_summary_json`; the
+summary contains only profile ids, display names, endpoint kind, default
+selection, and Susun's redacted endpoint token.
 
 For project dashboards, `runtime_status_from_snapshot` converts a neutral
 `EngineSnapshot` plus `ProjectIdentity` into a compact `RuntimeStatusSummary`

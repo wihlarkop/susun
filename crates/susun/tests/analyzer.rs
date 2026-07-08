@@ -6,11 +6,13 @@ use susun::{
     Analyzer, BuildPolicy, DependencyGraph, EngineCapabilities, EngineSnapshot,
     Error as SusunError, Project, ProjectIdentity, ProjectInstanceId, ProjectName,
     ProjectSelection, ProjectSummarySchemaVersion, SourceMap, SusunWorkspace, UpPlanOptions,
-    parse_engine_connection_profile_set_json, parse_execution_plan_json,
-    parse_execution_report_json, parse_plan_outcome_summary_json, parse_project_summary_json,
-    render_engine_connection_profile_set_json, render_project_summary_json,
+    parse_engine_connection_profile_set_json, parse_engine_connection_profile_set_summary_json,
+    parse_execution_plan_json, parse_execution_report_json, parse_plan_outcome_summary_json,
+    parse_project_summary_json, render_engine_connection_profile_set_json,
+    render_engine_connection_profile_set_summary_json, render_project_summary_json,
 };
 use susun::{
+    EngineConnectionProfileSetSummary, EngineConnectionProfileSetSummarySchemaVersion,
     PlanOutcomeSummary, PlanOutcomeSummarySchemaVersion, render_execution_plan_json,
     render_execution_report_json, render_plan_outcome_summary_json,
 };
@@ -462,6 +464,59 @@ fn facade_runtime_profile_json_helpers_roundtrip() -> TestResult {
             .as_str(),
         "local"
     );
+    Ok(())
+}
+
+#[test]
+fn facade_runtime_profile_summary_json_is_redacted() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::new(
+            susun::EngineConnectionProfileId::new("private")?,
+            susun::EngineConnectionDisplayName::new("Private Socket")?,
+            susun::EngineEndpoint::UnixSocket("/very/private/docker.sock".into()),
+        )
+        .with_default(true),
+    ])?;
+    let summary = EngineConnectionProfileSetSummary::from(&set);
+
+    assert_eq!(
+        summary.schema_version,
+        EngineConnectionProfileSetSummarySchemaVersion::CURRENT
+    );
+    assert_eq!(summary.default_profile_id.as_deref(), Some("private"));
+    assert_eq!(summary.profiles[0].id, "private");
+    assert_eq!(summary.profiles[0].display_name, "Private Socket");
+    assert_eq!(
+        summary.profiles[0].endpoint_kind,
+        susun::EngineEndpointKind::UnixSocket
+    );
+    assert_eq!(
+        summary.profiles[0].redacted_endpoint.to_string(),
+        "unix://<local-socket>"
+    );
+
+    let json = render_engine_connection_profile_set_summary_json(&summary)?;
+    assert!(!json.contains("very/private"));
+    assert!(!json.contains("docker.sock"));
+
+    let parsed = parse_engine_connection_profile_set_summary_json(&json)?;
+    assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn facade_runtime_profile_summary_json_rejects_unsupported_schema_version() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::local_default(),
+    ])?;
+    let summary = EngineConnectionProfileSetSummary::from(&set);
+    let json = render_engine_connection_profile_set_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_engine_connection_profile_set_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 

@@ -19,7 +19,10 @@ pub use planning::{
     render_plan_outcome_summary_json,
 };
 pub use profiles::{
-    parse_engine_connection_profile_set_json, render_engine_connection_profile_set_json,
+    EngineConnectionProfileSetSummary, EngineConnectionProfileSetSummarySchemaVersion,
+    EngineConnectionProfileSummary, parse_engine_connection_profile_set_json,
+    parse_engine_connection_profile_set_summary_json, render_engine_connection_profile_set_json,
+    render_engine_connection_profile_set_summary_json,
 };
 pub use render::{render_diagnostics, render_diagnostics_json};
 pub use runtime::{

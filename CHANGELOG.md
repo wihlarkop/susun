@@ -23,6 +23,8 @@
   arbitrary deserialization, TCP endpoints reject ambiguous IPv6 hosts, profile
   JSON is documented as protected configuration, and runtime doctor messages no
   longer surface raw adapter error strings.
+- Added redacted engine connection profile summary DTOs and JSON helpers for
+  UI/API surfaces that must not expose raw endpoint configuration.
 - Added `susun overview` for combined runtime readiness and project status
   output.
 - Added `SdkProject` runtime status and overview helpers so SDK consumers can
