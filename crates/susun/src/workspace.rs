@@ -711,13 +711,61 @@ pub fn render_project_summary_json(summary: &ProjectSummary) -> Result<String, s
 /// Parses a project summary from JSON using the public SDK schema.
 pub fn parse_project_summary_json(input: &str) -> Result<ProjectSummary, serde_json::Error> {
     let summary: ProjectSummary = serde_json::from_str(input)?;
+    validate_project_summary(&summary)?;
+    Ok(summary)
+}
+
+fn validate_project_summary(summary: &ProjectSummary) -> Result<(), serde_json::Error> {
     if summary.schema_version != ProjectSummarySchemaVersion::CURRENT {
         return Err(serde_json::Error::custom(format!(
             "unsupported project summary schema version {}.{}",
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
-    Ok(summary)
+    if summary.project_name.is_none() != summary.project_instance.is_none() {
+        return Err(serde_json::Error::custom(
+            "project summary project name and instance must be present together",
+        ));
+    }
+    if summary.service_count != summary.services.len() {
+        return Err(serde_json::Error::custom(
+            "project summary service count does not match services",
+        ));
+    }
+    if summary.active_service_count > summary.service_count {
+        return Err(serde_json::Error::custom(
+            "project summary active service count exceeds service count",
+        ));
+    }
+    if summary.network_count != summary.networks.len()
+        || summary.volume_count != summary.volumes.len()
+        || summary.config_count != summary.configs.len()
+        || summary.secret_count != summary.secrets.len()
+    {
+        return Err(serde_json::Error::custom(
+            "project summary resource counts do not match resources",
+        ));
+    }
+    for service in &summary.services {
+        validate_service_summary(service)?;
+    }
+    Ok(())
+}
+
+fn validate_service_summary(service: &ServiceSummary) -> Result<(), serde_json::Error> {
+    if service.profile_count != service.profiles.len()
+        || service.port_count != service.ports.len()
+        || service.volume_count != service.volumes.len()
+        || service.network_count != service.networks.len()
+        || service.config_count != service.configs.len()
+        || service.secret_count != service.secrets.len()
+        || service.dependency_count != service.dependencies.len()
+    {
+        return Err(serde_json::Error::custom(
+            "project summary service counts do not match service details",
+        ));
+    }
+    Ok(())
 }
 
 /// Serializable top-level project resource summary.

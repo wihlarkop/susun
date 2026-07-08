@@ -256,6 +256,16 @@ fn validate_runtime_overview_schema(overview: &RuntimeOverview) -> Result<(), se
             overview.schema_version.major, overview.schema_version.minor
         )));
     }
+    let expected_status = match (overview.doctor.status, overview.status.is_some()) {
+        (RuntimeDoctorStatus::Available, true) => RuntimeOverviewStatus::Ready,
+        (RuntimeDoctorStatus::Available, false) => RuntimeOverviewStatus::Degraded,
+        _ => RuntimeOverviewStatus::Unavailable,
+    };
+    if overview.overview_status != expected_status {
+        return Err(serde_json::Error::custom(
+            "runtime overview status does not match doctor and project status",
+        ));
+    }
     if let Some(status) = &overview.status {
         validate_runtime_status_summary_schema(status)?;
     }
@@ -271,7 +281,85 @@ fn validate_runtime_status_summary_schema(
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
+    let mut container_count = summary.unassigned_containers.len();
+    let mut running_containers = 0usize;
+    let mut exited_containers = 0usize;
+    let mut paused_containers = 0usize;
+    let mut restarting_containers = 0usize;
+
+    for container in &summary.unassigned_containers {
+        if container.service.is_some() {
+            return Err(serde_json::Error::custom(
+                "runtime status unassigned container has service identity",
+            ));
+        }
+        count_container_state(
+            container,
+            &mut running_containers,
+            &mut exited_containers,
+            &mut paused_containers,
+            &mut restarting_containers,
+        );
+    }
+    for service in &summary.services {
+        if service.container_count != service.containers.len() {
+            return Err(serde_json::Error::custom(
+                "runtime status service container count does not match containers",
+            ));
+        }
+        let running = service
+            .containers
+            .iter()
+            .filter(|container| container.state == ContainerState::Running)
+            .count();
+        if service.running_containers != running {
+            return Err(serde_json::Error::custom(
+                "runtime status service running count does not match containers",
+            ));
+        }
+        for container in &service.containers {
+            if container.service.as_deref() != Some(service.service.as_str()) {
+                return Err(serde_json::Error::custom(
+                    "runtime status service container service identity does not match service",
+                ));
+            }
+            count_container_state(
+                container,
+                &mut running_containers,
+                &mut exited_containers,
+                &mut paused_containers,
+                &mut restarting_containers,
+            );
+        }
+        container_count += service.containers.len();
+    }
+    if summary.counts.containers != container_count
+        || summary.counts.running_containers != running_containers
+        || summary.counts.exited_containers != exited_containers
+        || summary.counts.paused_containers != paused_containers
+        || summary.counts.restarting_containers != restarting_containers
+    {
+        return Err(serde_json::Error::custom(
+            "runtime status container counts do not match containers",
+        ));
+    }
     Ok(())
+}
+
+fn count_container_state(
+    container: &RuntimeContainerStatusSummary,
+    running_containers: &mut usize,
+    exited_containers: &mut usize,
+    paused_containers: &mut usize,
+    restarting_containers: &mut usize,
+) {
+    match container.state {
+        ContainerState::Running => *running_containers += 1,
+        ContainerState::Exited => *exited_containers += 1,
+        ContainerState::Paused => *paused_containers += 1,
+        ContainerState::Restarting => *restarting_containers += 1,
+        ContainerState::Created | ContainerState::Unknown => {}
+    }
 }
 
 impl RuntimeContainerStatusSummary {

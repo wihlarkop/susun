@@ -135,6 +135,30 @@ fn runtime_status_json_helper_rejects_unsupported_schema_version() -> TestResult
 }
 
 #[test]
+fn runtime_status_json_helper_rejects_inconsistent_counts() -> TestResult {
+    let project = project_identity("app", "project-a")?;
+    let mut snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let container = container(
+        "container-1",
+        "app-web-1",
+        &project,
+        Some(("web", 0)),
+        ContainerState::Running,
+    )?;
+    snapshot.containers.insert(container.id.clone(), container);
+
+    let summary = runtime_status_from_snapshot(&project, &snapshot);
+    let json = render_runtime_status_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["counts"]["containers"] = serde_json::json!(999);
+
+    let result = parse_runtime_status_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn sdk_project_runtime_status_from_snapshot_uses_project_identity() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let identity = sdk_project.identity().ok_or("expected project identity")?;
@@ -387,6 +411,24 @@ async fn runtime_operation_summary_json_helper_rejects_unsupported_schema_versio
 }
 
 #[tokio::test]
+async fn runtime_operation_summary_json_helper_rejects_inconsistent_counts() -> TestResult {
+    let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let engine = Arc::new(FakeContainerEngine::new());
+    let result = sdk_project
+        .up_with_engine(engine, UpPlanOptions::default())
+        .await?;
+    let summary = RuntimeOperationSummary::from(&result);
+    let json = render_runtime_operation_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["reported_actions"] = serde_json::json!(999);
+
+    let result = parse_runtime_operation_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[tokio::test]
 async fn sdk_project_up_with_engine_requires_analyzed_project() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(malformed_path()).analyze()?;
     let engine = Arc::new(FakeContainerEngine::failing(EngineOperation::Capabilities));
@@ -547,6 +589,29 @@ fn runtime_overview_json_helper_rejects_unsupported_schema_version() -> TestResu
     value["schema_version"]["major"] = serde_json::json!(1);
     value["status"]["schema_version"]["minor"] = serde_json::json!(1);
     assert!(parse_runtime_overview_json(&serde_json::to_string(&value)?).is_err());
+    Ok(())
+}
+
+#[test]
+fn runtime_overview_json_helper_rejects_inconsistent_status() -> TestResult {
+    let doctor = RuntimeDoctorReport::available(
+        None,
+        &susun::EngineEndpoint::Local,
+        susun::EngineProbe {
+            api_version: None,
+            engine_version: None,
+            operating_system: None,
+            architecture: None,
+        },
+    );
+    let overview = runtime_overview(doctor, None);
+    let json = render_runtime_overview_json(&overview)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["overview_status"] = serde_json::json!("ready");
+
+    let result = parse_runtime_overview_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
     Ok(())
 }
 

@@ -205,13 +205,66 @@ pub fn parse_plan_outcome_summary_json(
     input: &str,
 ) -> Result<PlanOutcomeSummary, serde_json::Error> {
     let summary: PlanOutcomeSummary = serde_json::from_str(input)?;
+    validate_plan_outcome_summary(&summary)?;
+    Ok(summary)
+}
+
+fn validate_plan_outcome_summary(summary: &PlanOutcomeSummary) -> Result<(), serde_json::Error> {
     if summary.schema_version != PlanOutcomeSummarySchemaVersion::CURRENT {
         return Err(serde_json::Error::custom(format!(
             "unsupported plan outcome summary schema version {}.{}",
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
-    Ok(summary)
+    if summary.diagnostic_count != summary.diagnostics.len() {
+        return Err(serde_json::Error::custom(
+            "plan outcome summary diagnostic count does not match diagnostics",
+        ));
+    }
+    if summary.has_errors
+        != summary
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.severity.eq_ignore_ascii_case("error"))
+    {
+        return Err(serde_json::Error::custom(
+            "plan outcome summary error flag does not match diagnostics",
+        ));
+    }
+    if summary.planned {
+        if summary.plan_id.is_none() || summary.operation.is_none() {
+            return Err(serde_json::Error::custom(
+                "planned plan outcome summary must include plan id and operation",
+            ));
+        }
+    } else if summary.plan_id.is_some()
+        || summary.operation.is_some()
+        || summary.action_count != 0
+        || summary.safe_actions != 0
+        || summary.caution_actions != 0
+        || summary.destructive_actions != 0
+    {
+        return Err(serde_json::Error::custom(
+            "unplanned plan outcome summary must not include plan details",
+        ));
+    }
+    if checked_sum([
+        summary.safe_actions,
+        summary.caution_actions,
+        summary.destructive_actions,
+    ]) != Some(summary.action_count)
+    {
+        return Err(serde_json::Error::custom(
+            "plan outcome summary action counts do not add up",
+        ));
+    }
+    Ok(())
+}
+
+fn checked_sum(values: impl IntoIterator<Item = usize>) -> Option<usize> {
+    values
+        .into_iter()
+        .try_fold(0usize, |total, value| total.checked_add(value))
 }
 
 pub(crate) fn validate_execution_plan_schema(

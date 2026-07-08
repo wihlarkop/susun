@@ -107,11 +107,63 @@ pub fn parse_engine_connection_profile_set_summary_json(
     input: &str,
 ) -> Result<EngineConnectionProfileSetSummary, serde_json::Error> {
     let summary: EngineConnectionProfileSetSummary = serde_json::from_str(input)?;
+    validate_engine_connection_profile_set_summary(&summary)?;
+    Ok(summary)
+}
+
+fn validate_engine_connection_profile_set_summary(
+    summary: &EngineConnectionProfileSetSummary,
+) -> Result<(), serde_json::Error> {
     if summary.schema_version != EngineConnectionProfileSetSummarySchemaVersion::CURRENT {
         return Err(serde_json::Error::custom(format!(
             "unsupported engine connection profile set summary schema version {}.{}",
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
-    Ok(summary)
+    let mut ids = std::collections::BTreeSet::new();
+    let mut explicit_defaults = 0usize;
+    for profile in &summary.profiles {
+        if profile.id.is_empty() {
+            return Err(serde_json::Error::custom(
+                "engine connection profile summary id must not be empty",
+            ));
+        }
+        if !ids.insert(profile.id.as_str()) {
+            return Err(serde_json::Error::custom(
+                "engine connection profile summary contains duplicate ids",
+            ));
+        }
+        explicit_defaults += usize::from(profile.default);
+    }
+    if explicit_defaults > 1 {
+        return Err(serde_json::Error::custom(
+            "engine connection profile summary contains multiple defaults",
+        ));
+    }
+    match &summary.default_profile_id {
+        Some(default) if !ids.contains(default.as_str()) => {
+            return Err(serde_json::Error::custom(
+                "engine connection profile summary default id is not present",
+            ));
+        }
+        Some(default) => {
+            let explicit_default = summary
+                .profiles
+                .iter()
+                .find(|profile| profile.default)
+                .map(|profile| profile.id.as_str());
+            if explicit_default.is_some_and(|id| id != default) {
+                return Err(serde_json::Error::custom(
+                    "engine connection profile summary default flags do not match default id",
+                ));
+            }
+        }
+        None if !summary.profiles.is_empty() => {
+            return Err(serde_json::Error::custom(
+                "engine connection profile summary default id is required when profiles exist",
+            ));
+        }
+        None => {}
+    }
+    Ok(())
 }

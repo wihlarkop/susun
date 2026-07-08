@@ -65,6 +65,9 @@
   UI/API error payloads from failed SDK runtime calls.
 - Hardened runtime execution reports so failed action messages use shared
   redacted engine error text instead of raw adapter/source errors.
+- Hardened SDK JSON parse helpers for project, plan, profile, runtime status,
+  runtime overview, and runtime operation summaries so inconsistent persisted
+  payloads are rejected.
 
 ## 0.1.0
 

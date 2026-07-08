@@ -61,6 +61,8 @@ converted into redacted `RuntimeOperationErrorSummary` payloads for UI/API error
 responses. Approval UIs can persist compact planning results through
 `PlanOutcomeSummary`,
 `render_plan_outcome_summary_json`, and `parse_plan_outcome_summary_json`.
+Official SDK parse helpers validate schema versions and internal summary
+consistency so persisted UI/API payloads fail fast when counts or statuses drift.
 
 For mutating runtime flows, analyze once and execute through the same
 `SdkProject`:

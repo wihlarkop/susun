@@ -352,13 +352,41 @@ pub fn parse_runtime_operation_summary_json(
     input: &str,
 ) -> Result<RuntimeOperationSummary, serde_json::Error> {
     let summary: RuntimeOperationSummary = serde_json::from_str(input)?;
+    validate_runtime_operation_summary(&summary)?;
+    Ok(summary)
+}
+
+fn validate_runtime_operation_summary(
+    summary: &RuntimeOperationSummary,
+) -> Result<(), serde_json::Error> {
     if summary.schema_version != RuntimeOperationSummarySchemaVersion::CURRENT {
         return Err(serde_json::Error::custom(format!(
             "unsupported runtime operation summary schema version {}.{}",
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
-    Ok(summary)
+    if checked_sum([
+        summary.safe_actions,
+        summary.caution_actions,
+        summary.destructive_actions,
+    ]) != Some(summary.planned_actions)
+    {
+        return Err(serde_json::Error::custom(
+            "runtime operation summary planned action counts do not add up",
+        ));
+    }
+    if checked_sum([
+        summary.succeeded,
+        summary.failed,
+        summary.skipped,
+        summary.cancelled,
+    ]) != Some(summary.reported_actions)
+    {
+        return Err(serde_json::Error::custom(
+            "runtime operation summary reported action counts do not add up",
+        ));
+    }
+    Ok(())
 }
 
 /// Renders a runtime operation error summary as pretty JSON using the public SDK schema.
@@ -422,4 +450,10 @@ fn runtime_error_message(error: &RuntimeError) -> String {
             format!("runtime invariant failed: {detail}")
         }
     }
+}
+
+fn checked_sum(values: impl IntoIterator<Item = usize>) -> Option<usize> {
+    values
+        .into_iter()
+        .try_fold(0usize, |total, value| total.checked_add(value))
 }

@@ -166,6 +166,20 @@ fn project_summary_json_helper_rejects_unsupported_schema_version() -> TestResul
 }
 
 #[test]
+fn project_summary_json_helper_rejects_inconsistent_counts() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let summary = project.summary();
+    let json = render_project_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["services"][0]["port_count"] = serde_json::json!(999);
+
+    let result = parse_project_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn workspace_exposes_analysis_components_without_analysis_plumbing() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let canonical: &Project = project.project().ok_or("expected project")?;
@@ -375,6 +389,21 @@ fn plan_outcome_summary_json_helper_rejects_unsupported_schema_version() -> Test
 }
 
 #[test]
+fn plan_outcome_summary_json_helper_rejects_inconsistent_counts() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let outcome = project.dry_run_up(false)?;
+    let summary = PlanOutcomeSummary::from(&outcome);
+    let json = render_plan_outcome_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["action_count"] = serde_json::json!(999);
+
+    let result = parse_plan_outcome_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn facade_plan_outcome_summary_covers_blocked_outcomes() -> TestResult {
     let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
     let outcome = project.dry_run_up(false)?;
@@ -546,6 +575,22 @@ fn facade_runtime_profile_summary_json_rejects_unsupported_schema_version() -> T
     let json = render_engine_connection_profile_set_summary_json(&summary)?;
     let mut value: serde_json::Value = serde_json::from_str(&json)?;
     value["schema_version"]["minor"] = serde_json::json!(1);
+
+    let result = parse_engine_connection_profile_set_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
+fn facade_runtime_profile_summary_json_rejects_inconsistent_default() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::local_default(),
+    ])?;
+    let summary = EngineConnectionProfileSetSummary::from(&set);
+    let json = render_engine_connection_profile_set_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["default_profile_id"] = serde_json::json!("missing");
 
     let result = parse_engine_connection_profile_set_summary_json(&serde_json::to_string(&value)?);
 
