@@ -44,6 +44,8 @@
 - Added direct `SdkProject` accessors and facade re-exports for active
   selection, dependency graph, and source map inspection.
 - Added `From<&SdkProject> for ProjectSummary` for standard SDK DTO conversion.
+- Added `PlanOutcomeSummary` and facade JSON helpers for stable planning
+  approval/persistence payloads.
 
 ## 0.1.0
 

@@ -13,7 +13,11 @@ pub mod status;
 pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
-pub use planning::{Planner, parse_execution_plan_json, render_execution_plan_json};
+pub use planning::{
+    PlanDiagnosticSummary, PlanOutcomeSummary, PlanOutcomeSummarySchemaVersion, Planner,
+    parse_execution_plan_json, parse_plan_outcome_summary_json, render_execution_plan_json,
+    render_plan_outcome_summary_json,
+};
 pub use profiles::{
     parse_engine_connection_profile_set_json, render_engine_connection_profile_set_json,
 };

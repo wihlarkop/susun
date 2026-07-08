@@ -7,10 +7,13 @@ use susun::{
     Error as SusunError, Project, ProjectIdentity, ProjectInstanceId, ProjectName,
     ProjectSelection, ProjectSummarySchemaVersion, SourceMap, SusunWorkspace, UpPlanOptions,
     parse_engine_connection_profile_set_json, parse_execution_plan_json,
-    parse_execution_report_json, parse_project_summary_json,
+    parse_execution_report_json, parse_plan_outcome_summary_json, parse_project_summary_json,
     render_engine_connection_profile_set_json, render_project_summary_json,
 };
-use susun::{render_execution_plan_json, render_execution_report_json};
+use susun::{
+    PlanOutcomeSummary, PlanOutcomeSummarySchemaVersion, render_execution_plan_json,
+    render_execution_report_json, render_plan_outcome_summary_json,
+};
 use susun_runtime::ExecutionReport;
 
 type TestResult = Result<(), Box<dyn Error>>;
@@ -298,6 +301,50 @@ fn facade_execution_plan_json_helpers_roundtrip() -> TestResult {
     assert_eq!(parsed.schema_version, plan.schema_version);
     assert_eq!(parsed.summary, plan.summary);
     assert_eq!(parsed.actions.len(), plan.actions.len());
+    Ok(())
+}
+
+#[test]
+fn facade_plan_outcome_summary_json_helpers_roundtrip() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let outcome = project.dry_run_up(false)?;
+    let summary = PlanOutcomeSummary::from(&outcome);
+
+    assert_eq!(
+        summary.schema_version,
+        PlanOutcomeSummarySchemaVersion::CURRENT
+    );
+    assert!(summary.planned);
+    assert!(summary.plan_id.is_some());
+    assert_eq!(summary.operation.as_deref(), Some("up"));
+    assert!(summary.action_count > 0);
+    assert!(!summary.has_errors);
+
+    let json = render_plan_outcome_summary_json(&summary)?;
+    let parsed = parse_plan_outcome_summary_json(&json)?;
+
+    assert_eq!(parsed, summary);
+    Ok(())
+}
+
+#[test]
+fn facade_plan_outcome_summary_covers_blocked_outcomes() -> TestResult {
+    let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
+    let outcome = project.dry_run_up(false)?;
+    let summary = PlanOutcomeSummary::from(&outcome);
+
+    assert!(!summary.planned);
+    assert_eq!(summary.plan_id, None);
+    assert_eq!(summary.operation, None);
+    assert_eq!(summary.action_count, 0);
+    assert!(summary.has_errors);
+    assert!(summary.diagnostic_count > 0);
+    assert!(
+        summary
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.code == "SUS-PLAN-100")
+    );
     Ok(())
 }
 
