@@ -33,6 +33,8 @@
   by SDK mutating runtime calls.
 - Added direct `SdkProject` diagnostic helpers for error checks, diagnostic
   counts, and text/JSON diagnostic rendering.
+- Added deterministic environment injection on `SusunWorkspace` through
+  `with_env_var` and `with_env_vars`.
 
 ## 0.1.0
 

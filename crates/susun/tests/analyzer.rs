@@ -104,6 +104,34 @@ fn workspace_summary_is_structured_for_sdk_consumers() -> TestResult {
 }
 
 #[test]
+fn workspace_env_var_overrides_compose_project_name() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path())
+        .with_env_var("COMPOSE_PROJECT_NAME", "from-sdk-env")
+        .analyze()?;
+    let summary = project.summary();
+
+    assert_eq!(summary.project_name.as_deref(), Some("from-sdk-env"));
+    assert_eq!(
+        project.identity().ok_or("expected identity")?.name.as_str(),
+        "from-sdk-env"
+    );
+    Ok(())
+}
+
+#[test]
+fn workspace_env_vars_replace_process_environment_for_sdk_analysis() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path())
+        .with_env_vars([("COMPOSE_PROJECT_NAME", "from-sdk-map")])
+        .analyze()?;
+
+    assert_eq!(
+        project.summary().project_name.as_deref(),
+        Some("from-sdk-map")
+    );
+    Ok(())
+}
+
+#[test]
 fn workspace_diagnostics_helpers_render_analysis_report() -> TestResult {
     let project = SusunWorkspace::from_file(malformed_path()).analyze()?;
 

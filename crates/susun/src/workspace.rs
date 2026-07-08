@@ -1,6 +1,7 @@
 //! SDK-first workflow facade for applications embedding Susun.
 
 use std::{
+    collections::BTreeMap,
     path::{Path, PathBuf},
     sync::Arc,
     time::SystemTime,
@@ -12,6 +13,7 @@ use susun_engine::{
     ContainerEngine, EngineCapabilities, EngineError, EngineSnapshot, ProjectIdentity,
     ProjectInstanceId, RuntimeDoctorReport, RuntimeDoctorStatus,
 };
+use susun_loader::MapEnvironment;
 use susun_model::{Project, ProjectName, port::PublishedPort, volume::VolumeKind};
 use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, UpPlanOptions,
@@ -36,6 +38,7 @@ use susun_runtime::{CancellationToken, EventSink};
 pub struct SusunWorkspace {
     files: Vec<PathBuf>,
     env_file: Option<PathBuf>,
+    env: Option<BTreeMap<String, String>>,
     project_name: Option<String>,
     profiles: Vec<String>,
 }
@@ -46,6 +49,7 @@ impl SusunWorkspace {
         Self {
             files: Vec::new(),
             env_file: None,
+            env: None,
             project_name: None,
             profiles: Vec::new(),
         }
@@ -71,6 +75,28 @@ impl SusunWorkspace {
     /// Sets an explicit `.env`-format file.
     pub fn with_env_file(mut self, path: impl Into<PathBuf>) -> Self {
         self.env_file = Some(path.into());
+        self
+    }
+
+    /// Replaces process environment access with a deterministic environment map.
+    pub fn with_env_vars<K, V>(mut self, vars: impl IntoIterator<Item = (K, V)>) -> Self
+    where
+        K: Into<String>,
+        V: Into<String>,
+    {
+        self.env = Some(
+            vars.into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect(),
+        );
+        self
+    }
+
+    /// Adds one variable to the deterministic environment map.
+    pub fn with_env_var(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.env
+            .get_or_insert_with(BTreeMap::new)
+            .insert(key.into(), value.into());
         self
     }
 
@@ -123,6 +149,9 @@ impl SusunWorkspace {
         }
         if let Some(name) = &self.project_name {
             context = context.with_project_name(name);
+        }
+        if let Some(env) = &self.env {
+            context = context.with_env_provider(MapEnvironment::new(env.clone()));
         }
         if !self.profiles.is_empty() {
             context = context.with_profiles(self.profiles.clone());

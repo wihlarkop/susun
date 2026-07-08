@@ -18,6 +18,7 @@ the Compose context flags a CLI would accept, but returns structured data.
 use susun::SusunWorkspace;
 
 let project = SusunWorkspace::from_file("compose.yaml")
+    .with_env_var("COMPOSE_PROJECT_NAME", "my-app")
     .with_profile("debug")
     .analyze()?;
 
