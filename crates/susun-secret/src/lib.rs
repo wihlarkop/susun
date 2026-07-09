@@ -134,7 +134,7 @@ pub fn redact_sensitive_text(input: &str) -> String {
 #[must_use]
 pub fn contains_sensitive_marker(input: &str) -> bool {
     let lower = input.to_ascii_lowercase();
-    [
+    const SUBSTRING_MARKERS: &[&str] = &[
         "authorization",
         "credential",
         "passwd",
@@ -142,7 +142,68 @@ pub fn contains_sensitive_marker(input: &str) -> bool {
         "private_key",
         "secret",
         "token",
-    ]
-    .iter()
-    .any(|marker| lower.contains(marker))
+        "connection_string",
+        "conn_str",
+        "database_url",
+        "db_url",
+    ];
+    const TOKEN_MARKERS: &[&str] = &[
+        "auth", "bearer", "cert", "cookie", "dsn", "jwt", "key", "session",
+    ];
+
+    SUBSTRING_MARKERS
+        .iter()
+        .any(|marker| lower.contains(marker))
+        || lower
+            .split(|ch: char| !ch.is_ascii_alphanumeric())
+            .any(|token| TOKEN_MARKERS.contains(&token))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::contains_sensitive_marker;
+
+    #[test]
+    fn matches_previously_uncaught_markers() {
+        for key in [
+            "API_KEY",
+            "DATABASE_URL",
+            "DSN",
+            "CONNECTION_STRING",
+            "CONN_STR",
+            "DB_URL",
+            "TLS_CERT",
+            "SESSION_ID",
+            "COOKIE_SECRET",
+            "JWT_SECRET",
+            "BEARER_TOKEN",
+            "OAUTH_CLIENT_SECRET",
+        ] {
+            assert!(
+                contains_sensitive_marker(key),
+                "expected `{key}` to be flagged as sensitive"
+            );
+        }
+    }
+
+    #[test]
+    fn leaves_ordinary_keys_alone() {
+        for key in [
+            "NODE_ENV",
+            "PORT",
+            "LOG_LEVEL",
+            "TZ",
+            "DEBUG",
+            "MONKEY_PATCH",
+            "AUTHOR_NAME",
+            "CONCERT_MODE",
+            "CERTAINLY_ENABLED",
+            "KEYSTONE_PROJECT",
+        ] {
+            assert!(
+                !contains_sensitive_marker(key),
+                "expected `{key}` to NOT be flagged as sensitive"
+            );
+        }
+    }
 }
