@@ -768,6 +768,24 @@ fn validate_project_summary(summary: &ProjectSummary) -> Result<(), serde_json::
             "project summary project name and instance must be present together",
         ));
     }
+    if summary
+        .project_name
+        .as_deref()
+        .is_some_and(|name| name.trim().is_empty())
+    {
+        return Err(serde_json::Error::custom(
+            "project summary project name must not be empty",
+        ));
+    }
+    if summary
+        .project_instance
+        .as_deref()
+        .is_some_and(|instance| instance.trim().is_empty())
+    {
+        return Err(serde_json::Error::custom(
+            "project summary project instance must not be empty",
+        ));
+    }
     if summary.service_count != summary.services.len() {
         return Err(serde_json::Error::custom(
             "project summary service count does not match services",
@@ -776,6 +794,16 @@ fn validate_project_summary(summary: &ProjectSummary) -> Result<(), serde_json::
     if summary.active_service_count > summary.service_count {
         return Err(serde_json::Error::custom(
             "project summary active service count exceeds service count",
+        ));
+    }
+    let active_services = summary
+        .services
+        .iter()
+        .filter(|service| service.active)
+        .count();
+    if summary.active_service_count != active_services {
+        return Err(serde_json::Error::custom(
+            "project summary active service count does not match services",
         ));
     }
     if summary.network_count != summary.networks.len()
@@ -787,8 +815,43 @@ fn validate_project_summary(summary: &ProjectSummary) -> Result<(), serde_json::
             "project summary resource counts do not match resources",
         ));
     }
+    validate_project_resource_summaries("network", &summary.networks)?;
+    validate_project_resource_summaries("volume", &summary.volumes)?;
+    validate_project_resource_summaries("config", &summary.configs)?;
+    validate_project_resource_summaries("secret", &summary.secrets)?;
+    let mut service_names = std::collections::BTreeSet::new();
     for service in &summary.services {
+        if service.name.trim().is_empty() {
+            return Err(serde_json::Error::custom(
+                "project summary service name must not be empty",
+            ));
+        }
+        if !service_names.insert(service.name.as_str()) {
+            return Err(serde_json::Error::custom(
+                "project summary contains duplicate service names",
+            ));
+        }
         validate_service_summary(service)?;
+    }
+    Ok(())
+}
+
+fn validate_project_resource_summaries(
+    kind: &'static str,
+    resources: &[ProjectResourceSummary],
+) -> Result<(), serde_json::Error> {
+    let mut names = std::collections::BTreeSet::new();
+    for resource in resources {
+        if resource.name.trim().is_empty() {
+            return Err(serde_json::Error::custom(format!(
+                "project summary {kind} name must not be empty"
+            )));
+        }
+        if !names.insert(resource.name.as_str()) {
+            return Err(serde_json::Error::custom(format!(
+                "project summary contains duplicate {kind} names"
+            )));
+        }
     }
     Ok(())
 }
@@ -805,6 +868,51 @@ fn validate_service_summary(service: &ServiceSummary) -> Result<(), serde_json::
         return Err(serde_json::Error::custom(
             "project summary service counts do not match service details",
         ));
+    }
+    if service
+        .image
+        .as_deref()
+        .is_some_and(|image| image.trim().is_empty())
+    {
+        return Err(serde_json::Error::custom(
+            "project summary service image must not be empty",
+        ));
+    }
+    validate_non_empty_strings("profile", &service.profiles)?;
+    validate_non_empty_strings("network", &service.networks)?;
+    validate_non_empty_strings("config", &service.configs)?;
+    validate_non_empty_strings("secret", &service.secrets)?;
+    validate_non_empty_strings("dependency", &service.dependencies)?;
+    for port in &service.ports {
+        if !matches!(port.protocol.as_str(), "tcp" | "udp" | "sctp") {
+            return Err(serde_json::Error::custom(
+                "project summary service port protocol is unsupported",
+            ));
+        }
+    }
+    for volume in &service.volumes {
+        if !matches!(volume.kind.as_str(), "volume" | "bind" | "anonymous") {
+            return Err(serde_json::Error::custom(
+                "project summary service volume kind is unsupported",
+            ));
+        }
+        if volume.target.trim().is_empty() {
+            return Err(serde_json::Error::custom(
+                "project summary service volume target must not be empty",
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_non_empty_strings(
+    kind: &'static str,
+    values: &[String],
+) -> Result<(), serde_json::Error> {
+    if values.iter().any(|value| value.trim().is_empty()) {
+        return Err(serde_json::Error::custom(format!(
+            "project summary service {kind} must not be empty"
+        )));
     }
     Ok(())
 }

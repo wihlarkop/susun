@@ -242,6 +242,40 @@ fn project_summary_json_helper_rejects_inconsistent_counts() -> TestResult {
 }
 
 #[test]
+fn project_summary_json_helper_rejects_invalid_identity_fields() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let summary = project.summary();
+    let json = render_project_summary_json(&summary)?;
+
+    let mut missing_project: serde_json::Value = serde_json::from_str(&json)?;
+    missing_project["project_name"] = serde_json::json!("");
+    assert!(parse_project_summary_json(&serde_json::to_string(&missing_project)?).is_err());
+
+    let mut missing_instance: serde_json::Value = serde_json::from_str(&json)?;
+    missing_instance["project_instance"] = serde_json::json!(" ");
+    assert!(parse_project_summary_json(&serde_json::to_string(&missing_instance)?).is_err());
+
+    let mut empty_service: serde_json::Value = serde_json::from_str(&json)?;
+    empty_service["services"][0]["name"] = serde_json::json!("");
+    assert!(parse_project_summary_json(&serde_json::to_string(&empty_service)?).is_err());
+    Ok(())
+}
+
+#[test]
+fn project_summary_json_helper_rejects_active_count_drift() -> TestResult {
+    let project = SusunWorkspace::from_file(valid_path()).analyze()?;
+    let summary = project.summary();
+    let json = render_project_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["services"][0]["active"] = serde_json::json!(false);
+
+    let result = parse_project_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn workspace_exposes_analysis_components_without_analysis_plumbing() -> TestResult {
     let project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let canonical: &Project = project.project().ok_or("expected project")?;
