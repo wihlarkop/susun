@@ -6,6 +6,11 @@ use std::{fmt, str};
 pub const REDACTED: &str = "<redacted>";
 
 /// Owned secret bytes that never reveal contents through formatting or serde.
+///
+/// When the `serde` feature is enabled, this type serializes only as the stable
+/// redaction marker. It intentionally does not deserialize because a redacted
+/// artifact cannot reconstruct the original secret and accepting arbitrary text
+/// here would make the redaction boundary ambiguous.
 #[derive(Default, Eq, PartialEq)]
 pub struct RedactedSecret {
     bytes: Vec<u8>,
@@ -109,17 +114,6 @@ impl serde::Serialize for RedactedSecret {
     }
 }
 
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for RedactedSecret {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value = <String as serde::Deserialize>::deserialize(deserializer)?;
-        Ok(Self::from_string(value))
-    }
-}
-
 /// Redacts text that appears to contain credential material.
 #[must_use]
 pub fn redact_sensitive_text(input: &str) -> String {
@@ -161,7 +155,27 @@ pub fn contains_sensitive_marker(input: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::contains_sensitive_marker;
+    use super::{REDACTED, RedactedSecret, contains_sensitive_marker};
+
+    #[test]
+    fn formatting_never_exposes_secret_bytes() {
+        let secret = RedactedSecret::from_string("super-secret-value");
+
+        assert_eq!(secret.to_string(), REDACTED);
+        assert_eq!(format!("{secret:?}"), REDACTED);
+        assert!(!secret.is_empty());
+        assert_eq!(secret.len(), "super-secret-value".len());
+        assert_eq!(secret.expose_secret(), b"super-secret-value");
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn serde_serializes_only_the_redaction_marker() -> Result<(), serde_json::Error> {
+        let secret = RedactedSecret::from_string("super-secret-value");
+
+        assert_eq!(serde_json::to_string(&secret)?, format!("\"{REDACTED}\""));
+        Ok(())
+    }
 
     #[test]
     fn matches_previously_uncaught_markers() {
