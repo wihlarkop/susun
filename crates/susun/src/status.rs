@@ -281,13 +281,25 @@ fn validate_runtime_status_summary_schema(
             summary.schema_version.major, summary.schema_version.minor
         )));
     }
+    if summary.project_name.trim().is_empty() {
+        return Err(serde_json::Error::custom(
+            "runtime status project name must not be empty",
+        ));
+    }
+    if summary.project_instance.trim().is_empty() {
+        return Err(serde_json::Error::custom(
+            "runtime status project instance must not be empty",
+        ));
+    }
     let mut container_count = summary.unassigned_containers.len();
     let mut running_containers = 0usize;
     let mut exited_containers = 0usize;
     let mut paused_containers = 0usize;
     let mut restarting_containers = 0usize;
+    let mut service_names = std::collections::BTreeSet::new();
 
     for container in &summary.unassigned_containers {
+        validate_runtime_container_summary(container)?;
         if container.service.is_some() {
             return Err(serde_json::Error::custom(
                 "runtime status unassigned container has service identity",
@@ -302,6 +314,16 @@ fn validate_runtime_status_summary_schema(
         );
     }
     for service in &summary.services {
+        if service.service.trim().is_empty() {
+            return Err(serde_json::Error::custom(
+                "runtime status service name must not be empty",
+            ));
+        }
+        if !service_names.insert(service.service.as_str()) {
+            return Err(serde_json::Error::custom(
+                "runtime status contains duplicate service summaries",
+            ));
+        }
         if service.container_count != service.containers.len() {
             return Err(serde_json::Error::custom(
                 "runtime status service container count does not match containers",
@@ -318,6 +340,7 @@ fn validate_runtime_status_summary_schema(
             ));
         }
         for container in &service.containers {
+            validate_runtime_container_summary(container)?;
             if container.service.as_deref() != Some(service.service.as_str()) {
                 return Err(serde_json::Error::custom(
                     "runtime status service container service identity does not match service",
@@ -341,6 +364,41 @@ fn validate_runtime_status_summary_schema(
     {
         return Err(serde_json::Error::custom(
             "runtime status container counts do not match containers",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_runtime_container_summary(
+    container: &RuntimeContainerStatusSummary,
+) -> Result<(), serde_json::Error> {
+    if container.id.trim().is_empty() {
+        return Err(serde_json::Error::custom(
+            "runtime status container id must not be empty",
+        ));
+    }
+    if container.name.trim().is_empty() {
+        return Err(serde_json::Error::custom(
+            "runtime status container name must not be empty",
+        ));
+    }
+    if container.image.trim().is_empty() {
+        return Err(serde_json::Error::custom(
+            "runtime status container image must not be empty",
+        ));
+    }
+    if container
+        .service
+        .as_deref()
+        .is_some_and(|service| service.trim().is_empty())
+    {
+        return Err(serde_json::Error::custom(
+            "runtime status container service must not be empty",
+        ));
+    }
+    if container.replica == Some(0) {
+        return Err(serde_json::Error::custom(
+            "runtime status container replica must be one-based",
         ));
     }
     Ok(())

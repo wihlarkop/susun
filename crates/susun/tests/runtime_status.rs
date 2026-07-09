@@ -159,6 +159,40 @@ fn runtime_status_json_helper_rejects_inconsistent_counts() -> TestResult {
 }
 
 #[test]
+fn runtime_status_json_helper_rejects_invalid_identity_fields() -> TestResult {
+    let project = project_identity("app", "project-a")?;
+    let mut snapshot = EngineSnapshot::empty(SystemTime::UNIX_EPOCH);
+    let container = container(
+        "container-1",
+        "app-web-1",
+        &project,
+        Some(("web", 0)),
+        ContainerState::Running,
+    )?;
+    snapshot.containers.insert(container.id.clone(), container);
+
+    let summary = runtime_status_from_snapshot(&project, &snapshot);
+    let json = render_runtime_status_summary_json(&summary)?;
+
+    let mut missing_project: serde_json::Value = serde_json::from_str(&json)?;
+    missing_project["project_name"] = serde_json::json!(" ");
+    assert!(parse_runtime_status_summary_json(&serde_json::to_string(&missing_project)?).is_err());
+
+    let mut missing_instance: serde_json::Value = serde_json::from_str(&json)?;
+    missing_instance["project_instance"] = serde_json::json!("");
+    assert!(parse_runtime_status_summary_json(&serde_json::to_string(&missing_instance)?).is_err());
+
+    let mut missing_service: serde_json::Value = serde_json::from_str(&json)?;
+    missing_service["services"][0]["service"] = serde_json::json!("");
+    assert!(parse_runtime_status_summary_json(&serde_json::to_string(&missing_service)?).is_err());
+
+    let mut invalid_replica: serde_json::Value = serde_json::from_str(&json)?;
+    invalid_replica["services"][0]["containers"][0]["replica"] = serde_json::json!(0);
+    assert!(parse_runtime_status_summary_json(&serde_json::to_string(&invalid_replica)?).is_err());
+    Ok(())
+}
+
+#[test]
 fn sdk_project_runtime_status_from_snapshot_uses_project_identity() -> TestResult {
     let sdk_project = SusunWorkspace::from_file(valid_path()).analyze()?;
     let identity = sdk_project.identity().ok_or("expected project identity")?;
