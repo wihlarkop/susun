@@ -724,6 +724,45 @@ fn facade_runtime_profile_summary_json_rejects_inconsistent_default() -> TestRes
 }
 
 #[test]
+fn facade_runtime_profile_summary_json_rejects_invalid_identity_fields() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::local_default(),
+    ])?;
+    let summary = EngineConnectionProfileSetSummary::from(&set);
+    let json = render_engine_connection_profile_set_summary_json(&summary)?;
+
+    let mut bad_id: serde_json::Value = serde_json::from_str(&json)?;
+    bad_id["profiles"][0]["id"] = serde_json::json!("bad id");
+    assert!(
+        parse_engine_connection_profile_set_summary_json(&serde_json::to_string(&bad_id)?).is_err()
+    );
+
+    let mut bad_name: serde_json::Value = serde_json::from_str(&json)?;
+    bad_name["profiles"][0]["display_name"] = serde_json::json!("  Local runtime  ");
+    assert!(
+        parse_engine_connection_profile_set_summary_json(&serde_json::to_string(&bad_name)?)
+            .is_err()
+    );
+    Ok(())
+}
+
+#[test]
+fn facade_runtime_profile_summary_json_rejects_endpoint_kind_drift() -> TestResult {
+    let set = susun::EngineConnectionProfileSet::new(vec![
+        susun::EngineConnectionProfile::local_default(),
+    ])?;
+    let summary = EngineConnectionProfileSetSummary::from(&set);
+    let json = render_engine_connection_profile_set_summary_json(&summary)?;
+    let mut value: serde_json::Value = serde_json::from_str(&json)?;
+    value["profiles"][0]["endpoint_kind"] = serde_json::json!("tcp");
+
+    let result = parse_engine_connection_profile_set_summary_json(&serde_json::to_string(&value)?);
+
+    assert!(result.is_err());
+    Ok(())
+}
+
+#[test]
 fn facade_runtime_profile_json_helpers_reject_duplicate_ids() {
     let json = r#"{
         "profiles": [

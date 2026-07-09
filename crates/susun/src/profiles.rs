@@ -1,7 +1,10 @@
 //! Runtime profile JSON helpers for SDK consumers.
 
 use serde::{Deserialize, Serialize, de::Error as _};
-use susun_engine::{EngineConnectionProfileSet, EngineEndpointKind, RedactedEndpoint};
+use susun_engine::{
+    EngineConnectionDisplayName, EngineConnectionProfileId, EngineConnectionProfileSet,
+    EngineEndpointKind, RedactedEndpoint,
+};
 
 /// Serializable, redacted runtime profile set summary for UI/API consumers.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -123,11 +126,23 @@ fn validate_engine_connection_profile_set_summary(
     let mut ids = std::collections::BTreeSet::new();
     let mut explicit_defaults = 0usize;
     for profile in &summary.profiles {
-        if profile.id.is_empty() {
+        EngineConnectionProfileId::new(profile.id.as_str()).map_err(|error| {
+            serde_json::Error::custom(format!(
+                "invalid engine connection profile summary id: {error}"
+            ))
+        })?;
+        let display_name = EngineConnectionDisplayName::new(profile.display_name.as_str())
+            .map_err(|error| {
+                serde_json::Error::custom(format!(
+                    "invalid engine connection profile summary display name: {error}"
+                ))
+            })?;
+        if display_name.as_str() != profile.display_name {
             return Err(serde_json::Error::custom(
-                "engine connection profile summary id must not be empty",
+                "engine connection profile summary display name must be normalized",
             ));
         }
+        validate_summary_endpoint(profile)?;
         if !ids.insert(profile.id.as_str()) {
             return Err(serde_json::Error::custom(
                 "engine connection profile summary contains duplicate ids",
@@ -166,4 +181,25 @@ fn validate_engine_connection_profile_set_summary(
         None => {}
     }
     Ok(())
+}
+
+fn validate_summary_endpoint(
+    profile: &EngineConnectionProfileSummary,
+) -> Result<(), serde_json::Error> {
+    let endpoint = profile.redacted_endpoint.to_string();
+    let matches_kind = match profile.endpoint_kind {
+        EngineEndpointKind::Local => endpoint == "local",
+        EngineEndpointKind::UnixSocket => endpoint == "unix://<local-socket>",
+        EngineEndpointKind::WindowsNamedPipe => endpoint == "npipe://<local-pipe>",
+        EngineEndpointKind::Tcp => {
+            endpoint == "http://<remote-host>" || endpoint == "https://<remote-host>"
+        }
+    };
+    if matches_kind {
+        Ok(())
+    } else {
+        Err(serde_json::Error::custom(
+            "engine connection profile summary endpoint kind does not match redacted endpoint",
+        ))
+    }
 }
