@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize, de::Error as _};
 use thiserror::Error;
 
 pub mod analyzer;
+pub mod inventory;
 pub mod planning;
 pub mod profiles;
 pub mod render;
@@ -16,6 +17,11 @@ pub mod status;
 pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
+pub use inventory::{
+    parse_engine_container_inventory_json, parse_engine_image_inventory_json,
+    parse_engine_information_json, render_engine_container_inventory_json,
+    render_engine_image_inventory_json, render_engine_information_json,
+};
 pub use planning::{
     PlanDiagnosticSummary, PlanOutcomeSummary, PlanOutcomeSummarySchemaVersion, Planner,
     parse_execution_plan_json, parse_plan_outcome_summary_json, render_execution_plan_json,
@@ -58,10 +64,12 @@ pub use susun_engine::{
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, EngineArchitecture,
     EngineCapabilities, EngineConnectionDisplayName, EngineConnectionError,
     EngineConnectionProfile, EngineConnectionProfileError, EngineConnectionProfileId,
-    EngineConnectionProfileSet, EngineEndpoint, EngineEndpointKind, EngineError, EngineEvent,
-    EngineOperatingSystem, EngineProbe, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest,
-    HealthState, LogEvent, LogSource, LogsRequest, ObservedContainer, ObservedImageRef, Platform,
-    PortRequest, ProjectIdentity, ProjectInstanceId, PruneReport, PruneRequest, PruneScope,
+    EngineConnectionProfileSet, EngineContainerInventory, EngineContainerSummary, EngineEndpoint,
+    EngineEndpointKind, EngineError, EngineEvent, EngineImageInventory, EngineImageSummary,
+    EngineInformation, EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation,
+    EngineProbe, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId,
+    LogEvent, LogSource, LogsRequest, ObservedContainer, ObservedImageRef, Platform, PortRequest,
+    ProjectIdentity, ProjectInstanceId, PruneReport, PruneRequest, PruneScope,
     PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions, ReplicaIndex, ResourceName,
     RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId, SnapshotCompleteness,
     SnapshotField, StopContainerRequest, SupportLevel, TcpEndpoint, TlsConfiguration,
@@ -69,7 +77,7 @@ pub use susun_engine::{
 };
 pub use susun_graph::DependencyGraph;
 pub use susun_loader::LoadContext;
-pub use susun_model::{Command, Project, ProjectName, ServiceName};
+pub use susun_model::{Command, ImageRef, Project, ProjectName, ServiceName};
 pub use susun_normalize::selection::ProjectSelection;
 pub use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,

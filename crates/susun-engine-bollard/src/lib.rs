@@ -27,15 +27,17 @@ use susun_engine::{
     ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
     EngineArchitecture, EngineCapabilities, EngineConnectionError, EngineConnectionProfile,
-    EngineEndpoint, EngineError, EngineEvent, EngineImageRef, EngineOperatingSystem,
-    EngineOperation, EngineProbe, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest,
-    HealthState, ImageId, LabelKey, LabelValue, LogEvent, LogSource, LogsRequest,
-    MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer, ObservedImage,
-    ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink, ProjectIdentity,
-    PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
-    RedactedEndpoint, ReplicaIndex, ResourceIdentity, ResourceName, RuntimeDoctorReport,
-    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    EngineContainerInventory, EngineContainerSummary, EngineEndpoint, EngineError, EngineEvent,
+    EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
+    EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation, EngineProbe,
+    EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId, LabelKey,
+    LabelValue, LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId,
+    NetworkRef, ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork,
+    ObservedVolume, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
+    PruneScope, PublishedPortBinding, PullImageRequest, RedactedEndpoint, ReplicaIndex,
+    ResourceIdentity, ResourceName, RuntimeDoctorReport, ServiceInstanceId, SnapshotCompleteness,
+    StopContainerRequest, SupportLevel, VolumeId, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -205,9 +207,9 @@ impl ContainerEngine for BollardEngine {
                 .collect(),
                 supports_log_follow: SupportLevel::Supported,
                 supports_build: SupportLevel::Unsupported,
-                supports_container_inventory: SupportLevel::Unsupported,
-                supports_image_inventory: SupportLevel::Unsupported,
-                supports_engine_information: SupportLevel::SupportedSubset,
+                supports_container_inventory: SupportLevel::Supported,
+                supports_image_inventory: SupportLevel::Supported,
+                supports_engine_information: SupportLevel::Supported,
                 supports_image_management: SupportLevel::Unsupported,
                 supports_registry_pull: SupportLevel::Supported,
                 supports_registry_push: SupportLevel::Unsupported,
@@ -369,6 +371,106 @@ impl ContainerEngine for BollardEngine {
             }
 
             Ok(snapshot)
+        })
+    }
+
+    fn container_inventory(&self) -> BoxEngineFuture<'_, EngineContainerInventory> {
+        Box::pin(async move {
+            let containers = self
+                .docker
+                .list_containers(Some(
+                    ListContainersOptionsBuilder::default()
+                        .all(true)
+                        .size(true)
+                        .build(),
+                ))
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::ContainerInventory, error))?;
+            let mut summaries = containers
+                .into_iter()
+                .filter_map(container_inventory_summary)
+                .collect::<Result<Vec<_>, _>>()?;
+            summaries.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+            Ok(EngineContainerInventory {
+                schema_version: EngineInventorySchemaVersion::CURRENT,
+                observed_at_epoch_seconds: unix_timestamp_now(),
+                containers: summaries,
+            })
+        })
+    }
+
+    fn container_details(&self, id: &ContainerId) -> BoxEngineFuture<'_, EngineContainerSummary> {
+        let id = id.clone();
+        Box::pin(async move {
+            self.container_inventory()
+                .await?
+                .containers
+                .into_iter()
+                .find(|container| container.id == id)
+                .ok_or(EngineError::NotFound {
+                    resource: ResourceIdentity::Container(id),
+                })
+        })
+    }
+
+    fn image_inventory(&self) -> BoxEngineFuture<'_, EngineImageInventory> {
+        Box::pin(async move {
+            let images = self
+                .docker
+                .list_images(Some(ListImagesOptionsBuilder::default().all(true).build()))
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::ImageInventory, error))?;
+            let mut summaries = images
+                .into_iter()
+                .filter_map(image_inventory_summary)
+                .collect::<Vec<_>>();
+            summaries.sort_by(|left, right| left.id.as_str().cmp(right.id.as_str()));
+            Ok(EngineImageInventory {
+                schema_version: EngineInventorySchemaVersion::CURRENT,
+                observed_at_epoch_seconds: unix_timestamp_now(),
+                images: summaries,
+            })
+        })
+    }
+
+    fn image_details(&self, id: &ImageId) -> BoxEngineFuture<'_, EngineImageSummary> {
+        let id = id.clone();
+        Box::pin(async move {
+            self.image_inventory()
+                .await?
+                .images
+                .into_iter()
+                .find(|image| image.id == id)
+                .ok_or(EngineError::NotFound {
+                    resource: ResourceIdentity::Image(id.to_string()),
+                })
+        })
+    }
+
+    fn engine_information(&self) -> BoxEngineFuture<'_, EngineInformation> {
+        Box::pin(async move {
+            let version = self
+                .docker
+                .version()
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::EngineInformation, error))?;
+            let information = self
+                .docker
+                .info()
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::EngineInformation, error))?;
+            Ok(EngineInformation {
+                schema_version: EngineInventorySchemaVersion::CURRENT,
+                engine_version: version.version.map(EngineVersion::new),
+                operating_system: information.operating_system.map(EngineOperatingSystem::new),
+                architecture: information.architecture.map(EngineArchitecture::new),
+                storage_driver: information.driver,
+                logical_cpus: non_negative(information.ncpu),
+                memory_bytes: non_negative(information.mem_total),
+                container_count: non_negative(information.containers),
+                running_container_count: non_negative(information.containers_running),
+                image_count: non_negative(information.images),
+            })
         })
     }
 
@@ -871,6 +973,86 @@ fn map_labels(labels: HashMap<String, String>) -> IndexMap<LabelKey, LabelValue>
         .collect()
 }
 
+fn container_inventory_summary(
+    container: bollard::models::ContainerSummary,
+) -> Option<Result<EngineContainerSummary, EngineError>> {
+    let id = container.id.and_then(new_container_id)?;
+    let labels = map_labels(container.labels.unwrap_or_default());
+    let name = container
+        .names
+        .and_then(|names| names.first().cloned())
+        .unwrap_or_else(|| id.as_str().to_owned())
+        .trim_start_matches('/')
+        .to_owned();
+    let name = match new_resource_name_for(name, EngineOperation::ContainerInventory) {
+        Ok(name) => name,
+        Err(error) => return Some(Err(error)),
+    };
+    let mut label_keys = labels.keys().cloned().collect::<Vec<_>>();
+    label_keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    Some(Ok(EngineContainerSummary {
+        id,
+        name,
+        state: container_state(container.state.map(|state| state.to_string())),
+        health: container_health(container.status.as_deref()),
+        image: container
+            .image_id
+            .and_then(new_image_id)
+            .map(ObservedImageRef::Id)
+            .or_else(|| {
+                container
+                    .image
+                    .map(susun_model::ImageRef::new)
+                    .map(ObservedImageRef::Reference)
+            })
+            .unwrap_or(ObservedImageRef::Unknown),
+        project_identity: label_value(&labels, "io.susun.project-instance")
+            .and_then(|value| susun_engine::ProjectInstanceId::new(value.to_owned()).ok()),
+        label_keys,
+        created_at_epoch_seconds: non_negative(container.created),
+        writable_size_bytes: non_negative(container.size_rw),
+        root_filesystem_size_bytes: non_negative(container.size_root_fs),
+    }))
+}
+
+fn image_inventory_summary(image: bollard::models::ImageSummary) -> Option<EngineImageSummary> {
+    let id = new_image_id(image.id)?;
+    let mut references = image
+        .repo_tags
+        .into_iter()
+        .map(susun_model::ImageRef::new)
+        .collect::<Vec<_>>();
+    references.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    let mut digests = image.repo_digests;
+    digests.sort();
+    let mut label_keys = image
+        .labels
+        .into_keys()
+        .filter_map(|key| LabelKey::new(key).ok())
+        .collect::<Vec<_>>();
+    label_keys.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+    Some(EngineImageSummary {
+        id,
+        references,
+        digests,
+        label_keys,
+        created_at_epoch_seconds: non_negative(Some(image.created)),
+        size_bytes: non_negative(Some(image.size)),
+        shared_size_bytes: non_negative(Some(image.shared_size)),
+        container_count: non_negative(Some(image.containers)),
+    })
+}
+
+fn unix_timestamp_now() -> u64 {
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_or(0, |duration| duration.as_secs())
+}
+
+fn non_negative(value: Option<i64>) -> Option<u64> {
+    value.and_then(|value| u64::try_from(value).ok())
+}
+
 fn labels_to_hashmap(labels: IndexMap<LabelKey, LabelValue>) -> HashMap<String, String> {
     labels
         .into_iter()
@@ -1092,8 +1274,15 @@ fn label_value<'a>(labels: &'a IndexMap<LabelKey, LabelValue>, key: &str) -> Opt
 }
 
 fn new_resource_name(value: String) -> Result<ResourceName, EngineError> {
+    new_resource_name_for(value, EngineOperation::Snapshot)
+}
+
+fn new_resource_name_for(
+    value: String,
+    operation: EngineOperation,
+) -> Result<ResourceName, EngineError> {
     ResourceName::new(value).map_err(|error| EngineError::Api {
-        operation: EngineOperation::Snapshot,
+        operation,
         source: Box::new(error),
     })
 }
@@ -1133,10 +1322,16 @@ fn container_state(value: Option<String>) -> susun_engine::ContainerState {
 
 fn health_state(value: Option<&str>) -> HealthState {
     match value {
-        Some(status) if status.contains("healthy") => HealthState::Healthy,
         Some(status) if status.contains("unhealthy") => HealthState::Unhealthy,
+        Some(status) if status.contains("healthy") => HealthState::Healthy,
         _ => HealthState::Unknown,
     }
+}
+
+fn container_health(value: Option<&str>) -> Option<HealthState> {
+    value
+        .filter(|status| status.contains("health:"))
+        .map(|status| health_state(Some(status)))
 }
 
 fn log_event(output: LogOutput) -> LogEvent {
@@ -1194,4 +1389,46 @@ fn safe_event_attributes(attributes: HashMap<String, String>) -> IndexMap<String
 fn parse_port_key(value: &str) -> Option<(u16, &str)> {
     let (port, protocol) = value.split_once('/')?;
     Some((port.parse().ok()?, protocol))
+}
+
+#[cfg(test)]
+mod inventory_tests {
+    use super::*;
+
+    #[test]
+    fn container_inventory_excludes_label_values_and_keeps_opaque_ownership()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let container = bollard::models::ContainerSummary {
+            id: Some("container-id".to_owned()),
+            names: Some(vec!["/example".to_owned()]),
+            labels: Some(HashMap::from([
+                (
+                    "io.susun.project-instance".to_owned(),
+                    "opaque-project".to_owned(),
+                ),
+                (
+                    "secret.example/token".to_owned(),
+                    "do-not-expose".to_owned(),
+                ),
+            ])),
+            ..Default::default()
+        };
+
+        let summary = container_inventory_summary(container)
+            .ok_or_else(|| std::io::Error::other("missing inventory summary"))??;
+
+        assert_eq!(
+            summary.project_identity.as_ref().map(|id| id.as_str()),
+            Some("opaque-project")
+        );
+        assert_eq!(
+            summary
+                .label_keys
+                .iter()
+                .map(LabelKey::as_str)
+                .collect::<Vec<_>>(),
+            vec!["io.susun.project-instance", "secret.example/token"]
+        );
+        Ok(())
+    }
 }

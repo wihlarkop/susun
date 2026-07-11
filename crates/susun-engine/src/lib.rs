@@ -8,6 +8,7 @@ pub mod doctor;
 pub mod engine;
 pub mod error;
 pub mod identity;
+pub mod inventory;
 pub mod operation;
 pub mod profile;
 pub mod resource;
@@ -23,6 +24,10 @@ pub use error::{
 pub use identity::{
     IdentityError, NetworkIdentity, ProjectIdentity, ProjectInstanceId, ReplicaIndex,
     ServiceInstanceId, VolumeIdentity,
+};
+pub use inventory::{
+    EngineContainerInventory, EngineContainerSummary, EngineImageInventory, EngineImageSummary,
+    EngineInformation, EngineInventorySchemaVersion,
 };
 pub use operation::{
     ActionProgress, BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream,

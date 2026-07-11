@@ -19,6 +19,36 @@ use susun_testkit::{
 };
 
 #[tokio::test]
+async fn bollard_exposes_sorted_engine_wide_inventory() -> Result<(), EngineError> {
+    let Some(engine) = support::docker_engine().await? else {
+        return Ok(());
+    };
+
+    let containers = engine.container_inventory().await?;
+    assert!(
+        containers
+            .containers
+            .windows(2)
+            .all(|pair| pair[0].id.as_str() < pair[1].id.as_str())
+    );
+
+    let images = engine.image_inventory().await?;
+    assert!(
+        images
+            .images
+            .windows(2)
+            .all(|pair| pair[0].id.as_str() < pair[1].id.as_str())
+    );
+
+    let information = engine.engine_information().await?;
+    assert_eq!(
+        information.schema_version,
+        susun_engine::EngineInventorySchemaVersion::CURRENT
+    );
+    Ok(())
+}
+
+#[tokio::test]
 async fn bollard_satisfies_basic_engine_contract() -> Result<(), EngineError> {
     let Some(engine) = support::docker_engine().await? else {
         return Ok(());

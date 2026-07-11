@@ -6,9 +6,11 @@ use susun_engine::{
     BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine,
     ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
     CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineCapabilities,
-    EngineError, EngineImageRef, EngineOperation, EngineSnapshot, EventsRequest, ExecRequest,
-    LogsRequest, NetworkId, NetworkRef, PortRequest, ProgressSink, ProjectIdentity, PruneReport,
-    PruneRequest, PublishedPortBinding, PullImageRequest, RemoveContainerOptions,
+    EngineContainerInventory, EngineContainerSummary, EngineError, EngineImageInventory,
+    EngineImageRef, EngineImageSummary, EngineInformation, EngineInventorySchemaVersion,
+    EngineOperation, EngineSnapshot, EventsRequest, ExecRequest, LogsRequest, NetworkId,
+    NetworkRef, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
+    PublishedPortBinding, PullImageRequest, RemoveContainerOptions, ResourceIdentity,
     StopContainerRequest, VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
@@ -17,6 +19,9 @@ use susun_engine::{
 pub struct FakeContainerEngine {
     failures: Vec<EngineOperation>,
     snapshot: Option<EngineSnapshot>,
+    container_inventory: Option<EngineContainerInventory>,
+    image_inventory: Option<EngineImageInventory>,
+    engine_information: Option<EngineInformation>,
 }
 
 impl FakeContainerEngine {
@@ -48,6 +53,27 @@ impl FakeContainerEngine {
         self
     }
 
+    /// Replaces the engine-wide container inventory returned by this fake.
+    #[must_use]
+    pub fn with_container_inventory(mut self, inventory: EngineContainerInventory) -> Self {
+        self.container_inventory = Some(inventory);
+        self
+    }
+
+    /// Replaces the engine-wide image inventory returned by this fake.
+    #[must_use]
+    pub fn with_image_inventory(mut self, inventory: EngineImageInventory) -> Self {
+        self.image_inventory = Some(inventory);
+        self
+    }
+
+    /// Replaces the engine information returned by this fake.
+    #[must_use]
+    pub fn with_engine_information(mut self, information: EngineInformation) -> Self {
+        self.engine_information = Some(information);
+        self
+    }
+
     fn should_fail(&self, operation: EngineOperation) -> bool {
         self.failures.contains(&operation)
     }
@@ -60,7 +86,11 @@ impl ContainerEngine for FakeContainerEngine {
             if fail {
                 Err(fake_error(EngineOperation::Capabilities))
             } else {
-                Ok(EngineCapabilities::permissive_local())
+                let mut capabilities = EngineCapabilities::permissive_local();
+                capabilities.supports_container_inventory = susun_engine::SupportLevel::Supported;
+                capabilities.supports_image_inventory = susun_engine::SupportLevel::Supported;
+                capabilities.supports_engine_information = susun_engine::SupportLevel::Supported;
+                Ok(capabilities)
             }
         })
     }
@@ -76,6 +106,100 @@ impl ContainerEngine for FakeContainerEngine {
                 Err(fake_error(EngineOperation::Snapshot))
             } else {
                 Ok(snapshot)
+            }
+        })
+    }
+
+    fn container_inventory(&self) -> BoxEngineFuture<'_, EngineContainerInventory> {
+        let fail = self.should_fail(EngineOperation::ContainerInventory);
+        let inventory = self
+            .container_inventory
+            .clone()
+            .unwrap_or(EngineContainerInventory {
+                schema_version: EngineInventorySchemaVersion::CURRENT,
+                observed_at_epoch_seconds: 0,
+                containers: Vec::new(),
+            });
+        Box::pin(async move {
+            if fail {
+                Err(fake_error(EngineOperation::ContainerInventory))
+            } else {
+                Ok(inventory)
+            }
+        })
+    }
+
+    fn container_details(&self, id: &ContainerId) -> BoxEngineFuture<'_, EngineContainerSummary> {
+        let id = id.clone();
+        let inventory = self.container_inventory();
+        Box::pin(async move {
+            inventory
+                .await?
+                .containers
+                .into_iter()
+                .find(|container| container.id == id)
+                .ok_or(EngineError::NotFound {
+                    resource: ResourceIdentity::Container(id),
+                })
+        })
+    }
+
+    fn image_inventory(&self) -> BoxEngineFuture<'_, EngineImageInventory> {
+        let fail = self.should_fail(EngineOperation::ImageInventory);
+        let inventory = self
+            .image_inventory
+            .clone()
+            .unwrap_or(EngineImageInventory {
+                schema_version: EngineInventorySchemaVersion::CURRENT,
+                observed_at_epoch_seconds: 0,
+                images: Vec::new(),
+            });
+        Box::pin(async move {
+            if fail {
+                Err(fake_error(EngineOperation::ImageInventory))
+            } else {
+                Ok(inventory)
+            }
+        })
+    }
+
+    fn image_details(&self, id: &susun_engine::ImageId) -> BoxEngineFuture<'_, EngineImageSummary> {
+        let id = id.clone();
+        let inventory = self.image_inventory();
+        Box::pin(async move {
+            inventory
+                .await?
+                .images
+                .into_iter()
+                .find(|image| image.id == id)
+                .ok_or(EngineError::NotFound {
+                    resource: ResourceIdentity::Image(id.to_string()),
+                })
+        })
+    }
+
+    fn engine_information(&self) -> BoxEngineFuture<'_, EngineInformation> {
+        let fail = self.should_fail(EngineOperation::EngineInformation);
+        let information = self
+            .engine_information
+            .clone()
+            .unwrap_or(EngineInformation {
+                schema_version: EngineInventorySchemaVersion::CURRENT,
+                engine_version: None,
+                operating_system: None,
+                architecture: None,
+                storage_driver: None,
+                logical_cpus: None,
+                memory_bytes: None,
+                container_count: None,
+                running_container_count: None,
+                image_count: None,
+            });
+        Box::pin(async move {
+            if fail {
+                Err(fake_error(EngineOperation::EngineInformation))
+            } else {
+                Ok(information)
             }
         })
     }
@@ -287,6 +411,9 @@ fn operation_capability(operation: EngineOperation) -> &'static str {
     match operation {
         EngineOperation::Capabilities => "capabilities",
         EngineOperation::Snapshot => "snapshot",
+        EngineOperation::ContainerInventory => "container inventory",
+        EngineOperation::ImageInventory => "image inventory",
+        EngineOperation::EngineInformation => "engine information",
         EngineOperation::PullImage => "pull image",
         EngineOperation::CreateNetwork => "create network",
         EngineOperation::RemoveNetwork => "remove network",

@@ -5,8 +5,9 @@ use std::{future::Future, pin::Pin};
 use crate::{
     BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef,
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
-    CreateVolumeRequest, EngineCapabilities, EngineError, EngineImageRef, EngineSnapshot,
-    EventsRequest, ExecRequest, LogsRequest, NetworkRef, PortRequest, ProgressSink,
+    CreateVolumeRequest, EngineCapabilities, EngineContainerInventory, EngineContainerSummary,
+    EngineError, EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
+    EngineSnapshot, EventsRequest, ExecRequest, LogsRequest, NetworkRef, PortRequest, ProgressSink,
     ProjectIdentity, PruneReport, PruneRequest, PublishedPortBinding, PullImageRequest,
     RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
     WaitContainerResult,
@@ -22,6 +23,54 @@ pub trait ContainerEngine: Send + Sync {
 
     /// Acquires a project-scoped engine snapshot.
     fn snapshot(&self, project: &ProjectIdentity) -> BoxEngineFuture<'_, EngineSnapshot>;
+
+    /// Lists containers across the selected engine.
+    fn container_inventory(&self) -> BoxEngineFuture<'_, EngineContainerInventory> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "engine-wide container inventory",
+            })
+        })
+    }
+
+    /// Returns one container from the engine-wide inventory.
+    fn container_details(
+        &self,
+        _id: &crate::ContainerId,
+    ) -> BoxEngineFuture<'_, EngineContainerSummary> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "engine-wide container details",
+            })
+        })
+    }
+
+    /// Lists images across the selected engine.
+    fn image_inventory(&self) -> BoxEngineFuture<'_, EngineImageInventory> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "engine-wide image inventory",
+            })
+        })
+    }
+
+    /// Returns one image from the engine-wide inventory.
+    fn image_details(&self, _id: &crate::ImageId) -> BoxEngineFuture<'_, EngineImageSummary> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "engine-wide image details",
+            })
+        })
+    }
+
+    /// Returns display-safe engine and host information.
+    fn engine_information(&self) -> BoxEngineFuture<'_, EngineInformation> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "engine information",
+            })
+        })
+    }
 
     /// Pulls an image.
     fn pull_image(

@@ -16,6 +16,12 @@ pub enum EngineOperation {
     Capabilities,
     /// Snapshot acquisition.
     Snapshot,
+    /// Engine-wide container inventory.
+    ContainerInventory,
+    /// Engine-wide image inventory.
+    ImageInventory,
+    /// Engine and host information.
+    EngineInformation,
     /// Pull image.
     PullImage,
     /// Create network.
@@ -55,6 +61,9 @@ impl fmt::Display for EngineOperation {
         f.write_str(match self {
             Self::Capabilities => "capabilities",
             Self::Snapshot => "snapshot",
+            Self::ContainerInventory => "container inventory",
+            Self::ImageInventory => "image inventory",
+            Self::EngineInformation => "engine information",
             Self::PullImage => "pull image",
             Self::CreateNetwork => "create network",
             Self::RemoveNetwork => "remove network",
