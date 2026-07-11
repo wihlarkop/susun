@@ -205,6 +205,14 @@ impl ContainerEngine for BollardEngine {
                 .collect(),
                 supports_log_follow: SupportLevel::Supported,
                 supports_build: SupportLevel::Unsupported,
+                supports_container_inventory: SupportLevel::Unsupported,
+                supports_image_inventory: SupportLevel::Unsupported,
+                supports_engine_information: SupportLevel::SupportedSubset,
+                supports_image_management: SupportLevel::Unsupported,
+                supports_registry_pull: SupportLevel::Supported,
+                supports_registry_push: SupportLevel::Unsupported,
+                supports_build_cache: SupportLevel::Unsupported,
+                supports_cleanup_preview: SupportLevel::Unsupported,
                 max_container_name_length: Some(255),
             })
         })

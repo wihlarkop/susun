@@ -24,7 +24,7 @@ impl EngineApiVersion {
 }
 
 /// Capability support state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum SupportLevel {
@@ -37,6 +37,7 @@ pub enum SupportLevel {
     /// Capability is known to be unsupported.
     Unsupported,
     /// Capability support is unknown.
+    #[default]
     Unknown,
 }
 
@@ -78,6 +79,30 @@ pub struct EngineCapabilities {
     pub supports_log_follow: SupportLevel,
     /// Image build capability.
     pub supports_build: SupportLevel,
+    /// Engine-wide container inventory capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_container_inventory: SupportLevel,
+    /// Engine-wide image inventory capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_image_inventory: SupportLevel,
+    /// Display-safe engine and system information capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_engine_information: SupportLevel,
+    /// Image removal and tagging capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_image_management: SupportLevel,
+    /// Registry image pull capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_registry_pull: SupportLevel,
+    /// Registry image push capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_registry_push: SupportLevel,
+    /// Build-cache inventory and cleanup capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_build_cache: SupportLevel,
+    /// Non-destructive cleanup preview capability.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_cleanup_preview: SupportLevel,
     /// Optional maximum runtime container-name length.
     pub max_container_name_length: Option<usize>,
 }
@@ -93,6 +118,14 @@ impl EngineCapabilities {
             supports_mount_types: IndexSet::new(),
             supports_log_follow: SupportLevel::Unknown,
             supports_build: SupportLevel::Unsupported,
+            supports_container_inventory: SupportLevel::Unknown,
+            supports_image_inventory: SupportLevel::Unknown,
+            supports_engine_information: SupportLevel::Unknown,
+            supports_image_management: SupportLevel::Unsupported,
+            supports_registry_pull: SupportLevel::Unknown,
+            supports_registry_push: SupportLevel::Unsupported,
+            supports_build_cache: SupportLevel::Unsupported,
+            supports_cleanup_preview: SupportLevel::Unsupported,
             max_container_name_length: None,
         }
     }
@@ -111,6 +144,14 @@ impl EngineCapabilities {
             ]),
             supports_log_follow: SupportLevel::Supported,
             supports_build: SupportLevel::Unsupported,
+            supports_container_inventory: SupportLevel::Unknown,
+            supports_image_inventory: SupportLevel::Unknown,
+            supports_engine_information: SupportLevel::Unknown,
+            supports_image_management: SupportLevel::Unsupported,
+            supports_registry_pull: SupportLevel::Supported,
+            supports_registry_push: SupportLevel::Unsupported,
+            supports_build_cache: SupportLevel::Unsupported,
+            supports_cleanup_preview: SupportLevel::Unsupported,
             max_container_name_length: Some(255),
         }
     }
