@@ -15,35 +15,38 @@ use bollard::{
         CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
         DownloadFromContainerOptionsBuilder, EventsOptionsBuilder, InspectContainerOptionsBuilder,
         ListContainersOptionsBuilder, ListImagesOptionsBuilder, ListNetworksOptionsBuilder,
-        ListVolumesOptionsBuilder, LogsOptionsBuilder, RemoveContainerOptionsBuilder,
-        RemoveVolumeOptionsBuilder, StopContainerOptionsBuilder, UploadToContainerOptionsBuilder,
+        ListVolumesOptionsBuilder, LogsOptionsBuilder, PushImageOptionsBuilder,
+        RemoveContainerOptionsBuilder, RemoveImageOptionsBuilder, RemoveVolumeOptionsBuilder,
+        StopContainerOptionsBuilder, TagImageOptionsBuilder, UploadToContainerOptionsBuilder,
         WaitContainerOptions,
     },
 };
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun_engine::{
-    BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine,
-    ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
-    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
-    EngineArchitecture, EngineCapabilities, EngineConnectionError, EngineConnectionProfile,
-    EngineContainerInventory, EngineContainerSummary, EngineEndpoint, EngineError, EngineEvent,
-    EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
-    EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation, EngineProbe,
-    EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId, LabelKey,
-    LabelValue, LogEvent, LogSource, LogsRequest, MountType as EngineMountType, NetworkId,
-    NetworkRef, ObservedContainer, ObservedImage, ObservedImageRef, ObservedNetwork,
-    ObservedVolume, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
-    PruneScope, PublishedPortBinding, PullImageRequest, RedactedEndpoint, ReplicaIndex,
-    ResourceIdentity, ResourceName, RuntimeDoctorReport, ServiceInstanceId, SnapshotCompleteness,
-    StopContainerRequest, SupportLevel, VolumeId, VolumeRef, WaitContainerRequest,
-    WaitContainerResult,
+    ArtifactMutationSchemaVersion, BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream,
+    BoxLogStream, ContainerEngine, ContainerId, ContainerRef, CopyFromContainerRequest,
+    CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
+    EngineApiVersion, EngineArchitecture, EngineCapabilities, EngineConnectionError,
+    EngineConnectionProfile, EngineContainerInventory, EngineContainerSummary, EngineEndpoint,
+    EngineError, EngineEvent, EngineImageInventory, EngineImageRef, EngineImageSummary,
+    EngineInformation, EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation,
+    EngineProbe, EngineProgressOperation, EngineSnapshot, EngineVersion, EventsRequest,
+    ExecRequest, HealthState, ImageId, ImagePushRequest, ImagePushResult, ImageRemoveRequest,
+    ImageRemoveResult, ImageTagRequest, ImageTagResult, LabelKey, LabelValue, LogEvent, LogSource,
+    LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
+    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink,
+    ProjectIdentity, PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
+    RedactedEndpoint, ReplicaIndex, ResourceIdentity, ResourceName, RuntimeDoctorReport,
+    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
     port::{CanonicalPort, Protocol},
     volume::VolumeKind,
 };
+use susun_secret::redact_sensitive_text;
 
 /// Bollard-backed Docker Engine adapter.
 #[derive(Debug, Clone)]
@@ -210,9 +213,9 @@ impl ContainerEngine for BollardEngine {
                 supports_container_inventory: SupportLevel::Supported,
                 supports_image_inventory: SupportLevel::Supported,
                 supports_engine_information: SupportLevel::Supported,
-                supports_image_management: SupportLevel::Unsupported,
+                supports_image_management: SupportLevel::Supported,
                 supports_registry_pull: SupportLevel::Supported,
-                supports_registry_push: SupportLevel::Unsupported,
+                supports_registry_push: SupportLevel::SupportedSubset,
                 supports_build_cache: SupportLevel::Unsupported,
                 supports_cleanup_preview: SupportLevel::Unsupported,
                 max_container_name_length: Some(255),
@@ -495,7 +498,8 @@ impl ContainerEngine for BollardEngine {
                     item.map_err(|error| EngineError::api(EngineOperation::PullImage, error))?;
                 progress
                     .emit(susun_engine::ActionProgress {
-                        stage: event.status.unwrap_or_else(|| "pull".to_owned()),
+                        operation: EngineProgressOperation::PullImage,
+                        stage: "pull".to_owned(),
                         current: event
                             .progress_detail
                             .as_ref()
@@ -506,11 +510,115 @@ impl ContainerEngine for BollardEngine {
                             .as_ref()
                             .and_then(|detail| detail.total)
                             .and_then(|value| u64::try_from(value).ok()),
-                        message: None,
+                        message: event.status.as_deref().map(redact_sensitive_text),
                     })
                     .await;
             }
             Ok(EngineImageRef { reference: image })
+        })
+    }
+
+    fn remove_image(&self, request: ImageRemoveRequest) -> BoxEngineFuture<'_, ImageRemoveResult> {
+        Box::pin(async move {
+            let responses = self
+                .docker
+                .remove_image(
+                    request.image().as_str(),
+                    Some(
+                        RemoveImageOptionsBuilder::default()
+                            .force(request.force())
+                            .noprune(!request.prune_children())
+                            .build(),
+                    ),
+                    None,
+                )
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::RemoveImage, error))?;
+            let mut deleted = responses
+                .iter()
+                .filter_map(|item| item.deleted.as_deref())
+                .filter_map(|id| ImageId::new(id.to_owned()).ok())
+                .collect::<Vec<_>>();
+            deleted.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+            deleted.dedup();
+            let mut untagged = responses
+                .iter()
+                .filter_map(|item| item.untagged.as_deref())
+                .map(|reference| susun_model::ImageRef::new(reference.to_owned()))
+                .collect::<Vec<_>>();
+            untagged.sort_by(|left, right| left.as_str().cmp(right.as_str()));
+            untagged.dedup();
+            Ok(ImageRemoveResult {
+                schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                deleted,
+                untagged,
+            })
+        })
+    }
+
+    fn tag_image(&self, request: ImageTagRequest) -> BoxEngineFuture<'_, ImageTagResult> {
+        Box::pin(async move {
+            let (repository, tag) =
+                split_repository_tag(request.target().as_str(), EngineOperation::TagImage)?;
+            self.docker
+                .tag_image(
+                    request.source().as_str(),
+                    Some(
+                        TagImageOptionsBuilder::default()
+                            .repo(repository)
+                            .tag(tag)
+                            .build(),
+                    ),
+                )
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::TagImage, error))?;
+            Ok(ImageTagResult {
+                schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                source: request.source().clone(),
+                target: request.target().clone(),
+            })
+        })
+    }
+
+    fn push_image(
+        &self,
+        request: ImagePushRequest,
+        progress: ProgressSink,
+    ) -> BoxEngineFuture<'_, ImagePushResult> {
+        Box::pin(async move {
+            let (repository, tag) =
+                split_repository_tag(request.image().as_str(), EngineOperation::PushImage)?;
+            let mut stream = self.docker.push_image(
+                repository,
+                Some(PushImageOptionsBuilder::default().tag(tag).build()),
+                None,
+            );
+            while let Some(item) = stream.next().await {
+                let event =
+                    item.map_err(|error| EngineError::api(EngineOperation::PushImage, error))?;
+                progress
+                    .emit(susun_engine::ActionProgress {
+                        operation: EngineProgressOperation::PushImage,
+                        stage: "push".to_owned(),
+                        current: event
+                            .progress_detail
+                            .as_ref()
+                            .and_then(|detail| detail.current)
+                            .and_then(|value| u64::try_from(value).ok()),
+                        total: event
+                            .progress_detail
+                            .as_ref()
+                            .and_then(|detail| detail.total)
+                            .and_then(|value| u64::try_from(value).ok()),
+                        message: event.status.as_deref().map(redact_sensitive_text),
+                    })
+                    .await;
+            }
+            Ok(ImagePushResult {
+                schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                image: request.image().clone(),
+                digest: None,
+            })
         })
     }
 
@@ -1053,6 +1161,30 @@ fn non_negative(value: Option<i64>) -> Option<u64> {
     value.and_then(|value| u64::try_from(value).ok())
 }
 
+fn split_repository_tag(
+    reference: &str,
+    operation: EngineOperation,
+) -> Result<(&str, &str), EngineError> {
+    if reference.contains('@') {
+        return Err(EngineError::InvalidRequest {
+            operation,
+            detail: "digest references cannot be used as tag targets",
+        });
+    }
+    let slash = reference.rfind('/');
+    let colon = reference.rfind(':');
+    match colon.filter(|colon| slash.is_none_or(|slash| *colon > slash)) {
+        Some(colon) if colon > 0 && colon + 1 < reference.len() => {
+            Ok((&reference[..colon], &reference[colon + 1..]))
+        }
+        _ if !reference.is_empty() => Ok((reference, "latest")),
+        _ => Err(EngineError::InvalidRequest {
+            operation,
+            detail: "image reference must not be empty",
+        }),
+    }
+}
+
 fn labels_to_hashmap(labels: IndexMap<LabelKey, LabelValue>) -> HashMap<String, String> {
     labels
         .into_iter()
@@ -1430,5 +1562,31 @@ mod inventory_tests {
             vec!["io.susun.project-instance", "secret.example/token"]
         );
         Ok(())
+    }
+
+    #[test]
+    fn artifact_reference_parser_handles_registry_ports_and_default_tags() -> Result<(), EngineError>
+    {
+        assert_eq!(
+            split_repository_tag("localhost:5000/team/app:v2", EngineOperation::TagImage)?,
+            ("localhost:5000/team/app", "v2")
+        );
+        assert_eq!(
+            split_repository_tag("team/app", EngineOperation::PushImage)?,
+            ("team/app", "latest")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn artifact_reference_parser_rejects_digest_targets() {
+        let result = split_repository_tag("team/app@sha256:0123", EngineOperation::TagImage);
+        assert!(matches!(
+            result,
+            Err(EngineError::InvalidRequest {
+                operation: EngineOperation::TagImage,
+                ..
+            })
+        ));
     }
 }

@@ -24,6 +24,12 @@ pub enum EngineOperation {
     EngineInformation,
     /// Pull image.
     PullImage,
+    /// Remove image.
+    RemoveImage,
+    /// Tag image.
+    TagImage,
+    /// Push image.
+    PushImage,
     /// Create network.
     CreateNetwork,
     /// Remove network.
@@ -65,6 +71,9 @@ impl fmt::Display for EngineOperation {
             Self::ImageInventory => "image inventory",
             Self::EngineInformation => "engine information",
             Self::PullImage => "pull image",
+            Self::RemoveImage => "remove image",
+            Self::TagImage => "tag image",
+            Self::PushImage => "push image",
             Self::CreateNetwork => "create network",
             Self::RemoveNetwork => "remove network",
             Self::CreateVolume => "create volume",
@@ -319,6 +328,14 @@ pub enum EngineError {
         /// Capability key.
         capability: &'static str,
     },
+    /// Invalid operation request.
+    #[error("invalid engine {operation} request: {detail}")]
+    InvalidRequest {
+        /// Operation that rejected the request.
+        operation: EngineOperation,
+        /// Display-safe validation detail.
+        detail: &'static str,
+    },
     /// Resource conflict.
     #[error("engine resource conflict for {resource}: {detail}")]
     Conflict {
@@ -361,6 +378,9 @@ impl EngineError {
             Self::Connection(error) => error.redacted_message(),
             Self::Api { operation, .. } => format!("engine {operation} failed"),
             Self::Unsupported { capability } => format!("engine does not support {capability}"),
+            Self::InvalidRequest { operation, detail } => {
+                format!("invalid engine {operation} request: {detail}")
+            }
             Self::Conflict { resource, .. } => {
                 format!("engine resource conflict for {resource}")
             }

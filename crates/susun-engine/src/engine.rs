@@ -7,10 +7,11 @@ use crate::{
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
     CreateVolumeRequest, EngineCapabilities, EngineContainerInventory, EngineContainerSummary,
     EngineError, EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
-    EngineSnapshot, EventsRequest, ExecRequest, LogsRequest, NetworkRef, PortRequest, ProgressSink,
-    ProjectIdentity, PruneReport, PruneRequest, PublishedPortBinding, PullImageRequest,
-    RemoveContainerOptions, StopContainerRequest, VolumeRef, WaitContainerRequest,
-    WaitContainerResult,
+    EngineSnapshot, EventsRequest, ExecRequest, ImagePushRequest, ImagePushResult,
+    ImageRemoveRequest, ImageRemoveResult, ImageTagRequest, ImageTagResult, LogsRequest,
+    NetworkRef, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
+    PublishedPortBinding, PullImageRequest, RemoveContainerOptions, StopContainerRequest,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
 /// Boxed engine future.
@@ -78,6 +79,38 @@ pub trait ContainerEngine: Send + Sync {
         request: PullImageRequest,
         progress: ProgressSink,
     ) -> BoxEngineFuture<'_, EngineImageRef>;
+
+    /// Removes an image or tag from the selected engine.
+    fn remove_image(&self, _request: ImageRemoveRequest) -> BoxEngineFuture<'_, ImageRemoveResult> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "image removal",
+            })
+        })
+    }
+
+    /// Adds a tag to an existing image.
+    fn tag_image(&self, _request: ImageTagRequest) -> BoxEngineFuture<'_, ImageTagResult> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "image tagging",
+            })
+        })
+    }
+
+    /// Pushes an image anonymously. Credential-backed pushes use the separate
+    /// registry credential boundary introduced in the next SDK stage.
+    fn push_image(
+        &self,
+        _request: ImagePushRequest,
+        _progress: ProgressSink,
+    ) -> BoxEngineFuture<'_, ImagePushResult> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "registry push",
+            })
+        })
+    }
 
     /// Creates a network.
     fn create_network(&self, request: CreateNetworkRequest) -> BoxEngineFuture<'_, NetworkRef>;

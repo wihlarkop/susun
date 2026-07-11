@@ -3,15 +3,17 @@
 use std::time::SystemTime;
 
 use susun_engine::{
-    BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream, BoxLogStream, ContainerEngine,
-    ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
-    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineCapabilities,
-    EngineContainerInventory, EngineContainerSummary, EngineError, EngineImageInventory,
-    EngineImageRef, EngineImageSummary, EngineInformation, EngineInventorySchemaVersion,
-    EngineOperation, EngineSnapshot, EventsRequest, ExecRequest, LogsRequest, NetworkId,
-    NetworkRef, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
-    PublishedPortBinding, PullImageRequest, RemoveContainerOptions, ResourceIdentity,
-    StopContainerRequest, VolumeId, VolumeRef, WaitContainerRequest, WaitContainerResult,
+    ArtifactMutationSchemaVersion, BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream,
+    BoxLogStream, ContainerEngine, ContainerId, ContainerRef, CopyFromContainerRequest,
+    CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
+    EngineCapabilities, EngineContainerInventory, EngineContainerSummary, EngineError,
+    EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
+    EngineInventorySchemaVersion, EngineOperation, EngineProgressOperation, EngineSnapshot,
+    EventsRequest, ExecRequest, ImagePushRequest, ImagePushResult, ImageRemoveRequest,
+    ImageRemoveResult, ImageTagRequest, ImageTagResult, LogsRequest, NetworkId, NetworkRef,
+    PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest, PublishedPortBinding,
+    PullImageRequest, RemoveContainerOptions, ResourceIdentity, StopContainerRequest, VolumeId,
+    VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
 /// In-memory engine that can fail selected operations.
@@ -90,6 +92,8 @@ impl ContainerEngine for FakeContainerEngine {
                 capabilities.supports_container_inventory = susun_engine::SupportLevel::Supported;
                 capabilities.supports_image_inventory = susun_engine::SupportLevel::Supported;
                 capabilities.supports_engine_information = susun_engine::SupportLevel::Supported;
+                capabilities.supports_image_management = susun_engine::SupportLevel::Supported;
+                capabilities.supports_registry_push = susun_engine::SupportLevel::SupportedSubset;
                 Ok(capabilities)
             }
         })
@@ -218,6 +222,74 @@ impl ContainerEngine for FakeContainerEngine {
                     reference: request.image.as_str().to_owned(),
                 })
             }
+        })
+    }
+
+    fn remove_image(&self, request: ImageRemoveRequest) -> BoxEngineFuture<'_, ImageRemoveResult> {
+        let fail = self.should_fail(EngineOperation::RemoveImage);
+        Box::pin(async move {
+            if fail {
+                Err(fake_error(EngineOperation::RemoveImage))
+            } else {
+                Ok(ImageRemoveResult {
+                    schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                    deleted: request
+                        .image()
+                        .as_str()
+                        .starts_with("sha256:")
+                        .then(|| susun_engine::ImageId::new(request.image().as_str().to_owned()))
+                        .transpose()
+                        .map_err(|error| EngineError::api(EngineOperation::RemoveImage, error))?
+                        .into_iter()
+                        .collect(),
+                    untagged: (!request.image().as_str().starts_with("sha256:"))
+                        .then(|| susun_model::ImageRef::new(request.image().as_str().to_owned()))
+                        .into_iter()
+                        .collect(),
+                })
+            }
+        })
+    }
+
+    fn tag_image(&self, request: ImageTagRequest) -> BoxEngineFuture<'_, ImageTagResult> {
+        let fail = self.should_fail(EngineOperation::TagImage);
+        Box::pin(async move {
+            if fail {
+                Err(fake_error(EngineOperation::TagImage))
+            } else {
+                Ok(ImageTagResult {
+                    schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                    source: request.source().clone(),
+                    target: request.target().clone(),
+                })
+            }
+        })
+    }
+
+    fn push_image(
+        &self,
+        request: ImagePushRequest,
+        progress: ProgressSink,
+    ) -> BoxEngineFuture<'_, ImagePushResult> {
+        let fail = self.should_fail(EngineOperation::PushImage);
+        Box::pin(async move {
+            if fail {
+                return Err(fake_error(EngineOperation::PushImage));
+            }
+            progress
+                .emit(susun_engine::ActionProgress {
+                    operation: EngineProgressOperation::PushImage,
+                    stage: "push".to_owned(),
+                    current: Some(1),
+                    total: Some(1),
+                    message: None,
+                })
+                .await;
+            Ok(ImagePushResult {
+                schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                image: request.image().clone(),
+                digest: None,
+            })
         })
     }
 
@@ -415,6 +487,9 @@ fn operation_capability(operation: EngineOperation) -> &'static str {
         EngineOperation::ImageInventory => "image inventory",
         EngineOperation::EngineInformation => "engine information",
         EngineOperation::PullImage => "pull image",
+        EngineOperation::RemoveImage => "remove image",
+        EngineOperation::TagImage => "tag image",
+        EngineOperation::PushImage => "push image",
         EngineOperation::CreateNetwork => "create network",
         EngineOperation::RemoveNetwork => "remove network",
         EngineOperation::CreateVolume => "create volume",

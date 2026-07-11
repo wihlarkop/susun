@@ -51,6 +51,8 @@ impl std::fmt::Debug for ProgressSink {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ActionProgress {
+    /// Stable operation kind.
+    pub operation: EngineProgressOperation,
     /// Stable progress stage.
     pub stage: String,
     /// Optional current units.
@@ -59,6 +61,17 @@ pub struct ActionProgress {
     pub total: Option<u64>,
     /// Redacted message.
     pub message: Option<String>,
+}
+
+/// Stable engine operation identity attached to progress events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub enum EngineProgressOperation {
+    /// Image pull.
+    PullImage,
+    /// Image push.
+    PushImage,
 }
 
 /// Docker-compatible endpoint selected for an adapter. Constructing one

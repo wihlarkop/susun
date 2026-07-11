@@ -1530,6 +1530,7 @@ dependencies = [
  "indexmap",
  "susun-engine",
  "susun-model",
+ "susun-secret",
  "susun-testkit",
  "thiserror",
  "tokio",

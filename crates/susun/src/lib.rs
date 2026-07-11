@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize, de::Error as _};
 use thiserror::Error;
 
 pub mod analyzer;
+pub mod artifacts;
 pub mod inventory;
 pub mod planning;
 pub mod profiles;
@@ -17,6 +18,11 @@ pub mod status;
 pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
+pub use artifacts::{
+    BuildResultSummary, parse_build_result_summary_json, parse_image_push_result_json,
+    parse_image_remove_result_json, parse_image_tag_result_json, render_build_result_summary_json,
+    render_image_push_result_json, render_image_remove_result_json, render_image_tag_result_json,
+};
 pub use inventory::{
     parse_engine_container_inventory_json, parse_engine_image_inventory_json,
     parse_engine_information_json, render_engine_container_inventory_json,
@@ -56,24 +62,30 @@ pub use status::{
     parse_runtime_status_summary_json, render_runtime_overview_json,
     render_runtime_status_summary_json, runtime_overview, runtime_status_from_snapshot,
 };
-#[cfg(feature = "watch")]
-pub use susun_build::Dockerignore;
+pub use susun_build::{
+    BuildCancellationToken, BuildCapabilities, BuildEngine, BuildError, BuildEvent, BuildEventSink,
+    BuildId, BuildImageIdentity, BuildInputManifest, BuildLogStream, BuildOperation, BuildProgress,
+    BuildRequest, BuildResult, BuildSecret, BuildSshForward, BuildVertexId, BuildVertexStatus,
+    CacheEntry, Dockerignore, InsecureEntitlements,
+};
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
-    ClientIdentityFiles, ContainerEngine, ContainerId, ContainerRef, ContainerState,
-    CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, EngineArchitecture,
-    EngineCapabilities, EngineConnectionDisplayName, EngineConnectionError,
-    EngineConnectionProfile, EngineConnectionProfileError, EngineConnectionProfileId,
-    EngineConnectionProfileSet, EngineContainerInventory, EngineContainerSummary, EngineEndpoint,
-    EngineEndpointKind, EngineError, EngineEvent, EngineImageInventory, EngineImageSummary,
-    EngineInformation, EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation,
-    EngineProbe, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId,
-    LogEvent, LogSource, LogsRequest, ObservedContainer, ObservedImageRef, Platform, PortRequest,
-    ProjectIdentity, ProjectInstanceId, PruneReport, PruneRequest, PruneScope,
-    PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions, ReplicaIndex, ResourceName,
-    RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId, SnapshotCompleteness,
-    SnapshotField, StopContainerRequest, SupportLevel, TcpEndpoint, TlsConfiguration,
-    WaitContainerRequest, WaitContainerResult,
+    ActionProgress, ArtifactMutationSchemaVersion, ClientIdentityFiles, ContainerEngine,
+    ContainerId, ContainerRef, ContainerState, CopyFromContainerRequest, CopyToContainerRequest,
+    CreateContainerRequest, EngineArchitecture, EngineCapabilities, EngineConnectionDisplayName,
+    EngineConnectionError, EngineConnectionProfile, EngineConnectionProfileError,
+    EngineConnectionProfileId, EngineConnectionProfileSet, EngineContainerInventory,
+    EngineContainerSummary, EngineEndpoint, EngineEndpointKind, EngineError, EngineEvent,
+    EngineImageInventory, EngineImageSummary, EngineInformation, EngineInventorySchemaVersion,
+    EngineOperatingSystem, EngineOperation, EngineProbe, EngineProgressOperation, EngineSnapshot,
+    EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId, ImagePushRequest,
+    ImagePushResult, ImageRemoveRequest, ImageRemoveResult, ImageSelector, ImageTagRequest,
+    ImageTagResult, LogEvent, LogSource, LogsRequest, ObservedContainer, ObservedImageRef,
+    Platform, PortRequest, ProgressSink, ProjectIdentity, ProjectInstanceId, PruneReport,
+    PruneRequest, PruneScope, PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions,
+    ReplicaIndex, ResourceName, RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId,
+    SnapshotCompleteness, SnapshotField, StopContainerRequest, SupportLevel, TcpEndpoint,
+    TlsConfiguration, WaitContainerRequest, WaitContainerResult,
 };
 pub use susun_graph::DependencyGraph;
 pub use susun_loader::LoadContext;
