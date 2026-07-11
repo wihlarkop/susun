@@ -2,7 +2,10 @@
 
 use serde::{Deserialize, Serialize, de::Error as _};
 
-use crate::{ArtifactMutationSchemaVersion, ImagePushResult, ImageRemoveResult, ImageTagResult};
+use crate::{
+    ArtifactMutationSchemaVersion, CleanupPreview, CleanupPreviewSchemaVersion, ImagePushResult,
+    ImageRemoveResult, ImageTagResult,
+};
 
 /// Display-safe build result for local APIs and persistence.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,4 +73,21 @@ fn validate_schema(version: ArtifactMutationSchemaVersion) -> Result<(), serde_j
         )));
     }
     Ok(())
+}
+
+/// Renders a cleanup preview as pretty JSON.
+pub fn render_cleanup_preview_json(value: &CleanupPreview) -> Result<String, serde_json::Error> {
+    serde_json::to_string_pretty(value)
+}
+
+/// Parses and validates cleanup preview JSON.
+pub fn parse_cleanup_preview_json(input: &str) -> Result<CleanupPreview, serde_json::Error> {
+    let value: CleanupPreview = serde_json::from_str(input)?;
+    if value.schema_version != CleanupPreviewSchemaVersion::CURRENT {
+        return Err(serde_json::Error::custom(format!(
+            "unsupported cleanup preview schema version {}.{}",
+            value.schema_version.major, value.schema_version.minor
+        )));
+    }
+    Ok(value)
 }

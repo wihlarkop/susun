@@ -1,0 +1,19 @@
+{
+  "schema_version": { "major": 1, "minor": 0 },
+  "semver_target": "0.2.0",
+  "status": "ready_for_studio_integration",
+  "capabilities": [
+    { "name": "engine_inventory", "support": "supported" },
+    { "name": "artifact_mutation", "support": "supported" },
+    { "name": "registry_credential_boundary", "support": "supported" },
+    { "name": "cleanup_preview", "support": "supported_subset" }
+  ],
+  "adapter_fixtures": [
+    "docker-desktop-data-usage.json",
+    "podman-data-usage.json"
+  ],
+  "limitations": [
+    "Network reclaim estimates are unavailable through Docker-compatible data-usage APIs.",
+    "Dangling-only image reclaim bytes are unavailable when the engine reports only all-unused totals."
+  ]
+}

@@ -3,15 +3,15 @@
 use std::{future::Future, pin::Pin};
 
 use crate::{
-    BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream, ContainerRef,
+    BoxByteStream, BoxEventStream, BoxExecStream, BoxLogStream, CleanupPreview, ContainerRef,
     CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest,
     CreateVolumeRequest, EngineCapabilities, EngineContainerInventory, EngineContainerSummary,
     EngineError, EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
     EngineSnapshot, EventsRequest, ExecRequest, ImagePushRequest, ImagePushResult,
     ImageRemoveRequest, ImageRemoveResult, ImageTagRequest, ImageTagResult, LogsRequest,
     NetworkRef, PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest,
-    PublishedPortBinding, PullImageRequest, RemoveContainerOptions, StopContainerRequest,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    PublishedPortBinding, PullImageRequest, RegistryAuthMaterial, RemoveContainerOptions,
+    StopContainerRequest, VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
 /// Boxed engine future.
@@ -115,6 +115,20 @@ pub trait ContainerEngine: Send + Sync {
     /// Creates a network.
     fn create_network(&self, request: CreateNetworkRequest) -> BoxEngineFuture<'_, NetworkRef>;
 
+    /// Pushes an image with ephemeral credentials.
+    fn push_image_authenticated(
+        &self,
+        _request: ImagePushRequest,
+        _auth: RegistryAuthMaterial,
+        _progress: ProgressSink,
+    ) -> BoxEngineFuture<'_, ImagePushResult> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "authenticated registry push",
+            })
+        })
+    }
+
     /// Removes a network.
     fn remove_network(&self, id: NetworkRef) -> BoxEngineFuture<'_, ()>;
 
@@ -175,4 +189,13 @@ pub trait ContainerEngine: Send + Sync {
     /// project — it can remove containers, networks, volumes, and images
     /// belonging to ANY project or tool on the host engine.
     fn prune(&self, request: PruneRequest) -> BoxEngineFuture<'_, PruneReport>;
+
+    /// Collects a non-destructive cleanup preview. This never performs prune.
+    fn cleanup_preview(&self, _request: PruneRequest) -> BoxEngineFuture<'_, CleanupPreview> {
+        Box::pin(async {
+            Err(EngineError::Unsupported {
+                capability: "cleanup preview",
+            })
+        })
+    }
 }

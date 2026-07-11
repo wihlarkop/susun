@@ -3,7 +3,9 @@
 use std::{collections::HashMap, time::SystemTime};
 
 use bollard::{
-    Docker, body_full,
+    Docker,
+    auth::DockerCredentials,
+    body_full,
     container::LogOutput,
     exec::{CreateExecOptions, StartExecOptions, StartExecResults},
     models::{
@@ -12,34 +14,36 @@ use bollard::{
         PortMap, RestartPolicy, RestartPolicyNameEnum, VolumeCreateRequest,
     },
     query_parameters::{
-        CreateContainerOptionsBuilder, CreateImageOptionsBuilder,
+        CreateContainerOptionsBuilder, CreateImageOptionsBuilder, DataUsageOptions,
         DownloadFromContainerOptionsBuilder, EventsOptionsBuilder, InspectContainerOptionsBuilder,
         ListContainersOptionsBuilder, ListImagesOptionsBuilder, ListNetworksOptionsBuilder,
-        ListVolumesOptionsBuilder, LogsOptionsBuilder, PushImageOptionsBuilder,
-        RemoveContainerOptionsBuilder, RemoveImageOptionsBuilder, RemoveVolumeOptionsBuilder,
-        StopContainerOptionsBuilder, TagImageOptionsBuilder, UploadToContainerOptionsBuilder,
-        WaitContainerOptions,
+        ListVolumesOptionsBuilder, LogsOptionsBuilder, PruneBuildOptionsBuilder,
+        PushImageOptionsBuilder, RemoveContainerOptionsBuilder, RemoveImageOptionsBuilder,
+        RemoveVolumeOptionsBuilder, StopContainerOptionsBuilder, TagImageOptionsBuilder,
+        UploadToContainerOptionsBuilder, WaitContainerOptions,
     },
 };
 use futures_util::StreamExt;
 use indexmap::IndexMap;
 use susun_engine::{
     ArtifactMutationSchemaVersion, BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream,
-    BoxLogStream, ContainerEngine, ContainerId, ContainerRef, CopyFromContainerRequest,
-    CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
-    EngineApiVersion, EngineArchitecture, EngineCapabilities, EngineConnectionError,
-    EngineConnectionProfile, EngineContainerInventory, EngineContainerSummary, EngineEndpoint,
-    EngineError, EngineEvent, EngineImageInventory, EngineImageRef, EngineImageSummary,
-    EngineInformation, EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation,
-    EngineProbe, EngineProgressOperation, EngineSnapshot, EngineVersion, EventsRequest,
-    ExecRequest, HealthState, ImageId, ImagePushRequest, ImagePushResult, ImageRemoveRequest,
-    ImageRemoveResult, ImageTagRequest, ImageTagResult, LabelKey, LabelValue, LogEvent, LogSource,
-    LogsRequest, MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer,
-    ObservedImage, ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink,
-    ProjectIdentity, PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
-    RedactedEndpoint, ReplicaIndex, ResourceIdentity, ResourceName, RuntimeDoctorReport,
-    ServiceInstanceId, SnapshotCompleteness, StopContainerRequest, SupportLevel, VolumeId,
-    VolumeRef, WaitContainerRequest, WaitContainerResult,
+    BoxLogStream, CleanupPreview, CleanupPreviewSchemaVersion, CleanupScopePreview,
+    ContainerEngine, ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
+    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineApiVersion,
+    EngineArchitecture, EngineCapabilities, EngineConnectionError, EngineConnectionProfile,
+    EngineContainerInventory, EngineContainerSummary, EngineEndpoint, EngineError, EngineEvent,
+    EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
+    EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation, EngineProbe,
+    EngineProgressOperation, EngineSnapshot, EngineVersion, EventsRequest, ExecRequest,
+    HealthState, ImageId, ImagePushRequest, ImagePushResult, ImageRemoveRequest, ImageRemoveResult,
+    ImageTagRequest, ImageTagResult, LabelKey, LabelValue, LogEvent, LogSource, LogsRequest,
+    MountType as EngineMountType, NetworkId, NetworkRef, ObservedContainer, ObservedImage,
+    ObservedImageRef, ObservedNetwork, ObservedVolume, PortRequest, ProgressSink, ProjectIdentity,
+    PruneReport, PruneRequest, PruneScope, PublishedPortBinding, PullImageRequest,
+    ReclaimEstimateKind, RedactedEndpoint, RegistryAuthMaterial, ReplicaIndex, ResourceIdentity,
+    ResourceName, RuntimeDoctorReport, ServiceInstanceId, SnapshotCompleteness,
+    StopContainerRequest, SupportLevel, VolumeId, VolumeRef, WaitContainerRequest,
+    WaitContainerResult,
 };
 use susun_model::{
     Command, Healthcheck, NetworkAttachment, PublishedPort,
@@ -216,8 +220,9 @@ impl ContainerEngine for BollardEngine {
                 supports_image_management: SupportLevel::Supported,
                 supports_registry_pull: SupportLevel::Supported,
                 supports_registry_push: SupportLevel::SupportedSubset,
-                supports_build_cache: SupportLevel::Unsupported,
-                supports_cleanup_preview: SupportLevel::Unsupported,
+                supports_registry_auth: SupportLevel::Supported,
+                supports_build_cache: SupportLevel::Supported,
+                supports_cleanup_preview: SupportLevel::SupportedSubset,
                 max_container_name_length: Some(255),
             })
         })
@@ -618,6 +623,66 @@ impl ContainerEngine for BollardEngine {
                 schema_version: ArtifactMutationSchemaVersion::CURRENT,
                 image: request.image().clone(),
                 digest: None,
+                credential_ref: None,
+            })
+        })
+    }
+
+    fn push_image_authenticated(
+        &self,
+        request: ImagePushRequest,
+        auth: RegistryAuthMaterial,
+        progress: ProgressSink,
+    ) -> BoxEngineFuture<'_, ImagePushResult> {
+        Box::pin(async move {
+            let credential_ref = request.credential_ref().cloned();
+            let credentials = DockerCredentials {
+                username: auth.username().map(str::to_owned),
+                password: auth.password().map(str::to_owned),
+                serveraddress: auth.server_address().map(str::to_owned),
+                identitytoken: auth.identity_token_value().map(str::to_owned),
+                registrytoken: auth.registry_token_value().map(str::to_owned),
+                ..Default::default()
+            };
+            let (repository, tag) =
+                split_repository_tag(request.image().as_str(), EngineOperation::PushImage)?;
+            let mut stream = self.docker.push_image(
+                repository,
+                Some(PushImageOptionsBuilder::default().tag(tag).build()),
+                Some(credentials),
+            );
+            while let Some(item) = stream.next().await {
+                let event = item.map_err(|_| EngineError::Authentication {
+                    registry: "<registry>".to_owned(),
+                })?;
+                if event.error_detail.is_some() {
+                    return Err(EngineError::Authentication {
+                        registry: "<registry>".to_owned(),
+                    });
+                }
+                progress
+                    .emit(susun_engine::ActionProgress {
+                        operation: EngineProgressOperation::PushImage,
+                        stage: "push".to_owned(),
+                        current: event
+                            .progress_detail
+                            .as_ref()
+                            .and_then(|detail| detail.current)
+                            .and_then(|value| u64::try_from(value).ok()),
+                        total: event
+                            .progress_detail
+                            .as_ref()
+                            .and_then(|detail| detail.total)
+                            .and_then(|value| u64::try_from(value).ok()),
+                        message: event.status.as_deref().map(redact_sensitive_text),
+                    })
+                    .await;
+            }
+            Ok(ImagePushResult {
+                schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                image: request.image().clone(),
+                digest: None,
+                credential_ref,
             })
         })
     }
@@ -975,6 +1040,86 @@ impl ContainerEngine for BollardEngine {
         })
     }
 
+    fn cleanup_preview(&self, request: PruneRequest) -> BoxEngineFuture<'_, CleanupPreview> {
+        Box::pin(async move {
+            let usage = self
+                .docker
+                .df(None::<DataUsageOptions>)
+                .await
+                .map_err(|error| EngineError::api(EngineOperation::Prune, error))?;
+            let scopes = request
+                .scopes
+                .iter()
+                .copied()
+                .map(|scope| match scope {
+                    PruneScope::Containers => usage.container_usage.as_ref().map_or_else(
+                        || unavailable_cleanup_scope(scope),
+                        |value| {
+                            aggregate_cleanup_scope(
+                                scope,
+                                value.total_count,
+                                value.active_count,
+                                value.reclaimable,
+                                ReclaimEstimateKind::Exact,
+                            )
+                        },
+                    ),
+                    PruneScope::Volumes => usage.volume_usage.as_ref().map_or_else(
+                        || unavailable_cleanup_scope(scope),
+                        |value| {
+                            aggregate_cleanup_scope(
+                                scope,
+                                value.total_count,
+                                value.active_count,
+                                value.reclaimable,
+                                ReclaimEstimateKind::Exact,
+                            )
+                        },
+                    ),
+                    PruneScope::Images => usage.image_usage.as_ref().map_or_else(
+                        || unavailable_cleanup_scope(scope),
+                        |value| {
+                            aggregate_cleanup_scope(
+                                scope,
+                                value.total_count,
+                                value.active_count,
+                                if request.all_images {
+                                    value.reclaimable
+                                } else {
+                                    None
+                                },
+                                if request.all_images {
+                                    ReclaimEstimateKind::Exact
+                                } else {
+                                    ReclaimEstimateKind::Unavailable
+                                },
+                            )
+                        },
+                    ),
+                    PruneScope::BuildCache => usage.build_cache_usage.as_ref().map_or_else(
+                        || unavailable_cleanup_scope(scope),
+                        |value| {
+                            aggregate_cleanup_scope(
+                                scope,
+                                value.total_count,
+                                value.active_count,
+                                value.reclaimable,
+                                ReclaimEstimateKind::Exact,
+                            )
+                        },
+                    ),
+                    PruneScope::Networks => unavailable_cleanup_scope(scope),
+                })
+                .collect();
+            Ok(CleanupPreview {
+                schema_version: CleanupPreviewSchemaVersion::CURRENT,
+                observed_at_epoch_seconds: unix_timestamp_now(),
+                request,
+                scopes,
+            })
+        })
+    }
+
     fn prune(&self, request: PruneRequest) -> BoxEngineFuture<'_, PruneReport> {
         Box::pin(async move {
             let mut report = PruneReport::default();
@@ -1053,6 +1198,18 @@ impl ContainerEngine for BollardEngine {
                                 .filter_map(|item| item.deleted.or(item.untagged))
                                 .filter_map(|id| ImageId::new(id).ok()),
                         );
+                        report.space_reclaimed_bytes +=
+                            u64::try_from(response.space_reclaimed.unwrap_or(0)).unwrap_or(0);
+                    }
+                    PruneScope::BuildCache => {
+                        let response = self
+                            .docker
+                            .prune_build(Some(PruneBuildOptionsBuilder::default().build()))
+                            .await
+                            .map_err(|error| EngineError::api(EngineOperation::Prune, error))?;
+                        report
+                            .build_cache_records_removed
+                            .extend(response.caches_deleted.unwrap_or_default());
                         report.space_reclaimed_bytes +=
                             u64::try_from(response.space_reclaimed.unwrap_or(0)).unwrap_or(0);
                     }
@@ -1155,6 +1312,35 @@ fn unix_timestamp_now() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .map_or(0, |duration| duration.as_secs())
+}
+
+fn aggregate_cleanup_scope(
+    scope: PruneScope,
+    total_count: Option<i64>,
+    active_count: Option<i64>,
+    reclaimable: Option<i64>,
+    estimate_kind: ReclaimEstimateKind,
+) -> CleanupScopePreview {
+    let candidate_count = total_count
+        .zip(active_count)
+        .and_then(|(total, active)| u64::try_from(total.saturating_sub(active)).ok());
+    CleanupScopePreview {
+        scope,
+        support: SupportLevel::SupportedSubset,
+        candidate_count,
+        reclaimable_bytes: non_negative(reclaimable),
+        estimate_kind,
+    }
+}
+
+fn unavailable_cleanup_scope(scope: PruneScope) -> CleanupScopePreview {
+    CleanupScopePreview {
+        scope,
+        support: SupportLevel::Unsupported,
+        candidate_count: None,
+        reclaimable_bytes: None,
+        estimate_kind: ReclaimEstimateKind::Unavailable,
+    }
 }
 
 fn non_negative(value: Option<i64>) -> Option<u64> {
@@ -1588,5 +1774,47 @@ mod inventory_tests {
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn cleanup_aggregate_reports_only_inactive_candidates() {
+        let preview = aggregate_cleanup_scope(
+            PruneScope::Containers,
+            Some(7),
+            Some(3),
+            Some(4096),
+            ReclaimEstimateKind::Exact,
+        );
+        assert_eq!(preview.candidate_count, Some(4));
+        assert_eq!(preview.reclaimable_bytes, Some(4096));
+        assert_eq!(preview.estimate_kind, ReclaimEstimateKind::Exact);
+    }
+
+    #[test]
+    fn unsupported_cleanup_scope_never_invents_an_estimate() {
+        let preview = unavailable_cleanup_scope(PruneScope::Networks);
+        assert_eq!(preview.support, SupportLevel::Unsupported);
+        assert_eq!(preview.candidate_count, None);
+        assert_eq!(preview.reclaimable_bytes, None);
+        assert_eq!(preview.estimate_kind, ReclaimEstimateKind::Unavailable);
+    }
+
+    #[test]
+    fn docker_desktop_and_podman_usage_fixtures_preserve_missing_evidence()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let docker: bollard::models::SystemDataUsageResponse = serde_json::from_str(include_str!(
+            "../tests/fixtures/docker-desktop-data-usage.json"
+        ))?;
+        let podman: bollard::models::SystemDataUsageResponse =
+            serde_json::from_str(include_str!("../tests/fixtures/podman-data-usage.json"))?;
+
+        assert_eq!(
+            docker.build_cache_usage.and_then(|usage| usage.reclaimable),
+            Some(65536)
+        );
+        assert!(podman.build_cache_usage.is_none());
+        assert!(podman.volume_usage.is_none());
+        assert_eq!(podman.image_usage.and_then(|usage| usage.reclaimable), None);
+        Ok(())
     }
 }

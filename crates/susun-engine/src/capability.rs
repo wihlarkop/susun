@@ -97,6 +97,9 @@ pub struct EngineCapabilities {
     /// Registry image push capability.
     #[cfg_attr(feature = "serde", serde(default))]
     pub supports_registry_push: SupportLevel,
+    /// Credential-backed registry operations.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub supports_registry_auth: SupportLevel,
     /// Build-cache inventory and cleanup capability.
     #[cfg_attr(feature = "serde", serde(default))]
     pub supports_build_cache: SupportLevel,
@@ -124,6 +127,7 @@ impl EngineCapabilities {
             supports_image_management: SupportLevel::Unsupported,
             supports_registry_pull: SupportLevel::Unknown,
             supports_registry_push: SupportLevel::Unsupported,
+            supports_registry_auth: SupportLevel::Unsupported,
             supports_build_cache: SupportLevel::Unsupported,
             supports_cleanup_preview: SupportLevel::Unsupported,
             max_container_name_length: None,
@@ -150,6 +154,7 @@ impl EngineCapabilities {
             supports_image_management: SupportLevel::Unsupported,
             supports_registry_pull: SupportLevel::Supported,
             supports_registry_push: SupportLevel::Unsupported,
+            supports_registry_auth: SupportLevel::Unsupported,
             supports_build_cache: SupportLevel::Unsupported,
             supports_cleanup_preview: SupportLevel::Unsupported,
             max_container_name_length: Some(255),

@@ -1,0 +1,6 @@
+{
+  "ImageUsage": { "ActiveCount": 2, "TotalCount": 5, "Reclaimable": 1048576, "TotalSize": 8388608 },
+  "ContainerUsage": { "ActiveCount": 1, "TotalCount": 3, "Reclaimable": 4096, "TotalSize": 16384 },
+  "VolumeUsage": { "ActiveCount": 1, "TotalCount": 2, "Reclaimable": 8192, "TotalSize": 32768 },
+  "BuildCacheUsage": { "ActiveCount": 1, "TotalCount": 4, "Reclaimable": 65536, "TotalSize": 131072 }
+}

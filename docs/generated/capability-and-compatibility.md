@@ -146,3 +146,22 @@ Release readiness deferred work:
 - Full remote BuildKit, registry credential, and hosted sync workflows remain future release tracks.
 - Susun Studio integration feedback after 0.1.0 should target the next release line unless it blocks manual publication.
 - CLI end-user polish beyond stable summary and plan surfaces remains a later usability track.
+
+## Studio SDK Readiness
+
+- Schema: 1.0
+- Semver target: 0.2.0
+- Status: ready_for_studio_integration
+
+| Capability | Support |
+| --- | --- |
+| engine_inventory | supported |
+| artifact_mutation | supported |
+| registry_credential_boundary | supported |
+| cleanup_preview | supported_subset |
+
+Adapter fixtures: docker-desktop-data-usage.json, podman-data-usage.json
+
+Known limitations:
+- Network reclaim estimates are unavailable through Docker-compatible data-usage APIs.
+- Dangling-only image reclaim bytes are unavailable when the engine reports only all-unused totals.

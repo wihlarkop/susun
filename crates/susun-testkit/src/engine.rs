@@ -4,15 +4,16 @@ use std::time::SystemTime;
 
 use susun_engine::{
     ArtifactMutationSchemaVersion, BoxByteStream, BoxEngineFuture, BoxEventStream, BoxExecStream,
-    BoxLogStream, ContainerEngine, ContainerId, ContainerRef, CopyFromContainerRequest,
-    CopyToContainerRequest, CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest,
-    EngineCapabilities, EngineContainerInventory, EngineContainerSummary, EngineError,
-    EngineImageInventory, EngineImageRef, EngineImageSummary, EngineInformation,
-    EngineInventorySchemaVersion, EngineOperation, EngineProgressOperation, EngineSnapshot,
-    EventsRequest, ExecRequest, ImagePushRequest, ImagePushResult, ImageRemoveRequest,
-    ImageRemoveResult, ImageTagRequest, ImageTagResult, LogsRequest, NetworkId, NetworkRef,
-    PortRequest, ProgressSink, ProjectIdentity, PruneReport, PruneRequest, PublishedPortBinding,
-    PullImageRequest, RemoveContainerOptions, ResourceIdentity, StopContainerRequest, VolumeId,
+    BoxLogStream, CleanupPreview, CleanupPreviewSchemaVersion, CleanupScopePreview,
+    ContainerEngine, ContainerId, ContainerRef, CopyFromContainerRequest, CopyToContainerRequest,
+    CreateContainerRequest, CreateNetworkRequest, CreateVolumeRequest, EngineCapabilities,
+    EngineContainerInventory, EngineContainerSummary, EngineError, EngineImageInventory,
+    EngineImageRef, EngineImageSummary, EngineInformation, EngineInventorySchemaVersion,
+    EngineOperation, EngineProgressOperation, EngineSnapshot, EventsRequest, ExecRequest,
+    ImagePushRequest, ImagePushResult, ImageRemoveRequest, ImageRemoveResult, ImageTagRequest,
+    ImageTagResult, LogsRequest, NetworkId, NetworkRef, PortRequest, ProgressSink, ProjectIdentity,
+    PruneReport, PruneRequest, PublishedPortBinding, PullImageRequest, ReclaimEstimateKind,
+    RegistryAuthMaterial, RemoveContainerOptions, ResourceIdentity, StopContainerRequest, VolumeId,
     VolumeRef, WaitContainerRequest, WaitContainerResult,
 };
 
@@ -94,6 +95,8 @@ impl ContainerEngine for FakeContainerEngine {
                 capabilities.supports_engine_information = susun_engine::SupportLevel::Supported;
                 capabilities.supports_image_management = susun_engine::SupportLevel::Supported;
                 capabilities.supports_registry_push = susun_engine::SupportLevel::SupportedSubset;
+                capabilities.supports_registry_auth = susun_engine::SupportLevel::Supported;
+                capabilities.supports_cleanup_preview = susun_engine::SupportLevel::SupportedSubset;
                 Ok(capabilities)
             }
         })
@@ -289,6 +292,33 @@ impl ContainerEngine for FakeContainerEngine {
                 schema_version: ArtifactMutationSchemaVersion::CURRENT,
                 image: request.image().clone(),
                 digest: None,
+                credential_ref: None,
+            })
+        })
+    }
+
+    fn push_image_authenticated(
+        &self,
+        request: ImagePushRequest,
+        _auth: RegistryAuthMaterial,
+        progress: ProgressSink,
+    ) -> BoxEngineFuture<'_, ImagePushResult> {
+        let credential_ref = request.credential_ref().cloned();
+        Box::pin(async move {
+            progress
+                .emit(susun_engine::ActionProgress {
+                    operation: EngineProgressOperation::PushImage,
+                    stage: "push".to_owned(),
+                    current: Some(1),
+                    total: Some(1),
+                    message: None,
+                })
+                .await;
+            Ok(ImagePushResult {
+                schema_version: ArtifactMutationSchemaVersion::CURRENT,
+                image: request.image().clone(),
+                digest: None,
+                credential_ref,
             })
         })
     }
@@ -449,6 +479,29 @@ impl ContainerEngine for FakeContainerEngine {
             } else {
                 Ok(PruneReport::default())
             }
+        })
+    }
+
+    fn cleanup_preview(&self, request: PruneRequest) -> BoxEngineFuture<'_, CleanupPreview> {
+        Box::pin(async move {
+            let scopes = request
+                .scopes
+                .iter()
+                .copied()
+                .map(|scope| CleanupScopePreview {
+                    scope,
+                    support: susun_engine::SupportLevel::SupportedSubset,
+                    candidate_count: Some(0),
+                    reclaimable_bytes: Some(0),
+                    estimate_kind: ReclaimEstimateKind::Exact,
+                })
+                .collect();
+            Ok(CleanupPreview {
+                schema_version: CleanupPreviewSchemaVersion::CURRENT,
+                observed_at_epoch_seconds: 0,
+                request,
+                scopes,
+            })
         })
     }
 }

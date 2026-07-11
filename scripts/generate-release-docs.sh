@@ -13,6 +13,7 @@ cp fixtures/compatibility/version-matrix.json "$out_dir/version-matrix.json"
 cp fixtures/compatibility/performance-budgets.json "$out_dir/performance-budgets.json"
 cp fixtures/compatibility/real-world-catalog.json "$out_dir/real-world-catalog.json"
 cp fixtures/compatibility/release-readiness.json "$out_dir/release-readiness.json"
+cp fixtures/compatibility/studio-sdk-readiness.json "$out_dir/studio-sdk-readiness.json"
 
 python - "$out_dir" "$doc_path" <<'PY'
 import json
@@ -29,6 +30,7 @@ versions = json.loads((out_dir / "version-matrix.json").read_text())
 budgets = json.loads((out_dir / "performance-budgets.json").read_text())
 real_world = json.loads((out_dir / "real-world-catalog.json").read_text())
 readiness = json.loads((out_dir / "release-readiness.json").read_text())
+studio_sdk = json.loads((out_dir / "studio-sdk-readiness.json").read_text())
 
 lines = [
     "# Susun Capability and Compatibility Report",
@@ -168,6 +170,27 @@ for gate in readiness["required_gates"]:
 if readiness.get("deferred"):
     lines.extend(["", "Release readiness deferred work:"])
     lines.extend(f"- {item}" for item in readiness["deferred"])
+
+lines.extend([
+    "",
+    "## Studio SDK Readiness",
+    "",
+    f"- Schema: {studio_sdk['schema_version']['major']}.{studio_sdk['schema_version']['minor']}",
+    f"- Semver target: {studio_sdk['semver_target']}",
+    f"- Status: {studio_sdk['status']}",
+    "",
+    "| Capability | Support |",
+    "| --- | --- |",
+])
+for capability in studio_sdk["capabilities"]:
+    lines.append(f"| {capability['name']} | {capability['support']} |")
+lines.extend([
+    "",
+    "Adapter fixtures: " + ", ".join(studio_sdk["adapter_fixtures"]),
+    "",
+    "Known limitations:",
+])
+lines.extend(f"- {item}" for item in studio_sdk["limitations"])
 
 lines.append("")
 doc_path.write_text("\n".join(lines))

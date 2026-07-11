@@ -90,6 +90,7 @@ fn facade_artifact_results_roundtrip_and_reject_future_schema() -> TestResult {
         schema_version: ArtifactMutationSchemaVersion::CURRENT,
         image: susun::ImageRef::new("example/app:new"),
         digest: Some("sha256:def".to_owned()),
+        credential_ref: None,
     };
     let build = BuildResultSummary::from(&BuildResult {
         image: BuildImageIdentity {
@@ -119,5 +120,63 @@ fn facade_artifact_results_roundtrip_and_reject_future_schema() -> TestResult {
     value["schema_version"]["major"] = serde_json::json!(2);
     assert!(parse_image_push_result_json(&value.to_string()).is_err());
     assert!(serde_json::from_str::<ImageSelector>(r#"""#).is_err());
+    Ok(())
+}
+
+#[tokio::test]
+async fn authenticated_push_exposes_only_the_credential_reference() -> TestResult {
+    let secret = "studio-secret-token";
+    let credential_ref = susun::RegistryCredentialRef::new("studio:vault/registry-1")?;
+    let request = ImagePushRequest::new(susun::ImageRef::new("registry.example/app:new"))
+        .with_credential_ref(credential_ref.clone());
+    let request_json = serde_json::to_string(&request)?;
+    assert!(request_json.contains(credential_ref.as_str()));
+    assert!(!request_json.contains(secret));
+
+    let auth =
+        susun::RegistryAuthMaterial::registry_token(secret).with_server_address("registry.example");
+    let debug = format!("{auth:?}");
+    assert!(!debug.contains(secret));
+    assert!(!debug.contains("registry.example"));
+    assert!(debug.contains("[redacted]"));
+
+    let auth_error = susun::EngineError::Authentication {
+        registry: "<registry>".to_owned(),
+    };
+    assert_eq!(
+        auth_error.to_string(),
+        "engine authentication failed for <registry>"
+    );
+    assert!(!format!("{auth_error:?}").contains(secret));
+
+    let result = FakeContainerEngine::new()
+        .push_image_authenticated(request, auth, ProgressSink::discard())
+        .await?;
+    assert_eq!(result.credential_ref, Some(credential_ref));
+    let result_json = render_image_push_result_json(&result)?;
+    assert!(!result_json.contains(secret));
+    Ok(())
+}
+
+#[tokio::test]
+async fn cleanup_preview_is_separate_from_prune_and_roundtrips() -> TestResult {
+    let request = susun::PruneRequest {
+        scopes: vec![
+            susun::PruneScope::Containers,
+            susun::PruneScope::Images,
+            susun::PruneScope::BuildCache,
+        ],
+        all_images: false,
+    };
+    let preview = FakeContainerEngine::new()
+        .cleanup_preview(request.clone())
+        .await?;
+    assert_eq!(preview.request, request);
+    assert_eq!(preview.scopes.len(), 3);
+    let json = susun::render_cleanup_preview_json(&preview)?;
+    assert_eq!(susun::parse_cleanup_preview_json(&json)?, preview);
+    let mut future = serde_json::to_value(&preview)?;
+    future["schema_version"]["major"] = serde_json::json!(2);
+    assert!(susun::parse_cleanup_preview_json(&future.to_string()).is_err());
     Ok(())
 }

@@ -1528,6 +1528,7 @@ dependencies = [
  "bollard",
  "futures-util",
  "indexmap",
+ "serde_json",
  "susun-engine",
  "susun-model",
  "susun-secret",

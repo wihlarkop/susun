@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Added Studio SDK readiness contracts for engine-wide artifact mutation,
+  ephemeral registry authentication, credential references, and typed progress.
+- Added versioned non-destructive cleanup previews with explicit support and
+  reclaim-estimate confidence, including build-cache prune support.
+- Added Studio consumer verification plus Docker Desktop and Podman-compatible
+  data-usage fixtures for the unpublished `0.2.0` development line.
+
 - Added Phase 13 runtime-readiness DTOs for connection profiles and redacted
   doctor reports, plus a Bollard-backed profile doctor helper.
 - Added `susun doctor` to emit a redacted local runtime readiness report.

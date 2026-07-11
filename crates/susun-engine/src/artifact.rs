@@ -5,7 +5,7 @@ use susun_model::ImageRef;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
-use crate::{ImageId, ResourceNameError};
+use crate::{ImageId, RegistryCredentialRef, ResourceNameError};
 
 /// Schema version shared by artifact mutation results.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -166,17 +166,32 @@ pub struct ImageTagResult {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ImagePushRequest {
     image: ImageRef,
+    credential_ref: Option<RegistryCredentialRef>,
 }
 
 impl ImagePushRequest {
     /// Creates an anonymous push request.
     pub fn new(image: ImageRef) -> Self {
-        Self { image }
+        Self {
+            image,
+            credential_ref: None,
+        }
+    }
+
+    /// Selects credentials owned and resolved by the embedding application.
+    pub fn with_credential_ref(mut self, credential_ref: RegistryCredentialRef) -> Self {
+        self.credential_ref = Some(credential_ref);
+        self
     }
 
     /// Returns the image reference to push.
     pub fn image(&self) -> &ImageRef {
         &self.image
+    }
+
+    /// Returns the non-secret credential reference, when authentication is requested.
+    pub fn credential_ref(&self) -> Option<&RegistryCredentialRef> {
+        self.credential_ref.as_ref()
     }
 }
 
@@ -190,4 +205,6 @@ pub struct ImagePushResult {
     pub image: ImageRef,
     /// Immutable digest when reported by the registry.
     pub digest: Option<String>,
+    /// Credential reference used for the push, never credential material.
+    pub credential_ref: Option<RegistryCredentialRef>,
 }

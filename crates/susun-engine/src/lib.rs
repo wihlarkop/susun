@@ -5,6 +5,7 @@
 
 pub mod artifact;
 pub mod capability;
+pub mod cleanup;
 pub mod doctor;
 pub mod engine;
 pub mod error;
@@ -12,6 +13,7 @@ pub mod identity;
 pub mod inventory;
 pub mod operation;
 pub mod profile;
+pub mod registry;
 pub mod resource;
 pub mod snapshot;
 
@@ -20,6 +22,9 @@ pub use artifact::{
     ImageRemoveResult, ImageSelector, ImageTagRequest, ImageTagResult,
 };
 pub use capability::{EngineApiVersion, EngineCapabilities, MountType, SupportLevel};
+pub use cleanup::{
+    CleanupPreview, CleanupPreviewSchemaVersion, CleanupScopePreview, ReclaimEstimateKind,
+};
 pub use doctor::{RuntimeDoctorReport, RuntimeDoctorStatus};
 pub use engine::{BoxEngineFuture, ContainerEngine};
 pub use error::{
@@ -49,6 +54,7 @@ pub use profile::{
     EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileError,
     EngineConnectionProfileId, EngineConnectionProfileSet,
 };
+pub use registry::{RegistryAuthMaterial, RegistryCredentialRef};
 pub use resource::{
     ConfigurationFingerprint, ContainerId, ImageId, LabelKey, LabelValue, NetworkId, ResourceName,
     ResourceNameError, VolumeId,

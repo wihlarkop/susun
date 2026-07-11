@@ -12,6 +12,7 @@ Copy-Item -LiteralPath "fixtures/compatibility/version-matrix.json" -Destination
 Copy-Item -LiteralPath "fixtures/compatibility/performance-budgets.json" -Destination "$outDir/performance-budgets.json" -Force
 Copy-Item -LiteralPath "fixtures/compatibility/real-world-catalog.json" -Destination "$outDir/real-world-catalog.json" -Force
 Copy-Item -LiteralPath "fixtures/compatibility/release-readiness.json" -Destination "$outDir/release-readiness.json" -Force
+Copy-Item -LiteralPath "fixtures/compatibility/studio-sdk-readiness.json" -Destination "$outDir/studio-sdk-readiness.json" -Force
 
 $matrix = Get-Content -LiteralPath "$outDir/capability-matrix.json" -Raw | ConvertFrom-Json
 $oracle = Get-Content -LiteralPath "$outDir/oracle-plan.json" -Raw | ConvertFrom-Json
@@ -20,6 +21,7 @@ $versions = Get-Content -LiteralPath "$outDir/version-matrix.json" -Raw | Conver
 $budgets = Get-Content -LiteralPath "$outDir/performance-budgets.json" -Raw | ConvertFrom-Json
 $realWorld = Get-Content -LiteralPath "$outDir/real-world-catalog.json" -Raw | ConvertFrom-Json
 $readiness = Get-Content -LiteralPath "$outDir/release-readiness.json" -Raw | ConvertFrom-Json
+$studioSdk = Get-Content -LiteralPath "$outDir/studio-sdk-readiness.json" -Raw | ConvertFrom-Json
 
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add("# Susun Capability and Compatibility Report")
@@ -146,6 +148,26 @@ if (@($readiness.deferred).Count -gt 0) {
     foreach ($item in @($readiness.deferred)) {
         $lines.Add("- $item")
     }
+}
+
+$lines.Add("")
+$lines.Add("## Studio SDK Readiness")
+$lines.Add("")
+$lines.Add("- Schema: $($studioSdk.schema_version.major).$($studioSdk.schema_version.minor)")
+$lines.Add("- Semver target: $($studioSdk.semver_target)")
+$lines.Add("- Status: $($studioSdk.status)")
+$lines.Add("")
+$lines.Add("| Capability | Support |")
+$lines.Add("| --- | --- |")
+foreach ($capability in @($studioSdk.capabilities)) {
+    $lines.Add(("| {0} | {1} |" -f $capability.name, $capability.support))
+}
+$lines.Add("")
+$lines.Add("Adapter fixtures: $(@($studioSdk.adapter_fixtures) -join ', ')")
+$lines.Add("")
+$lines.Add("Known limitations:")
+foreach ($item in @($studioSdk.limitations)) {
+    $lines.Add("- $item")
 }
 
 Set-Content -LiteralPath $docPath -Value $lines

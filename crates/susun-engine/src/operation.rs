@@ -734,6 +734,8 @@ pub enum PruneScope {
     Volumes,
     /// Unused (dangling) images.
     Images,
+    /// Unused build cache records.
+    BuildCache,
 }
 
 /// System-wide prune request. Unlike every other operation in this crate,
@@ -764,6 +766,8 @@ pub struct PruneReport {
     pub volumes_removed: Vec<VolumeId>,
     /// Removed image IDs.
     pub images_removed: Vec<ImageId>,
+    /// Removed build cache record IDs.
+    pub build_cache_records_removed: Vec<String>,
     /// Total disk space reclaimed, in bytes.
     pub space_reclaimed_bytes: u64,
 }

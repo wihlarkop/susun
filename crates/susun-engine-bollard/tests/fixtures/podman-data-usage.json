@@ -1,0 +1,6 @@
+{
+  "ImageUsage": { "ActiveCount": 1, "TotalCount": 2, "Reclaimable": null, "TotalSize": 4096 },
+  "ContainerUsage": { "ActiveCount": 1, "TotalCount": 1, "Reclaimable": 0, "TotalSize": 1024 },
+  "VolumeUsage": null,
+  "BuildCacheUsage": null
+}

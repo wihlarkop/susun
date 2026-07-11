@@ -19,9 +19,10 @@ pub mod workspace;
 
 pub use analyzer::{AnalysisResult, Analyzer};
 pub use artifacts::{
-    BuildResultSummary, parse_build_result_summary_json, parse_image_push_result_json,
-    parse_image_remove_result_json, parse_image_tag_result_json, render_build_result_summary_json,
-    render_image_push_result_json, render_image_remove_result_json, render_image_tag_result_json,
+    BuildResultSummary, parse_build_result_summary_json, parse_cleanup_preview_json,
+    parse_image_push_result_json, parse_image_remove_result_json, parse_image_tag_result_json,
+    render_build_result_summary_json, render_cleanup_preview_json, render_image_push_result_json,
+    render_image_remove_result_json, render_image_tag_result_json,
 };
 pub use inventory::{
     parse_engine_container_inventory_json, parse_engine_image_inventory_json,
@@ -70,22 +71,24 @@ pub use susun_build::{
 };
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
-    ActionProgress, ArtifactMutationSchemaVersion, ClientIdentityFiles, ContainerEngine,
-    ContainerId, ContainerRef, ContainerState, CopyFromContainerRequest, CopyToContainerRequest,
-    CreateContainerRequest, EngineArchitecture, EngineCapabilities, EngineConnectionDisplayName,
-    EngineConnectionError, EngineConnectionProfile, EngineConnectionProfileError,
-    EngineConnectionProfileId, EngineConnectionProfileSet, EngineContainerInventory,
-    EngineContainerSummary, EngineEndpoint, EngineEndpointKind, EngineError, EngineEvent,
-    EngineImageInventory, EngineImageSummary, EngineInformation, EngineInventorySchemaVersion,
-    EngineOperatingSystem, EngineOperation, EngineProbe, EngineProgressOperation, EngineSnapshot,
-    EngineVersion, EventsRequest, ExecRequest, HealthState, ImageId, ImagePushRequest,
-    ImagePushResult, ImageRemoveRequest, ImageRemoveResult, ImageSelector, ImageTagRequest,
-    ImageTagResult, LogEvent, LogSource, LogsRequest, ObservedContainer, ObservedImageRef,
-    Platform, PortRequest, ProgressSink, ProjectIdentity, ProjectInstanceId, PruneReport,
-    PruneRequest, PruneScope, PublishedPortBinding, RedactedEndpoint, RemoveContainerOptions,
-    ReplicaIndex, ResourceName, RuntimeDoctorReport, RuntimeDoctorStatus, ServiceInstanceId,
-    SnapshotCompleteness, SnapshotField, StopContainerRequest, SupportLevel, TcpEndpoint,
-    TlsConfiguration, WaitContainerRequest, WaitContainerResult,
+    ActionProgress, ArtifactMutationSchemaVersion, CleanupPreview, CleanupPreviewSchemaVersion,
+    CleanupScopePreview, ClientIdentityFiles, ContainerEngine, ContainerId, ContainerRef,
+    ContainerState, CopyFromContainerRequest, CopyToContainerRequest, CreateContainerRequest,
+    EngineArchitecture, EngineCapabilities, EngineConnectionDisplayName, EngineConnectionError,
+    EngineConnectionProfile, EngineConnectionProfileError, EngineConnectionProfileId,
+    EngineConnectionProfileSet, EngineContainerInventory, EngineContainerSummary, EngineEndpoint,
+    EngineEndpointKind, EngineError, EngineEvent, EngineImageInventory, EngineImageSummary,
+    EngineInformation, EngineInventorySchemaVersion, EngineOperatingSystem, EngineOperation,
+    EngineProbe, EngineProgressOperation, EngineSnapshot, EngineVersion, EventsRequest,
+    ExecRequest, HealthState, ImageId, ImagePushRequest, ImagePushResult, ImageRemoveRequest,
+    ImageRemoveResult, ImageSelector, ImageTagRequest, ImageTagResult, LogEvent, LogSource,
+    LogsRequest, ObservedContainer, ObservedImageRef, Platform, PortRequest, ProgressSink,
+    ProjectIdentity, ProjectInstanceId, PruneReport, PruneRequest, PruneScope,
+    PublishedPortBinding, ReclaimEstimateKind, RedactedEndpoint, RegistryAuthMaterial,
+    RegistryCredentialRef, RemoveContainerOptions, ReplicaIndex, ResourceName, RuntimeDoctorReport,
+    RuntimeDoctorStatus, ServiceInstanceId, SnapshotCompleteness, SnapshotField,
+    StopContainerRequest, SupportLevel, TcpEndpoint, TlsConfiguration, WaitContainerRequest,
+    WaitContainerResult,
 };
 pub use susun_graph::DependencyGraph;
 pub use susun_loader::LoadContext;
