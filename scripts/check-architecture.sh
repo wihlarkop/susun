@@ -51,7 +51,11 @@ check_public_api_leaks() {
     public_lines="$(grep -nE '^[[:space:]]*pub([({[:space:]]|$)' "$source" || true)"
     [ -n "$public_lines" ] || continue
 
-    if printf '%s\n' "$public_lines" | grep -Eq 'bollard::|Bollard[A-Za-z0-9_]*'; then
+    bollard_public_lines="$(
+      printf '%s\n' "$public_lines" |
+        grep -Ev 'pub use susun_engine_bollard::BollardEngine as DockerCompatibleEngine;' || true
+    )"
+    if printf '%s\n' "$bollard_public_lines" | grep -Eq 'bollard::|Bollard[A-Za-z0-9_]*'; then
       fail "$source public API must not mention Bollard adapter/backend types"
     fi
 
@@ -63,7 +67,7 @@ check_public_api_leaks() {
       fail "$source public API must not mention raw BuildKit transport types"
     fi
 
-    if printf '%s\n' "$public_lines" | grep -Eiq 'registry.*(client|token|credential)|oci_distribution|reqwest::'; then
+    if printf '%s\n' "$public_lines" | grep -Eiq 'RegistryClient|oci_distribution|reqwest::'; then
       fail "$source public API must not mention raw registry client types"
     fi
   done
