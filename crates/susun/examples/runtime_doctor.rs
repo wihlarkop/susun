@@ -2,9 +2,9 @@
 
 use std::process::ExitCode;
 
+use susun::DockerCompatibleEngine;
 use susun::{EngineConnectionDisplayName, EngineConnectionProfile, EngineConnectionProfileId};
 use susun_engine::EngineEndpoint;
-use susun_engine_bollard::BollardEngine;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -16,7 +16,7 @@ async fn main() -> ExitCode {
         }
     };
 
-    let report = BollardEngine::doctor_profile(&profile).await;
+    let report = DockerCompatibleEngine::doctor_profile(&profile).await;
     println!(
         "{} [{}] {}: {}",
         profile.display_name.as_str(),

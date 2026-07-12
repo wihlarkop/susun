@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Promoted the Docker-compatible engine adapter through the `susun` facade as
+  `DockerCompatibleEngine` under the existing `bollard` feature, removing the
+  need for Studio and other consumers to import the adapter crate directly.
 - Added Studio SDK readiness contracts for engine-wide artifact mutation,
   ephemeral registry authentication, credential references, and typed progress.
 - Added versioned non-destructive cleanup previews with explicit support and

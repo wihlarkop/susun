@@ -47,3 +47,11 @@ bollard = ["dep:susun-engine-bollard"]
 # platform-specific OS bindings) and the Dockerignore type it needs for
 # ignore-rule construction.
 watch = ["dep:susun-watch"]
+
+[[example]]
+name = "local_docker_up_down"
+required-features = ["bollard"]
+
+[[example]]
+name = "runtime_doctor"
+required-features = ["bollard"]

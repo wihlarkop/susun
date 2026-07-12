@@ -2,8 +2,8 @@
 
 use std::{process::ExitCode, sync::Arc};
 
+use susun::DockerCompatibleEngine;
 use susun::{DownPlanOptions, SusunWorkspace, UpPlanOptions};
-use susun_engine_bollard::BollardEngine;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -23,7 +23,7 @@ async fn main() -> ExitCode {
         return ExitCode::from(1);
     }
 
-    let engine = match BollardEngine::connect_local() {
+    let engine = match DockerCompatibleEngine::connect_local() {
         Ok(engine) => Arc::new(engine),
         Err(error) => {
             eprintln!("susun: {error}");

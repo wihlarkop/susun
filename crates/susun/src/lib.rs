@@ -90,6 +90,8 @@ pub use susun_engine::{
     StopContainerRequest, SupportLevel, TcpEndpoint, TlsConfiguration, WaitContainerRequest,
     WaitContainerResult,
 };
+#[cfg(feature = "bollard")]
+pub use susun_engine_bollard::BollardEngine as DockerCompatibleEngine;
 pub use susun_graph::DependencyGraph;
 pub use susun_loader::LoadContext;
 pub use susun_model::{Command, ImageRef, Project, ProjectName, ServiceName};
