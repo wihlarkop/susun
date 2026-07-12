@@ -3,11 +3,13 @@
 Susun is a Rust SDK and CLI for loading, normalizing, validating, planning, and
 running Docker Compose projects through structured Rust APIs.
 
-The current unpublished `0.1.0` line is the first public release candidate. It
-covers Compose analysis, daemon-free planning, Docker runtime execution,
+The workspace is currently unpublished. The frozen `0.1.0` candidate covers
+Compose analysis, daemon-free planning, Docker-compatible runtime execution,
 convergence decisions, BuildKit-oriented build inputs, SDK/CLI consumer
-contracts, compatibility evidence, package-readiness checks, and final
-release-candidate gates.
+contracts, compatibility evidence, and release gates. Development on `main`
+also includes the additive SDK surface planned for a future `0.2.0` line:
+engine-wide inventory, artifact mutation, registry authentication boundaries,
+and truthful cleanup previews. Publication remains a separate manual decision.
 
 ## SDK
 
@@ -130,6 +132,33 @@ and render them with `render_engine_connection_profile_set_summary_json`; the
 summary contains only profile ids, display names, endpoint kind, default
 selection, and Susun's redacted endpoint token.
 
+### Docker-Compatible Engines And Artifacts
+
+Applications using the `bollard` feature can construct
+`DockerCompatibleEngine` directly from the `susun` facade. The adapter name
+is intentionally product-neutral: the same engine contract can connect to
+Docker Engine, Docker Desktop, Podman, and other compatible endpoints. Runtime
+installation, virtual-machine lifecycle, WSL management, and provider ownership
+remain application concerns and are not part of the Susun SDK.
+
+The facade provides neutral, capability-gated contracts for:
+
+- engine information plus display-safe container and image inventory;
+- project-scoped snapshots, plans, execution, logs, events, exec, copy, and
+  ports;
+- image pull, remove, tag, build summaries, and registry push;
+- non-persisted registry authentication material paired with serializable
+  credential references;
+- typed, redacted operation progress and result summaries;
+- non-destructive cleanup previews with explicit support and reclaim-estimate
+  confidence, separate from destructive prune execution.
+
+Inventory, operation, and cleanup summaries are schema-versioned and
+deterministically ordered. Public display-safe DTOs exclude raw adapter
+payloads, credential values, registry authorization, and daemon root paths.
+Protected connection profiles may contain local endpoint or TLS paths and must
+remain in protected application storage.
+
 For project dashboards, `runtime_status_from_snapshot` converts a neutral
 `EngineSnapshot` plus `ProjectIdentity` into a compact `RuntimeStatusSummary`
 with service/container counts and JSON helpers. This is the recommended DTO for
@@ -190,27 +219,25 @@ metadata, or release-readiness deferred-work sections.
 
 Common local checks:
 
-```powershell
+```console
 cargo fmt --all --check
 cargo check --workspace
-cargo test -p susun --test analyzer
-cargo test -p susun-cli --test cli
-powershell -ExecutionPolicy Bypass -File scripts\gate-phase12.ps1
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo test --doc --workspace
+bash scripts/check-sdk-readiness.sh
 ```
 
-The full release gate is wired through GitHub Actions and the shell scripts in
-`scripts/`.
+The full release gate, cross-platform checks, adapter integration, compatibility
+artifacts, semver checks, and fuzz smoke tests are wired through GitHub Actions
+and the scripts in `scripts/`.
 
 ## Release
 
-Crates are published from a tag through `.github/workflows/release-crates.yml`.
-Before pushing `v0.1.0`, configure the repository Actions secret
-`CARGO_REGISTRY_TOKEN`.
+No Susun crate has been published yet. Release is intentionally postponed while
+the public API and downstream Studio integration continue to stabilize.
 
-```powershell
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-The workflow runs `scripts/gate-release.sh` and then publishes crates in the
-dependency order encoded by `scripts/publish-crates.sh`.
+When publication is approved, crates are released from an explicit version tag
+through `.github/workflows/release-crates.yml`. That workflow runs
+`scripts/gate-release.sh`, verifies semver and package readiness, and publishes
+crates in the dependency order encoded by `scripts/publish-crates.sh`.
