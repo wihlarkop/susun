@@ -65,9 +65,11 @@ pub use status::{
 };
 pub use susun_build::{
     BuildCancellationToken, BuildCapabilities, BuildEngine, BuildError, BuildEvent, BuildEventSink,
-    BuildId, BuildImageIdentity, BuildInputManifest, BuildLogStream, BuildOperation, BuildProgress,
-    BuildRequest, BuildResult, BuildSecret, BuildSshForward, BuildVertexId, BuildVertexStatus,
-    CacheEntry, Dockerignore, InsecureEntitlements,
+    BuildId, BuildImageIdentity, BuildInputManifest, BuildInputPaths, BuildLogStream,
+    BuildOperation, BuildProgress, BuildRequest, BuildResolveError, BuildResult, BuildSecret,
+    BuildSshForward, BuildVertexId, BuildVertexStatus, BuildxProcessBuildEngine,
+    BuildxProcessOptions, CacheEntry, DockerfileSource, DockerfileValidationError, Dockerignore,
+    InsecureEntitlements, resolve_build_inputs, validate_dockerfile_source,
 };
 pub use susun_diagnostics::{Diagnostic, DiagnosticReport, Severity};
 pub use susun_engine::{
@@ -94,7 +96,7 @@ pub use susun_engine::{
 pub use susun_engine_bollard::BollardEngine as DockerCompatibleEngine;
 pub use susun_graph::DependencyGraph;
 pub use susun_loader::LoadContext;
-pub use susun_model::{Command, ImageRef, Project, ProjectName, ServiceName};
+pub use susun_model::{BuildDefinition, Command, ImageRef, Project, ProjectName, ServiceName};
 pub use susun_normalize::selection::ProjectSelection;
 pub use susun_planner::{
     BuildPolicy, DownPlanOptions, ExecutionPlan, PlanError, PlanOutcome, PlannedOperation,
